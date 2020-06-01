@@ -471,6 +471,24 @@ func checkFreeTrialStatus(plan string, started time.Time) string {
 	}
 	return "not-applicable";
 }
+func checkIsMakingOutboundCallFirstTime(call Call) {
+	var id string
+	row := db.QueryRow("SELECT id FROM `calls` WHERE `workspace_id` = ? AND `from` LIKE '?%s' AND `direction = 'outbound'", call.WorkspaceId, call.From, call.Direction)
+	err := row.Scan(&id);
+	if ( err != sql.ErrNoRows ) {  //create conference
+		// all ok
+		return
+	}
+	//send notification
+	user, err := getUserFromDB(call.UserId)
+	if err != nil {
+		panic(err)
+	}
+	body := `A call was made to ` + call.To + ` for the first time on your account.`;
+	sendEmail(user, "First call to destination country", body)
+}
+func sendEmail(user *User, subject string, body string) {
+}
 func doVerifyCaller(workspaceId int, number string) (bool, error) {
 	var workspace* Workspace;
 	workspace, err := getWorkspaceFromDB(workspaceId)
@@ -534,6 +552,11 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 		return 
 	}
 	call.APIId = createAPIID("call")
+
+	if call.Direction == "outbound" {
+		//check if this is the first time we are making a call to this destination
+		go checkIsMakingOutboundCallFirstTime(call)
+	}
 
   // perform a db.Query insert
 	stmt, err := db.Prepare("INSERT INTO calls (`from`, `to`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `api_id`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )")
