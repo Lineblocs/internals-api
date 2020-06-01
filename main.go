@@ -62,6 +62,7 @@ type CallRate struct {
 
 type DebitAPIParams struct {
 	Length int `json:"length"`	
+	RecordingLength float64 `json:"recording_length"`	
 }
 type DebitAPICreateReq struct {
   UserId int `json:"user_id"`
@@ -217,6 +218,12 @@ func handleInternalErr(msg string, err error, w http.ResponseWriter) {
 }
 func calculateTTSCosts(length int) float64 {
 	var result float64 = float64(length) * .000005
+	return result
+}
+func calculateSTTCosts(recordingLength float64) float64 {
+	// Google cloud bills .006 per 15 seconds
+	billable := recordingLength / 15
+	var result float64 = 0.006 * billable
 	return result
 }
 func getUserFromDB(id int) (*User, error) {
@@ -714,6 +721,22 @@ func CreateAPIUsageDebit(w http.ResponseWriter, r *http.Request) {
 			handleInternalErr("CreateAPIUsageDebit Could not execute query..", err, w);
 			return 
 		}
+	} else if debitReq.Type == "STT" {
+		dollars := calculateSTTCosts(debitReq.Params.RecordingLength)
+		cents := toCents( dollars )
+		source := fmt.Sprintf("API usage - %s", debitReq.Type);
+		stmt, err := db.Prepare("INSERT INTO user_debits (`user_id, `cents`, `source`) VALUES ( ?, ?, ? )");
+		if err != nil {
+			handleInternalErr("CreateDebit Could not execute query..", err, w);
+			return 
+		}
+		_, err = stmt.Exec(debitReq.UserId, cents, source)
+		if err != nil {
+			handleInternalErr("CreateAPIUsageDebit Could not execute query..", err, w);
+			return 
+		}
+
+
 	}
   	w.WriteHeader(http.StatusNoContent)
 }
