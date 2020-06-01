@@ -34,6 +34,11 @@ type CallUpdateReq struct {
   CallId int `json:"call_id"`
   Status string `json:"status"`
 }
+type RecordingTranscriptionReq struct {
+	Id string `json:"id"`
+  Ready bool `json:"ready"`
+  Text string `json:"text"`
+}
 type Conference struct {
   Name string `json:"name"`
   WorkspaceId int `json:"workspace_id"`
@@ -948,6 +953,24 @@ func UpdateRecording(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func UpdateRecordingTranscription(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+  var update RecordingTranscriptionReq
+   err := json.NewDecoder(r.Body).Decode(&update)
+	if err != nil {
+		handleInternalErr("UpdateRecordingTranscription error", err, w)
+
+		return 
+	}
+	stmt, err := db.Prepare("UPDATE recordings SET `transcription_ready` = ?, `transcription_text` = ? WHERE `id` = ?")
+	_, err  = stmt.Exec("1", update.Text, update.Id)
+	if err != nil {
+		handleInternalErr("UpdateCall Could not execute query", err, w)
+		return
+	}
+
+  	w.WriteHeader(http.StatusNoContent)
+}
 
 func VerifyCaller(w http.ResponseWriter, r *http.Request) {
 	workspaceId := getQueryVariable(r, "workspaceId")
@@ -1464,6 +1487,7 @@ func main() {
 	//recording
 	r.HandleFunc("/recording/createRecording", CreateRecording).Methods("POST");
 	r.HandleFunc("/recording/updateRecording", UpdateRecording).Methods("POST");
+	r.HandleFunc("/recording/updateRecordingTranscription", UpdateRecordingTranscription).Methods("POST");
 
 
 	// user functions
