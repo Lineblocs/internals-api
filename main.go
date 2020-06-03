@@ -12,6 +12,7 @@ import (
 	"mime/multipart"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/handlers"
+	"reflect"
 	"fmt"
 	"database/sql"
     "encoding/json"
@@ -133,6 +134,8 @@ type Workspace struct {
   CreatorId int `json:"creator_id"`
   Name string `json:"name"`
   BYOEnabled bool `json:"byo_enabled"`
+  IPWhitelistDisabled bool `json:"ip_whitelist_disabled"`
+  OutboundMacroId int `json:"outbound_macro_id"`
 }
 
 type WorkspaceParam struct {
@@ -144,6 +147,7 @@ type WorkspaceFullInfo struct {
 	WorkspaceName string `json:"workspace_name"`
 	WorkspaceId int `json:"workspace_id"`
 	WorkspaceParams *[]WorkspaceParam `json:"workspace_params"`
+  	OutboundMacroId int `json:"outbound_macro_id"`
 }
 type WorkspaceDIDInfo struct {
   WorkspaceId int `json:"workspace_id"`
@@ -153,6 +157,8 @@ type WorkspaceDIDInfo struct {
   Name string `json:"name"`
   Plan string `json:"plan"`
   BYOEnabled bool `json:"byo_enabled"`
+  IPWhitelistDisabled bool `json:"ip_whitelist_disabled"`
+  OutboundMacroId int `json:"outbound_macro_id"`
   CreatorId int `json:"creator_id"`
   APIToken string `json:"api_token"`
   APISecret string `json:"api_secret"`
@@ -202,6 +208,10 @@ type MacroFunction struct {
 	Code string `json:"code"`
 	CompiledCode string `json:"compiled_code"`
 }
+type MediaServer struct {
+	IpAddress string `json:"ip_address"`
+	PrivateIpAddress string `json:"private_ip_address"`
+}
 var db* sql.DB;
 
 func createAPIID(prefix string) string {
@@ -249,31 +259,35 @@ func getWorkspaceFromDB(id int) (*Workspace, error) {
 	var workspaceId int
 	var name string
 	var creatorId int
-	row := db.QueryRow(`SELECT id, name, creator_id FROM workspaces WHERE id=?`, id)
+	var outboundMacroId sql.NullInt64
+	row := db.QueryRow(`SELECT id, name, creator_id, outbound_macro_id FROM workspaces WHERE id=?`, id)
 
-	err := row.Scan(&workspaceId, &name, &creatorId)
+	err := row.Scan(&workspaceId, &name, &creatorId, &outboundMacroId)
 	if ( err == sql.ErrNoRows ) {  //create conference
 		return nil, err
 	}
 	if ( err != nil ) {  //another error
 		return nil, err
 	}
-
-	return &Workspace{Id: workspaceId, Name: name, CreatorId: creatorId}, nil
+    if reflect.TypeOf(outboundMacroId) == nil {
+		return &Workspace{Id: workspaceId, Name: name, CreatorId: creatorId}, nil
+	}
+	return &Workspace{Id: workspaceId, Name: name, CreatorId: creatorId, OutboundMacroId: int(outboundMacroId.Int64)}, nil
 }
 func getWorkspaceByDomain(domain string) (*Workspace, error) {
 	var workspaceId int
 	var name string
 	var byo bool
+	var ipWhitelist bool
 	s := strings.Split(domain, ".")
 	workspaceName := s[0]
-	row := db.QueryRow("SELECT id, name, byo_enabled FROM workspaces WHERE name=?", workspaceName)
+	row := db.QueryRow("SELECT id, name, byo_enabled, ip_whitelist_disabled FROM workspaces WHERE name=?", workspaceName)
 
-	err := row.Scan(&workspaceId, &name, &byo)
+	err := row.Scan(&workspaceId, &name, &byo, &ipWhitelist)
 	if ( err == sql.ErrNoRows ) {  //create conference
 		return nil, err
 	}
-	return &Workspace{Id: workspaceId, Name: name, BYOEnabled: byo}, nil
+	return &Workspace{Id: workspaceId, Name: name, BYOEnabled: byo, IPWhitelistDisabled: ipWhitelist}, nil
 }
 
 func getWorkspaceParams(workspaceId int) (*[]WorkspaceParam, error) {
@@ -310,7 +324,8 @@ func getUserByDomain(domain string) (*WorkspaceFullInfo, error) {
 	full := &WorkspaceFullInfo{ Workspace: workspace, 
 		WorkspaceParams: params,
 		WorkspaceName: workspace.Name,
-		WorkspaceId: workspace.Id };
+		WorkspaceId: workspace.Id,
+		OutboundMacroId: workspace.OutboundMacroId	};
 
 	return full, nil
 }
@@ -500,6 +515,21 @@ func checkIsMakingOutboundCallFirstTime(call Call) {
 	sendEmail(user, "First call to destination country", body)
 }
 func sendEmail(user *User, subject string, body string) {
+}
+func someLoadBalancingLogic() (*MediaServer,error) {
+	results, err := db.Query("SELECT ip_address,private_ip_address FROM media_servers");
+    if err != nil {
+		return nil,err
+	}
+    for results.Next() {
+		value := MediaServer{};
+		err = results.Scan(&value.IpAddress,&value.PrivateIpAddress);
+		if err != nil {
+			return nil,err
+		}
+		return &value,nil
+	}
+	return nil,nil
 }
 func doVerifyCaller(workspaceId int, number string) (bool, error) {
 	var workspace* Workspace;
@@ -1032,7 +1062,15 @@ func VerifyCallerByDomain(w http.ResponseWriter, r *http.Request) {
   	json.NewEncoder(w).Encode(&result)
 }
 func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
-
+	server, err := someLoadBalancingLogic()
+	if err != nil {
+		handleInternalErr("GetUserAssignedIP error occured", err, w)
+		return
+	}
+	if server == nil {
+		handleInternalErr("GetUserAssignedIP could not get server", err, w)
+	}
+	w.Write([]byte(server.PrivateIpAddress));
 }
 
 func GetUserByDomain(w http.ResponseWriter, r *http.Request) {
@@ -1239,13 +1277,82 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 
 }
 func IPWhitelistLookup(w http.ResponseWriter, r *http.Request) {
+	source := getQueryVariable(r, "ip")
+	domain := getQueryVariable(r, "domain")
+	workspace, err := getWorkspaceByDomain( *domain )
+	if err != nil {
+		handleInternalErr("IPWhitelistLookup error occured", err, w)
+		return
+	}
+	results, err := db.Query("SELECT ip, range FROM ip_whitelist WHERE `workspace_id` = ?", workspace.Id)
+    if err != nil {
+		handleInternalErr("IPWhitelistLookup error", err, w)
+		return
+	}
+	if workspace.IPWhitelistDisabled {
+		  w.WriteHeader(http.StatusNoContent)
+		  return
+	}
 
+    for results.Next() {
+		var ip string
+		var ipRange string
+		err = results.Scan(&ip, &ipRange)
+		if err != nil {
+			handleInternalErr("IPWhitelistLookup error", err, w)
+			return
+
+		}
+		fullIp := ip + ipRange
+		match,err := checkCIDRMatch(*source, fullIp) 
+		if err != nil {
+			handleInternalErr("IPWhitelistLookup error", err, w)
+			return
+		}
+		if match {
+			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+	}
+	w.WriteHeader(http.StatusNotFound)
 }
 func GetDIDAcceptOption(w http.ResponseWriter, r *http.Request) {
+	did := getQueryVariable(r, "did")
 
+	row := db.QueryRow(`SELECT did_action FROM did_numbers WHERE did_numbers.api_number = ?`, did)
+	var action string
+	err := row.Scan(&action)
+	if err == nil {
+		w.Write([]byte(action));
+		return
+	}
+	if ( err != sql.ErrNoRows ) {  //create conference
+		handleInternalErr("GetDIDAcceptOption error occured", err, w)
+		return
+	}
+
+	row = db.QueryRow(`SELECT did_action FROM byo_did_numbers WHERE did_numbers.number = ?`, did)
+	err = row.Scan(&action)
+	if ( err != sql.ErrNoRows ) {  //create conference
+		handleInternalErr("GetDIDAcceptOption error occured", err, w)
+		return
+	}
+	if err != nil {
+		handleInternalErr("GetDIDAcceptOption error occured", err, w)
+		return
+	}
+	w.Write([]byte(action));
 }
 func GetDIDAssignedIP(w http.ResponseWriter, r *http.Request) {
-
+	server, err := someLoadBalancingLogic()
+	if err != nil {
+		handleInternalErr("GetUserAssignedIP error occured", err, w)
+		return
+	}
+	if server == nil {
+		handleInternalErr("GetUserAssignedIP could not get server", err, w)
+	}
+	w.Write([]byte(server.PrivateIpAddress));
 }
 func GetCallerIdToUse(w http.ResponseWriter, r *http.Request) {
 	domain := getQueryVariable(r, "domain")
