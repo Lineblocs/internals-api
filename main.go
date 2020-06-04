@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"strings"
+	//"errors"
 	"mime/multipart"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/handlers"
@@ -32,7 +33,7 @@ type Call struct {
   APIId string `json:"api_id"`
 }
 type CallUpdateReq struct {
-  CallId int `json:"call_id"`
+  CallId string `json:"call_id"`
   Status string `json:"status"`
 }
 type RecordingTranscriptionReq struct {
@@ -142,9 +143,11 @@ type WorkspaceParam struct {
 	Key string `json:"key"`
 	Value string `json:"value"`
 }
-type WorkspaceFullInfo struct {
+type WorkspaceCreatorFullInfo struct {
+  Id int `json:"id"`
 	Workspace *Workspace `json:"workspace"`
 	WorkspaceName string `json:"workspace_name"`
+	WorkspaceDomain string `json:"workspace_domain"`
 	WorkspaceId int `json:"workspace_id"`
 	WorkspaceParams *[]WorkspaceParam `json:"workspace_params"`
   	OutboundMacroId int `json:"outbound_macro_id"`
@@ -212,7 +215,13 @@ type MediaServer struct {
 	IpAddress string `json:"ip_address"`
 	PrivateIpAddress string `json:"private_ip_address"`
 }
+
+type GlobalSettings struct {
+  ValidateCallerId bool
+}
+
 var db* sql.DB;
+var settings *GlobalSettings;
 
 func createAPIID(prefix string) string {
 	id := guuid.New()
@@ -279,15 +288,16 @@ func getWorkspaceByDomain(domain string) (*Workspace, error) {
 	var name string
 	var byo bool
 	var ipWhitelist bool
+	var creatorId int
 	s := strings.Split(domain, ".")
 	workspaceName := s[0]
-	row := db.QueryRow("SELECT id, name, byo_enabled, ip_whitelist_disabled FROM workspaces WHERE name=?", workspaceName)
+	row := db.QueryRow("SELECT id, creator_id, name, byo_enabled, ip_whitelist_disabled FROM workspaces WHERE name=?", workspaceName)
 
-	err := row.Scan(&workspaceId, &name, &byo, &ipWhitelist)
+	err := row.Scan(&workspaceId, &creatorId, &name, &byo, &ipWhitelist)
 	if ( err == sql.ErrNoRows ) {  //create conference
 		return nil, err
 	}
-	return &Workspace{Id: workspaceId, Name: name, BYOEnabled: byo, IPWhitelistDisabled: ipWhitelist}, nil
+	return &Workspace{Id: workspaceId, CreatorId: creatorId, Name: name, BYOEnabled: byo, IPWhitelistDisabled: ipWhitelist}, nil
 }
 
 func getWorkspaceParams(workspaceId int) (*[]WorkspaceParam, error) {
@@ -310,7 +320,7 @@ func getWorkspaceParams(workspaceId int) (*[]WorkspaceParam, error) {
 	return &params, nil;
 }
 
-func getUserByDomain(domain string) (*WorkspaceFullInfo, error) {
+func getUserByDomain(domain string) (*WorkspaceCreatorFullInfo, error) {
 	workspace, err := getWorkspaceByDomain( domain )
 	if err != nil {
 		return nil, err
@@ -321,9 +331,12 @@ func getUserByDomain(domain string) (*WorkspaceFullInfo, error) {
     if err != nil {
 		return nil, err;
 	}
-	full := &WorkspaceFullInfo{ Workspace: workspace, 
+	full := &WorkspaceCreatorFullInfo{ 
+    Id: workspace.CreatorId,
+    Workspace: workspace, 
 		WorkspaceParams: params,
 		WorkspaceName: workspace.Name,
+		WorkspaceDomain: fmt.Sprintf("%s.lineblocs.com", workspace.Name),
 		WorkspaceId: workspace.Id,
 		OutboundMacroId: workspace.OutboundMacroId	};
 
@@ -426,12 +439,13 @@ func checkPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 		var ipAddrRange string
 		err = results.Scan(&ipAddr, &ipAddrRange)
 		if err != nil {
-			return false, err
+		  return false, err
+
 		}
 		fullIp := ipAddr + ipAddrRange
 		match, err := checkCIDRMatch(sourceIp, fullIp) 
 		if err != nil {
-			return false, err
+		  return false, err
 		}
 		if match {
 			return true, nil
@@ -442,7 +456,7 @@ func checkPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 func checkBYOPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 	results, err := db.Query(`SELECT 
 	byo_carriers_ips.ip,
-	byo_carriers_ips.range,
+	byo_carriers_ips.range
 	FROM byo_carriers_ips
 	INNER JOIN byo_carriers ON byo_carriers.id = byo_carriers_ips.carrier_id`)
     if err != nil {
@@ -451,7 +465,7 @@ func checkBYOPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
     for results.Next() {
 		var ipAddr string
 		var ipAddrRange string
-		err = results.Scan(&ipAddr, ipAddrRange)
+		err = results.Scan(&ipAddr, &ipAddrRange)
 		if err != nil {
 			return false, err
 		}
@@ -533,6 +547,11 @@ func someLoadBalancingLogic() (*MediaServer,error) {
 }
 func doVerifyCaller(workspaceId int, number string) (bool, error) {
 	var workspace* Workspace;
+
+  if !settings.ValidateCallerId { 
+    return true, nil
+  }
+
 	workspace, err := getWorkspaceFromDB(workspaceId)
 	if err != nil {
 		return false, err
@@ -543,7 +562,8 @@ func doVerifyCaller(workspaceId int, number string) (bool, error) {
 		return false, err
 	}
 	formattedNum := libphonenumber.Format(num, libphonenumber.E164)
-	fmt.Printf("looking up number %s", formattedNum)
+	fmt.Printf("looking up number %s\r\n", formattedNum)
+	fmt.Printf("domain isr %s\r\n", workspace.Name)
 	var id string
 	row := db.QueryRow("SELECT id FROM `did_numbers` WHERE `number` = ? AND `workspace_id` = ?", formattedNum, workspace.Id)
 	err = row.Scan(&id);
@@ -632,7 +652,7 @@ func UpdateCall(w http.ResponseWriter, r *http.Request) {
   var update CallUpdateReq
    err := json.NewDecoder(r.Body).Decode(&update)
 	if err != nil {
-		handleInternalErr("UpdateCall Could not decode JSON", err, w)
+		handleInternalErr("UpdateCall 1 Could not decode JSON", err, w)
 
 		return 
 	}
@@ -640,9 +660,9 @@ func UpdateCall(w http.ResponseWriter, r *http.Request) {
 	
 	if ( update.Status == "ended" ) {
 		// perform a db.Query insert
-		stmt, err := db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ? WHERE `id` = ?")
+		stmt, err := db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ? WHERE `api_id` = ?")
 		if err != nil {
-			fmt.Printf("CreateCall Could not execute query..");
+			fmt.Printf("UpdateCall 2 Could not execute query..");
 			fmt.Println(err)
   			w.WriteHeader(http.StatusInternalServerError)
 			return 
@@ -651,7 +671,7 @@ func UpdateCall(w http.ResponseWriter, r *http.Request) {
 		endedAt := time.Now()
 		_, err = stmt.Exec(update.Status, endedAt, update.CallId)
 		if err != nil {
-			handleInternalErr("UpdateCall Could not execute query", err, w)
+			handleInternalErr("UpdateCall 3 Could not execute query", err, w)
 			return
 		}
 	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
@@ -776,7 +796,7 @@ func CreateLog(w http.ResponseWriter, r *http.Request) {
 
    err := json.NewDecoder(r.Body).Decode(&logReq)
 	if err != nil {
-		handleInternalErr("CreateLog Could not decode JSON", err, w)
+		handleInternalErr("CreateLog 1 Could not decode JSON", err, w)
 		return 
 	}
 	level := "info"
@@ -802,7 +822,7 @@ func CreateLog(w http.ResponseWriter, r *http.Request) {
 		WorkspaceId: logReq.WorkspaceId }
 	_, err = startLogRoutine( log )
 	if err != nil {
-		handleInternalErr("CreateLog log routine error", err, w)
+		handleInternalErr("CreateLog 2 log routine error", err, w)
 		return 
 	}
 }
@@ -1026,7 +1046,7 @@ func UpdateRecordingTranscription(w http.ResponseWriter, r *http.Request) {
 }
 
 func VerifyCaller(w http.ResponseWriter, r *http.Request) {
-	workspaceId := getQueryVariable(r, "workspaceId")
+	workspaceId := getQueryVariable(r, "workspace_id")
 	workspaceIdInt, err := strconv.Atoi(*workspaceId)
 	if err != nil {
 		handleInternalErr("VerifyCaller error occured", err, w)
@@ -1049,17 +1069,19 @@ func VerifyCallerByDomain(w http.ResponseWriter, r *http.Request) {
 
 	workspace, err := getWorkspaceByDomain(*domain)
 	if err != nil {
-		handleInternalErr("VerifyCallerByDomain error occured", err, w)
+		handleInternalErr("VerifyCallerByDomain error 1 occured", err, w)
 		return
 	}
 	valid, err := doVerifyCaller(workspace.Id, *number)
 	if err != nil {
-		handleInternalErr("VerifyCaller error occured", err, w)
+		handleInternalErr("VerifyCaller error 2 occured", err, w)
 		return
 	}
-
-	result := VerifyNumber{ Valid:  valid }
-  	json.NewEncoder(w).Encode(&result)
+  if !valid {
+		handleInternalErr("VerifyCaller number not valid", err, w)
+		return
+	}
+  w.WriteHeader(http.StatusNoContent)
 }
 func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 	server, err := someLoadBalancingLogic()
@@ -1111,6 +1133,7 @@ func GetWorkspaceMacros(w http.ResponseWriter, r *http.Request) {
 func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 	number := getQueryVariable(r, "number")
 	var info WorkspaceDIDInfo;
+	var flowJson sql.NullString
 	// Execute the query
 	row := db.QueryRow(`SELECT flows.workspace_id, flows.flow_json, did_numbers.number, workspaces.name, workspaces.name AS workspace_name, 
         users.plan,
@@ -1121,13 +1144,13 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 		workspaces.api_secret 
 		FROM workspaces
 		INNER JOIN did_numbers ON did_numbers.workspace_id = workspaces.id	
-		INNER JOIN flows ON flows.workspace_id = flows.id	
+		INNER JOIN flows ON flows.id = did_numbers.flow_id	
 		INNER JOIN users ON users.id = workspaces.creator_id
 		WHERE did_numbers.api_number = ?	
 		`, number);
 	err := row.Scan(
 			&info.WorkspaceId,
-			&info.FlowJSON,
+      &flowJson,
 			&info.Number,
 			&info.Name,
 			&info.WorkspaceName,
@@ -1137,6 +1160,10 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.APIToken,
 			&info.APISecret )
 	if ( err == nil && err != sql.ErrNoRows ) {  
+    if ( flowJson.Valid ) {
+      info.FlowJSON = flowJson.String
+    }
+
 		params, err := getWorkspaceParams(info.WorkspaceId)
 		if err != nil {
 			handleInternalErr("GetDIDNumberData error", err, w)
@@ -1159,13 +1186,17 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
         workspaces.api_token,
 		workspaces.api_secret FROM workspaces
 		INNER JOIN byo_did_numbers ON byo_did_numbers.workspace_id = workspaces.id	
-		INNER JOIN flows ON flows.workspace_id = flows.id	
+		INNER JOIN flows ON flows.id = byo_did_numbers.flow_id	
 		INNER JOIN users ON users.id = workspaces.creator_id
 		WHERE byo_did_numbers.number = ?	
 		`, number);
+  if ( flowJson.Valid ) {
+    info.FlowJSON = flowJson.String
+  }
+
 	err = row.Scan(
 			&info.WorkspaceId,
-			&info.FlowJSON,
+			&flowJson,
 			&info.Number,
 
 			&info.Name,
@@ -1178,6 +1209,10 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 
 			&info.APISecret )
 	if ( err == nil && err != sql.ErrNoRows ) {  
+    if ( flowJson.Valid ) {
+      info.FlowJSON = flowJson.String
+    }
+
 		params, err := getWorkspaceParams(info.WorkspaceId)
 		if err != nil {
 			handleInternalErr("GetDIDNumberData error", err, w)
@@ -1222,7 +1257,7 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 	    for results.Next() {
 			var name string
 			var ip string
-			var ipPrivate string
+	    var ipPrivate sql.NullString
 			var prefix string
 			var prepend string
 			var match string
@@ -1231,21 +1266,24 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 				handleInternalErr("GetPSTNProviderIP error", err, w)
 				return
 			}
+      if !ipPrivate.Valid {
+        fmt.Printf("skipping 1 PSTN IP result as private IP is empty..\r\n");
+        continue
+      }
 			if checkRouteMatches(*from, *to, prefix, prepend, match) {
 				var number string
 				number = prepend + *to
-				info := &WorkspacePSTNInfo{ IPAddr: ipPrivate, DID: number }
+				info := &WorkspacePSTNInfo{ IPAddr: ipPrivate.String, DID: number }
 				json.NewEncoder(w).Encode(&info)
 				return
 			}
 		}
-		//w.WriteHeader(http.StatusNotFound)
-		return
 	}
 	results, err := db.Query(`SELECT sip_providers.name, sip_providers_hosts.ip_address
 		FROM sip_providers
 		INNER JOIN sip_providers_hosts ON sip_providers_hosts.provider_id = sip_providers.id
 		WHERE sip_providers.type_of_provider = 'outbound'
+    OR sip_providers.type_of_provider = 'both'
 		`)
 	if err != nil {
 		handleInternalErr("GetPSTNProviderIP error", err, w)
@@ -1253,13 +1291,18 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 	}
 	for results.Next() {
 		var name string
-		var ipAddr string
+	  var ipAddr sql.NullString
 		err = results.Scan(&name, &ipAddr)
 		if err != nil {
 			handleInternalErr("GetPSTNProviderIP error", err, w)
 			return
 		}
-		result, err := shouldUseProviderNext(name, ipAddr)
+    if !ipAddr.Valid {
+      fmt.Printf("skipping 2 PSTN IP result as private IP is empty..\r\n");
+      continue
+    }
+
+		result, err := shouldUseProviderNext(name, ipAddr.String)
 		if err != nil {
 			handleInternalErr("GetPSTNProviderIP error", err, w)
 			return
@@ -1268,13 +1311,12 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 		if result {
 			var number string
 			number = *to
-			info := &WorkspacePSTNInfo{ IPAddr: ipAddr, DID: number }
+			info := &WorkspacePSTNInfo{ IPAddr: ipAddr.String, DID: number }
 			json.NewEncoder(w).Encode(&info)
 			return
 		}
 	}
-
-
+	w.WriteHeader(http.StatusNotFound)
 }
 func IPWhitelistLookup(w http.ResponseWriter, r *http.Request) {
 	source := getQueryVariable(r, "ip")
@@ -1284,7 +1326,7 @@ func IPWhitelistLookup(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("IPWhitelistLookup error occured", err, w)
 		return
 	}
-	results, err := db.Query("SELECT ip, range FROM ip_whitelist WHERE `workspace_id` = ?", workspace.Id)
+	results, err := db.Query("SELECT ip, `range` FROM ip_whitelist WHERE `workspace_id` = ?", workspace.Id)
     if err != nil {
 		handleInternalErr("IPWhitelistLookup error", err, w)
 		return
@@ -1326,22 +1368,19 @@ func GetDIDAcceptOption(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(action));
 		return
 	}
-	if ( err != sql.ErrNoRows ) {  //create conference
-		handleInternalErr("GetDIDAcceptOption error occured", err, w)
+	if ( err != nil && err != sql.ErrNoRows ) {  //create conference
+		handleInternalErr("GetDIDAcceptOption error 1 occured", err, w)
 		return
 	}
 
-	row = db.QueryRow(`SELECT did_action FROM byo_did_numbers WHERE did_numbers.number = ?`, did)
+	row = db.QueryRow(`SELECT did_action FROM byo_did_numbers WHERE byo_did_numbers.number = ?`, did)
 	err = row.Scan(&action)
-	if ( err != sql.ErrNoRows ) {  //create conference
-		handleInternalErr("GetDIDAcceptOption error occured", err, w)
+  fmt.Println("err check is ", err);
+  if err == nil {
+		w.Write([]byte(action));
 		return
 	}
-	if err != nil {
-		handleInternalErr("GetDIDAcceptOption error occured", err, w)
-		return
-	}
-	w.Write([]byte(action));
+	handleInternalErr("GetDIDAcceptOption error 2 occured", err, w)
 }
 func GetDIDAssignedIP(w http.ResponseWriter, r *http.Request) {
 	server, err := someLoadBalancingLogic()
@@ -1356,15 +1395,16 @@ func GetDIDAssignedIP(w http.ResponseWriter, r *http.Request) {
 }
 func GetCallerIdToUse(w http.ResponseWriter, r *http.Request) {
 	domain := getQueryVariable(r, "domain")
-	extension := getQueryVariable(r, "domain")
+	extension := getQueryVariable(r, "extension")
 	workspace, err := getWorkspaceByDomain(*domain)
 	if err != nil {
-		handleInternalErr("GetCallerIdToUse error", err, w)
+		handleInternalErr("GetCallerIdToUse error 1 ", err, w)
 		return
 	}
 
 	var callerId string
-	row := db.QueryRow("SELECT caller_id FROM extensions WHERE workspace_id=? AND username = ?", workspace.Id, extension)
+  fmt.Printf("Looking up caller ID in domain %s, ID %d, extension %s\r\n", workspace.Name, workspace.Id, *extension)
+	row := db.QueryRow("SELECT caller_id FROM extensions WHERE workspace_id=? AND username = ?", workspace.Id, *extension)
 
 	err = row.Scan(&callerId)
 	if ( err == sql.ErrNoRows ) {  //create conference
@@ -1495,7 +1535,7 @@ func IncomingPSTNValidation(w http.ResponseWriter, r *http.Request) {
 	err := row.Scan(&didNumber,
 			&didApiNumber,
 			&didWorkspaceId)
-	if ( err != sql.ErrNoRows ) {  //create conference
+	if ( err == nil ) {  //create conference
 		match, err := checkPSTNIPWhitelist(*did, *source) 
 		if err != nil {
 			handleInternalErr("IncomingPSTNValidation error 1", err, w)
@@ -1519,7 +1559,7 @@ func IncomingPSTNValidation(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	if err != nil {
+	if err != sql.ErrNoRows {
 		handleInternalErr("IncomingPSTNValidation error 3", err, w)
 		return
 	}
@@ -1530,10 +1570,10 @@ func IncomingPSTNValidation(w http.ResponseWriter, r *http.Request) {
 	var byoDidWorkspaceId string
 	err = row.Scan(&byoDidNumber,
 			&byoDidWorkspaceId)
-	if ( err != sql.ErrNoRows ) {  //create conference
+	if ( err == nil ) {  //create conference
 		match, err := checkBYOPSTNIPWhitelist(*did, *source) 
 		if err != nil {
-			handleInternalErr("IncomingPSTNValidation error 1", err, w)
+			handleInternalErr("IncomingPSTNValidation error 3", err, w)
 			return
 		}
 
@@ -1541,7 +1581,7 @@ func IncomingPSTNValidation(w http.ResponseWriter, r *http.Request) {
 			fmt.Printf("Matched incoming DID..")
 			valid, err := finishValidation(*number, byoDidWorkspaceId)
 			if err != nil {
-				handleInternalErr("IncomingPSTNValidation error valid", err, w)
+				handleInternalErr("IncomingPSTNValidation error 4 valid", err, w)
 				return
 			}
 			if !valid {
@@ -1608,8 +1648,8 @@ func main() {
 	r.HandleFunc("/debit/createAPIUsageDebit", CreateAPIUsageDebit).Methods("POST");
 
 	//logs
-	r.HandleFunc("/log/createLog", CreateLog).Methods("POST");
-	r.HandleFunc("/log/createLogSimple", CreateLogSimple).Methods("POST");
+	r.HandleFunc("/debugger/createLog", CreateLog).Methods("POST");
+	r.HandleFunc("/debugger/createLogSimple", CreateLogSimple).Methods("POST");
 
 	//fax
 	r.HandleFunc("/fax/createFax", CreateFax).Methods("POST");
@@ -1643,12 +1683,13 @@ func main() {
 
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
 	var err error
-	//db, err = sql.Open("mysql", "lineblocs:lineblocs@lineblocs.ckehyurhpc6m.ca-central-1.rds.amazonaws.com/lineblocs")
-	db, err = sql.Open("mysql", "root:mysql@tcp(127.0.0.1:3306)/lineblocs?parseTime=true") //add parse time
+	db, err = sql.Open("mysql", "lineblocs:lineblocs@tcp(lineblocs.ckehyurhpc6m.ca-central-1.rds.amazonaws.com:3306)/lineblocs?parseTime=true")
+	//db, err = sql.Open("mysql", "root:mysql@tcp(127.0.0.1:3306)/lineblocs?parseTime=true") //add parse time
 	if err != nil {
 		panic("Could not connect to MySQL");
 		return
 	}
+  settings = &GlobalSettings{ValidateCallerId: false}
     // Bind to a port and pass our router in
-    log.Fatal(http.ListenAndServe(":8080", loggedRouter))
+    log.Fatal(http.ListenAndServe(":8009", loggedRouter))
 }
