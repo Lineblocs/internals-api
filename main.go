@@ -1691,5 +1691,5 @@ func main() {
 	}
   settings = &GlobalSettings{ValidateCallerId: false}
     // Bind to a port and pass our router in
-    log.Fatal(http.ListenAndServe(":8009", loggedRouter))
+    log.Fatal(http.ListenAndServe(":80", loggedRouter))
 }
