@@ -384,6 +384,8 @@ func startLogRoutine(log* LogRoutine) (*string, error) {
 		fmt.Printf("could not prepare query..")
 		return nil, err
 	}
+
+	defer stmt.Close()
 	res, err := stmt.Exec(log.From, log.To, log.Title, log.Report, workspace.Id, log.Level, apiId)
 	if err != nil {
 		fmt.Printf("could not execute query..")
