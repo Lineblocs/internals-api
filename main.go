@@ -306,6 +306,7 @@ func getWorkspaceParams(workspaceId int) (*[]WorkspaceParam, error) {
     if err != nil {
 		return nil, err;
 	}
+  defer results.Close()
 	params := []WorkspaceParam{};
 
     for results.Next() {
@@ -436,6 +437,7 @@ func checkPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
     if err != nil {
 		return false, err
 	}
+  defer results.Close()
     for results.Next() {
 		var ipAddr string
 		var ipAddrRange string
@@ -464,6 +466,7 @@ func checkBYOPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
     if err != nil {
 		return false, err
 	}
+  defer results.Close()
     for results.Next() {
 		var ipAddr string
 		var ipAddrRange string
@@ -537,6 +540,7 @@ func someLoadBalancingLogic() (*MediaServer,error) {
     if err != nil {
 		return nil,err
 	}
+  defer results.Close()
     for results.Next() {
 		value := MediaServer{};
 		err = results.Scan(&value.IpAddress,&value.PrivateIpAddress);
@@ -743,6 +747,7 @@ func CreateDebit(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("CreateDebit Could not execute query..", err, w);
 		return 
 	}
+  defer stmt.Close()
 	_, err = stmt.Exec(debitReq.UserId, cents, debitReq.Source)
 	if err != nil {
 		handleInternalErr("CreateDebit Could not execute query..", err, w);
@@ -768,6 +773,7 @@ func CreateAPIUsageDebit(w http.ResponseWriter, r *http.Request) {
 			handleInternalErr("CreateDebit Could not execute query..", err, w);
 			return 
 		}
+    defer stmt.Close()
 		_, err = stmt.Exec(debitReq.UserId, cents, source)
 		if err != nil {
 			handleInternalErr("CreateAPIUsageDebit Could not execute query..", err, w);
@@ -782,6 +788,7 @@ func CreateAPIUsageDebit(w http.ResponseWriter, r *http.Request) {
 			handleInternalErr("CreateDebit Could not execute query..", err, w);
 			return 
 		}
+    defer stmt.Close()
 		_, err = stmt.Exec(debitReq.UserId, cents, source)
 		if err != nil {
 			handleInternalErr("CreateAPIUsageDebit Could not execute query..", err, w);
@@ -922,6 +929,7 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("CreateFax error occured", err, w)
 		return
 	}
+  defer stmt.Close()
 	res, err := stmt.Exec(uri, handler.Size, name, userId, callId, workspaceId, apiId )
 	if err != nil {
 		handleInternalErr("CreateFax error occured", err, w)
@@ -956,6 +964,7 @@ func CreateRecording(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("CreateRecording error.", err, w);
 		return 
 	}
+  defer stmt.Close()
 	res, err := stmt.Exec(recording.UserId, recording.CallId, recording.WorkspaceId, "started", "", "", "", recording.APIId)
 	if err != nil {
 		handleInternalErr("CreateRecording error.", err, w);
@@ -974,6 +983,7 @@ func CreateRecording(w http.ResponseWriter, r *http.Request) {
 				handleInternalErr("CreateRecording error.", err, w);
 			}
 
+      defer stmt.Close()
 			res, err = stmt.Exec(recId, v)
 			if err != nil {
 				handleInternalErr("CreateRecording error.", err, w);
@@ -1020,6 +1030,7 @@ func UpdateRecording(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("UpdateRecording error occured", err, w)
 		return
 	}
+  defer stmt.Close()
 	_, err = stmt.Exec(status, uri, handler.Size, recordingIdInt)
 	if err != nil {
 		handleInternalErr("UpdateRecording error occured", err, w)
@@ -1043,7 +1054,7 @@ func UpdateRecordingTranscription(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("UpdateCall Could not execute query", err, w)
 		return
 	}
-
+  defer stmt.Close() 
   	w.WriteHeader(http.StatusNoContent)
 }
 
@@ -1116,6 +1127,7 @@ func GetWorkspaceMacros(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("GetWorkspaceMacros error", err, w)
 		return
 	}
+  defer results.Close()
 	values := []MacroFunction{};
 
 
@@ -1255,7 +1267,7 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 			handleInternalErr("GetPSTNProviderIP error", err, w)
 			return
 		}
-
+  defer results.Close()
 	    for results.Next() {
 			var name string
 			var ip string
@@ -1291,6 +1303,7 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("GetPSTNProviderIP error", err, w)
 		return
 	}
+  defer results.Close()
 	for results.Next() {
 		var name string
 	  var ipAddr sql.NullString
@@ -1333,6 +1346,7 @@ func IPWhitelistLookup(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("IPWhitelistLookup error", err, w)
 		return
 	}
+  defer results.Close()
 	if workspace.IPWhitelistDisabled {
 		  w.WriteHeader(http.StatusNoContent)
 		  return
@@ -1611,6 +1625,7 @@ func IncomingMediaServerValidation(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("IncomingMediaServerValidation error 1", err, w)
 		return
 	}
+  defer results.Close()
 	for results.Next() {
 		var ipAddr string
 		var ipRange string
@@ -1694,6 +1709,6 @@ func main() {
   db.SetMaxOpenConns(10)
   settings = &GlobalSettings{ValidateCallerId: false}
     // Bind to a port and pass our router in
-    //log.Fatal(http.ListenAndServe(":80", loggedRouter))
-    log.Fatal(http.ListenAndServe(":8009", loggedRouter))
+    log.Fatal(http.ListenAndServe(":80", loggedRouter))
+    //log.Fatal(http.ListenAndServe(":8009", loggedRouter))
 }
