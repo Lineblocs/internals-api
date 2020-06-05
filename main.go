@@ -736,7 +736,7 @@ func CreateDebit(w http.ResponseWriter, r *http.Request) {
 	minutes := math.Floor(debitReq.Seconds / 60)
 	dollars := minutes * rate.CallRate
 	cents := toCents( dollars )
-	stmt, err := db.Prepare("INSERT INTO user_debits (`user_id, `cents`, `source`) VALUES ( ?, ?, ? )");
+	stmt, err := db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`) VALUES ( ?, ?, ? )");
 	if err != nil {
 		handleInternalErr("CreateDebit Could not execute query..", err, w);
 		return 
@@ -761,7 +761,7 @@ func CreateAPIUsageDebit(w http.ResponseWriter, r *http.Request) {
 		dollars := calculateTTSCosts(debitReq.Params.Length)
 		cents := toCents( dollars )
 		source := fmt.Sprintf("API usage - %s", debitReq.Type);
-		stmt, err := db.Prepare("INSERT INTO user_debits (`user_id, `cents`, `source`) VALUES ( ?, ?, ? )");
+		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`) VALUES ( ?, ?, ? )");
 		if err != nil {
 			handleInternalErr("CreateDebit Could not execute query..", err, w);
 			return 
@@ -775,7 +775,7 @@ func CreateAPIUsageDebit(w http.ResponseWriter, r *http.Request) {
 		dollars := calculateSTTCosts(debitReq.Params.RecordingLength)
 		cents := toCents( dollars )
 		source := fmt.Sprintf("API usage - %s", debitReq.Type);
-		stmt, err := db.Prepare("INSERT INTO user_debits (`user_id, `cents`, `source`) VALUES ( ?, ?, ? )");
+		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`) VALUES ( ?, ?, ? )");
 		if err != nil {
 			handleInternalErr("CreateDebit Could not execute query..", err, w);
 			return 
@@ -1689,7 +1689,9 @@ func main() {
 		panic("Could not connect to MySQL");
 		return
 	}
+  db.SetMaxOpenConns(10)
   settings = &GlobalSettings{ValidateCallerId: false}
     // Bind to a port and pass our router in
-    log.Fatal(http.ListenAndServe(":80", loggedRouter))
+    //log.Fatal(http.ListenAndServe(":80", loggedRouter))
+    log.Fatal(http.ListenAndServe(":8009", loggedRouter))
 }
