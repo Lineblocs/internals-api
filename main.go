@@ -1254,8 +1254,7 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if workspace.BYOEnabled {
-		results, err := db.Query(`SELECT byo_carriers.name, byo_carriers.ip_address, users.ip_private,
-		byo_carriers_routes.prefix, byo_carriers_routes.prepend, byo_carriers_routes.match
+		results, err := db.Query(`SELECT byo_carriers.name, byo_carriers.ip_address, byo_carriers_routes.prefix, byo_carriers_routes.prepend, byo_carriers_routes.match
 		FROM byo_carriers_routes
 		INNER JOIN byo_carriers  ON byo_carriers.id = byo_carriers_routes.carrier_id
 		INNER JOIN workspaces ON workspaces.id = byo_carriers.workspace_id
@@ -1270,24 +1269,23 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
   defer results.Close()
 	    for results.Next() {
 			var name string
-			var ip string
-	    var ipPrivate sql.NullString
+			var ip sql.NullString
 			var prefix string
 			var prepend string
 			var match string
-			err = results.Scan(&name, &ip, &ipPrivate, &prefix, &prepend, &match)
+			err = results.Scan(&name, &ip, &prefix, &prepend, &match)
 			if err != nil {
 				handleInternalErr("GetPSTNProviderIP error", err, w)
 				return
 			}
-      if !ipPrivate.Valid {
+      if !ip.Valid {
         fmt.Printf("skipping 1 PSTN IP result as private IP is empty..\r\n");
         continue
       }
 			if checkRouteMatches(*from, *to, prefix, prepend, match) {
 				var number string
 				number = prepend + *to
-				info := &WorkspacePSTNInfo{ IPAddr: ipPrivate.String, DID: number }
+				info := &WorkspacePSTNInfo{ IPAddr: ip.String, DID: number }
 				json.NewEncoder(w).Encode(&info)
 				return
 			}
@@ -1700,7 +1698,7 @@ func main() {
 
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
 	var err error
-	db, err = sql.Open("mysql", "lineblocs:lineblocs@tcp(lineblocs.ckehyurhpc6m.ca-central-1.rds.amazonaws.com:3306)/lineblocs?parseTime=true")
+	db, err = sql.Open("mysql", `lineblocs:&!UER~7$Z>fx3S3J@tcp(lineblocs.ckehyurhpc6m.ca-central-1.rds.amazonaws.com:3306)/lineblocs?parseTime=true`)
 	//db, err = sql.Open("mysql", "root:mysql@tcp(127.0.0.1:3306)/lineblocs?parseTime=true") //add parse time
 	if err != nil {
 		panic("Could not connect to MySQL");
