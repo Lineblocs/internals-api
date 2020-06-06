@@ -4,11 +4,14 @@ pipelines:
     - step:
         name: Build
         script:
-          - apt-get update && apt-get install -y awscli
+          - apt-get update && apt-get install -y curl zip unzip
+          - curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+          - unzip awscliv2.zip
+          - ./aws/install
           - aws --version
           - aws configure set aws_access_key_id "${AWS_KEY}"
           - aws configure set aws_secret_access_key "${AWS_SECRET}"
-          - eval $(aws ecr get-login --no-include-email --region ca-central-1 | sed 's;https://;;g')
+          - aws ecr get-login-password --region ca-central-1 | docker login --username AWS --password-stdin 754569496111.dkr.ecr.ca-central-1.amazonaws.com
           # build the Docker image (this will use the Dockerfile in the root of the repo)
           - docker build --memory=3072M -t lineblocs-internals .
           - docker tag lineblocs-internals:latest 754569496111.dkr.ecr.ca-central-1.amazonaws.com/lineblocs-internals:latest
