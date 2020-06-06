@@ -1,0 +1,31 @@
+image: php:7.1.3
+pipelines:
+  default:
+    - step:
+        name: Build
+        script:
+          - apt-get update && apt-get install -y awscli
+          - aws --version
+          - aws configure set aws_access_key_id "${AWS_KEY}"
+          - aws configure set aws_secret_access_key "${AWS_SECRET}"
+          - eval $(aws ecr get-login --no-include-email --region ca-central-1 | sed 's;https://;;g')
+          # build the Docker image (this will use the Dockerfile in the root of the repo)
+          - docker build --memory=3072M -t lineblocs-internals .
+          - docker tag lineblocs-internals:latest 754569496111.dkr.ecr.ca-central-1.amazonaws.com/lineblocs-internals:latest
+          - docker push 754569496111.dkr.ecr.ca-central-1.amazonaws.com/lineblocs-internals:latest
+        services:
+          - docker
+    - step:
+        name: Deploy
+        deployment: production
+        image: atlassian/pipelines-kubectl
+        script:
+          # Download and install `doctl` so that we can refresh configs for k8s
+          - apk --no-cache add curl
+          - curl -sL https://github.com/digitalocean/doctl/releases/download/v1.27.0/doctl-1.27.0-linux-amd64.tar.gz | tar -xzv
+          - mv ./doctl /usr/local/bin
+          # Get the config file
+          - doctl -t $DOCTL_TOKEN k8s cluster kubeconfig show ${K8S_CLUSTER_NAME} > kubeconfig.yml
+          - kubectl --insecure-skip-tls-verify --kubeconfig=kubeconfig.yml patch deployment lineblocs-internals -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}"
+          - ./wait_for_rollout.sh
+
