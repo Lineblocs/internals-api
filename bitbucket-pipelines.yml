@@ -16,7 +16,7 @@ pipelines:
           - echo "aws=$aws" > ENVIRONMENT_VARIABLES.txt
           # build the Docker image (this will use the Dockerfile in the root of the repo)
           - docker build --memory=3072M -t lineblocs-internals .
-          - docker tag lineblocs-app:latest 754569496111.dkr.ecr.ca-central-1.amazonaws.com/lineblocs-internals:latest
+          - docker tag lineblocs-internals:latest 754569496111.dkr.ecr.ca-central-1.amazonaws.com/lineblocs-internals:latest
           - docker push 754569496111.dkr.ecr.ca-central-1.amazonaws.com/lineblocs-internals:latest
         artifacts: # define the artifacts to be passed to each future step
           - ENVIRONMENT_VARIABLES.txt
