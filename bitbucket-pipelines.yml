@@ -11,13 +11,18 @@ pipelines:
           - aws --version
           - aws configure set aws_access_key_id "${AWS_KEY}"
           - aws configure set aws_secret_access_key "${AWS_SECRET}"
-          - aws ecr get-login-password --region ca-central-1 | docker login --username AWS --password-stdin 754569496111.dkr.ecr.ca-central-1.amazonaws.com
+          - aws=$(aws ecr get-login-password --region ca-central-1)
+          - echo $aws | docker login --username AWS --password-stdin 754569496111.dkr.ecr.ca-central-1.amazonaws.com
+          - echo "aws=$aws" > ENVIRONMENT_VARIABLES.txt
           # build the Docker image (this will use the Dockerfile in the root of the repo)
           - docker build --memory=3072M -t lineblocs-internals .
-          - docker tag lineblocs-internals:latest 754569496111.dkr.ecr.ca-central-1.amazonaws.com/lineblocs-internals:latest
+          - docker tag lineblocs-app:latest 754569496111.dkr.ecr.ca-central-1.amazonaws.com/lineblocs-internals:latest
           - docker push 754569496111.dkr.ecr.ca-central-1.amazonaws.com/lineblocs-internals:latest
+        artifacts: # define the artifacts to be passed to each future step
+          - ENVIRONMENT_VARIABLES.txt
         services:
           - docker
+r
     - step:
         name: Deploy
         deployment: production
@@ -25,11 +30,13 @@ pipelines:
         script:
           # Download and install `doctl` so that we can refresh configs for k8s
           - apk --no-cache add curl
+          - export $(cat ENVIRONMENT_VARIABLES.txt | xargs)
+          - echo $aws | docker login --username AWS --password-stdin 754569496111.dkr.ecr.ca-central-1.amazonaws.com
           - curl -sL https://github.com/digitalocean/doctl/releases/download/v1.27.0/doctl-1.27.0-linux-amd64.tar.gz | tar -xzv
           - mv ./doctl /usr/local/bin
-          # Get the config file
           - doctl -t $DOCTL_TOKEN k8s cluster kubeconfig show ${K8S_CLUSTER_NAME} > kubeconfig.yml
+          - kubectl --insecure-skip-tls-verify --kubeconfig=kubeconfig.yml --ignore-not-found=true delete secret lineblocs-regcred
+          - kubectl --insecure-skip-tls-verify --kubeconfig=kubeconfig.yml create secret generic lineblocs-regcred  --from-file=.dockerconfigjson=/root/.docker/config.json  --type=kubernetes.io/dockerconfigjson
           - kubectl --insecure-skip-tls-verify --kubeconfig=kubeconfig.yml patch deployment lineblocs-internals -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}"
-          - chmod a+x ./wait_for_rollout.sh
-          - ./wait_for_rollout.sh
-
+        services:
+          - docker
