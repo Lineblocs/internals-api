@@ -22,7 +22,6 @@ pipelines:
           - ENVIRONMENT_VARIABLES.txt
         services:
           - docker
-r
     - step:
         name: Deploy
         deployment: production
