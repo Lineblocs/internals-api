@@ -30,5 +30,6 @@ pipelines:
           # Get the config file
           - doctl -t $DOCTL_TOKEN k8s cluster kubeconfig show ${K8S_CLUSTER_NAME} > kubeconfig.yml
           - kubectl --insecure-skip-tls-verify --kubeconfig=kubeconfig.yml patch deployment lineblocs-internals -p "{\"spec\":{\"template\":{\"metadata\":{\"labels\":{\"date\":\"`date +'%s'`\"}}}}}"
+          - chmod a+x ./wait_for_rollout.sh
           - ./wait_for_rollout.sh
 
