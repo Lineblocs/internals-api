@@ -9,6 +9,7 @@ import (
 	"math"
 	"net"
 	"strings"
+	"context"
 	//"errors"
 	"mime/multipart"
 	"github.com/gorilla/mux"
@@ -16,10 +17,15 @@ import (
 	"reflect"
 	"fmt"
 	"database/sql"
-    "encoding/json"
+	"encoding/json"
+	"regexp"
 	_ "github.com/go-sql-driver/mysql"
 	guuid "github.com/google/uuid"
 	libphonenumber "github.com/ttacon/libphonenumber"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/mailgun/mailgun-go/v4"
 )
 
 type Call struct {
@@ -355,10 +361,37 @@ func getRecordingFromDB(id int) *Recording {
 	return &Recording{APIId: apiId}
 }
 
-
-
-// TODO
 func sendLogRoutineEmail(log* LogRoutine, user* User, workspace* Workspace) error {
+	mg := mailgun.NewMailgun(os.Getenv("MAILGUN_DOMAIN"),os.Getenv("MAILGUN_API_KEY"))
+	m := mg.NewMessage(
+		"Lineblocs <monitor@lineblocs.com>",
+		"Debug Monitor",
+		"Debug Monitor",
+		user.Email)
+	m.AddCC("contact@lineblocs.com")
+	//m.AddBCC("bar@example.com")
+
+
+	body := `<html>
+<head></head>
+<body>
+	<h1>Lineblocs Monitor Report</h1>
+	<h5>` + log.Title + `</h5>
+	<p>` + log.Report + `</p>
+</body>
+</html>`;
+
+	m.SetHtml(body)
+	//m.AddAttachment("files/test.jpg")
+	//m.AddAttachment("files/test.txt")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	_, _, err := mg.Send(ctx, m)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -400,18 +433,17 @@ func startLogRoutine(log* LogRoutine) (*string, error) {
 	}
 	logIdStr := strconv.FormatInt(logId, 10)
 
-	err = sendLogRoutineEmail(log, user, workspace)
-	if err != nil {
-		fmt.Printf("could not send email..")
-		return nil, err
-	}
-
+	go sendLogRoutineEmail(log, user, workspace)
 
 	return &logIdStr, err
 }
-//todo
-func checkRouteMatches(from string, to string, prefix string, prepend string, match string) (bool) {
-	return true
+func checkRouteMatches(from string, to string, prefix string, prepend string, match string) (bool, error) {
+	full := prefix + match
+	valid, err := regexp.MatchString(full, to)
+	if err != nil {
+		return false, err
+	}
+	return valid, err
 }
 func shouldUseProviderNext(name string, ipPrivate string) (bool, error) {
 	return true, nil
@@ -590,14 +622,34 @@ func getQueryVariable(r *http.Request, key string) *string {
 	}
 	return value
 }
-// todo
-func uploadS3(folder string, id string, file multipart.File) (error) {
+func uploadS3(folder string, name string, file multipart.File) (error) {
+	bucket := "lineblocs"
+	key := folder + "/" + name
+	// The session the S3 Uploader will use
+	session, err := session.NewSession(&aws.Config{
+		Region: aws.String("ca-central-1")})
+	if err != nil {
+		return fmt.Errorf("S3 session err: %s", err)
+	}
+
+	// Create an uploader with the session and default options
+	uploader := s3manager.NewUploader(session)
+
+	// Upload the file to S3.
+	result, err := uploader.Upload(&s3manager.UploadInput{
+		Bucket: aws.String(bucket),
+		Key:    aws.String(key),
+		Body:   file,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to upload file, %v", err)
+	}
+	fmt.Printf("file uploaded to, %s\n", aws.StringValue(&result.Location))
 	return nil
 }
 
-// todo
 func createS3URL(folder string, id string) string {
-	return ""
+	return "https://lineblocs.s3.ca-central-1.amazonaws.com/" + folder + "/" + id
 }
 
 func NoContent(w http.ResponseWriter, r *http.Request) {
@@ -916,11 +968,7 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 	apiId := createAPIID("fax")
-	err = uploadS3("faxes", apiId, file)
-	if err != nil {
-		handleInternalErr("CreateFax error occured", err, w)
-		return
-	}
+	go uploadS3("faxes", apiId, file)
 	uri := createS3URL( "faxes", apiId )
 
 
@@ -1019,11 +1067,7 @@ func UpdateRecording(w http.ResponseWriter, r *http.Request) {
 	defer f.Close()
 
 	apiId := createAPIID("rec")
-	err = uploadS3("recordings", apiId, file)
-	if err != nil {
-		handleInternalErr("UpdateRecording error occured", err, w)
-		return
-	}
+	go uploadS3("recordings", apiId, file)
 	uri := createS3URL( "recordings", apiId)
 	stmt, err := db.Prepare("UPDATE `recordings` SET `status` = ?, `uri` = ?, `size` = ? WHERE `id` = ?")
 	if err != nil {
@@ -1281,8 +1325,13 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
       if !ip.Valid {
         fmt.Printf("skipping 1 PSTN IP result as private IP is empty..\r\n");
         continue
-      }
-			if checkRouteMatches(*from, *to, prefix, prepend, match) {
+	  }
+			valid, err := checkRouteMatches(*from, *to, prefix, prepend, match) 
+			if err != nil {
+				fmt.Printf("error occured when trying to match from: %s, to: %s, prefix: %s, prepend: %s, match: %s", *from, *to, prefix, prepend, match)
+				continue
+			}
+			if valid {
 				var number string
 				number = prepend + *to
 				info := &WorkspacePSTNInfo{ IPAddr: ip.String, DID: number }
