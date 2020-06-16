@@ -103,12 +103,14 @@ type Fax struct {
 }
 
 type Recording struct {
+  Id int `json:"id"`
   UserId int `json:"user_id"`
   CallId int `json:"call_id"`
   WorkspaceId int `json:"workspace_id"`
   APIId string `json:"api_id"`
   Tags *[]string `json:"tags"`
-
+	TranscriptionReady bool `json:"transcription_ready"`
+	TranscriptionText string `json:"transcription_text"`
 }
 
 type VerifyNumber struct {
@@ -350,15 +352,20 @@ func getUserByDomain(domain string) (*WorkspaceCreatorFullInfo, error) {
 	return full, nil
 }
 
-func getRecordingFromDB(id int) *Recording {
+func getRecordingFromDB(id int) (*Recording, error) {
 	var apiId string
-	row := db.QueryRow("SELECT api_id FROM recordings WHERE id=?", id)
+	var ready int
+	var text string
+	row := db.QueryRow("SELECT api_id, transcription_ready, transcription_text FROM recordings WHERE id=?", id)
 
-	err := row.Scan(&apiId)
+	err := row.Scan(&apiId, &ready, &text)
 	if ( err == sql.ErrNoRows ) {  //create conference
-		return nil
+		return nil, err
 	}
-	return &Recording{APIId: apiId}
+	if ready == 1 {
+		return &Recording{APIId: apiId, Id: id, TranscriptionReady: true, TranscriptionText: text}, nil
+	}
+	return &Recording{APIId: apiId, Id: id}, nil
 }
 
 func sendLogRoutineEmail(log* LogRoutine, user* User, workspace* Workspace) error {
@@ -1109,7 +1116,21 @@ func UpdateRecordingTranscription(w http.ResponseWriter, r *http.Request) {
   defer stmt.Close() 
   	w.WriteHeader(http.StatusNoContent)
 }
+func GetRecording(w http.ResponseWriter, r *http.Request) {
+	id := getQueryVariable(r, "id")
+	id_int, err := strconv.Atoi(*id)
+	if err != nil {
+		handleInternalErr("GetRecording error occured", err, w)
+		return
+	}
+	record, err := getRecordingFromDB( id_int )
+	if err != nil {
+		handleInternalErr("GetRecording error occured", err, w)
+		return
+	}
+  	json.NewEncoder(w).Encode(&record)
 
+}
 func VerifyCaller(w http.ResponseWriter, r *http.Request) {
 	workspaceId := getQueryVariable(r, "workspace_id")
 	workspaceIdInt, err := strconv.Atoi(*workspaceId)
@@ -1730,7 +1751,7 @@ func main() {
 	r.HandleFunc("/recording/createRecording", CreateRecording).Methods("POST");
 	r.HandleFunc("/recording/updateRecording", UpdateRecording).Methods("POST");
 	r.HandleFunc("/recording/updateRecordingTranscription", UpdateRecordingTranscription).Methods("POST");
-
+	r.HandleFunc("/recording/getRecording", GetRecording).Methods("GET");
 
 	// user functions
 	r.HandleFunc("/user/verifyCaller", VerifyCaller).Methods("GET");
