@@ -465,7 +465,10 @@ func checkPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 	sip_providers_whitelist_ips.ip_address, 
 	sip_providers_whitelist_ips.ip_address_range
 	FROM sip_providers_whitelist_ips
-	INNER JOIN sip_providers ON sip_providers.id = sip_providers_whitelist_ips.provider_id`)
+	INNER JOIN sip_providers ON sip_providers.id = sip_providers_whitelist_ips.provider_id
+	INNER JOIN did_numbers ON did_numbers.workspace_id = sip_providers_whitelist_ips.workspace_id
+	WHERE did_numbers.api_number = ?
+	`, did)
     if err != nil {
 		return false, err
 	}
@@ -481,7 +484,8 @@ func checkPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 		fullIp := ipAddr + ipAddrRange
 		match, err := checkCIDRMatch(sourceIp, fullIp) 
 		if err != nil {
-		  return false, err
+		  fmt.Printf("error matching CIDR source %s, full %s\r\n", sourceIp, fullIp)
+		  continue
 		}
 		if match {
 			return true, nil
@@ -494,7 +498,10 @@ func checkBYOPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 	byo_carriers_ips.ip,
 	byo_carriers_ips.range
 	FROM byo_carriers_ips
-	INNER JOIN byo_carriers ON byo_carriers.id = byo_carriers_ips.carrier_id`)
+	INNER JOIN byo_carriers ON byo_carriers.id = byo_carriers_ips.carrier_id
+	INNER JOIN byo_did_numbers ON byo_did_numbers.workspace_id = byo_carriers.workspace_id
+	WHERE byo_did_numbers.number = ?
+	`, did)
     if err != nil {
 		return false, err
 	}
@@ -509,7 +516,8 @@ func checkBYOPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 		fullIp := ipAddr + ipAddrRange
 		match, err := checkCIDRMatch(sourceIp, fullIp) 
 		if err != nil {
-			return false, err
+		  fmt.Printf("error matching CIDR source %s, full %s\r\n", sourceIp, fullIp)
+		  continue
 		}
 		if match {
 			return true, nil
