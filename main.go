@@ -39,11 +39,11 @@ type Call struct {
   APIId string `json:"api_id"`
 }
 type CallUpdateReq struct {
-  CallId string `json:"call_id"`
+  CallId int `json:"call_id"`
   Status string `json:"status"`
 }
 type RecordingTranscriptionReq struct {
-	Id string `json:"id"`
+	RecordingId int `json:"recording_id"`
   Ready bool `json:"ready"`
   Text string `json:"text"`
 }
@@ -1101,7 +1101,7 @@ func UpdateRecordingTranscription(w http.ResponseWriter, r *http.Request) {
 		return 
 	}
 	stmt, err := db.Prepare("UPDATE recordings SET `transcription_ready` = ?, `transcription_text` = ? WHERE `id` = ?")
-	_, err  = stmt.Exec("1", update.Text, update.Id)
+	_, err  = stmt.Exec("1", update.Text, update.RecordingId)
 	if err != nil {
 		handleInternalErr("UpdateCall Could not execute query", err, w)
 		return
