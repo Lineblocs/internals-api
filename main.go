@@ -417,9 +417,9 @@ func startLogRoutine(log* LogRoutine) (*string, error) {
 		fmt.Printf("could not get workspace..")
 		return nil, err
 	}
-
+	now := time.Now()
 	apiId := createAPIID("log")
-	stmt, err := db.Prepare("INSERT INTO debugger_logs (`from`, `to`, `title`, `report`, `workspace_id`, `level`, `api_id`) VALUES ( ?, ?, ?, ?, ?, ?, ? )")
+	stmt, err := db.Prepare("INSERT INTO debugger_logs (`from`, `to`, `title`, `report`, `workspace_id`, `level`, `api_id`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )")
 
 	if err != nil {
 		fmt.Printf("could not prepare query..")
@@ -427,7 +427,7 @@ func startLogRoutine(log* LogRoutine) (*string, error) {
 	}
 
 	defer stmt.Close()
-	res, err := stmt.Exec(log.From, log.To, log.Title, log.Report, workspace.Id, log.Level, apiId)
+	res, err := stmt.Exec(log.From, log.To, log.Title, log.Report, workspace.Id, log.Level, apiId, now, now)
 	if err != nil {
 		fmt.Printf("could not execute query..")
 		return nil, err
@@ -767,14 +767,15 @@ func CreateConference(w http.ResponseWriter, r *http.Request) {
 	err = row.Scan(&id, &name);
 	if ( err == sql.ErrNoRows ) {  //create conference
 		conference.APIId = createAPIID("conf")
-  		// perform a db.Query insert
-		stmt, err := db.Prepare("INSERT INTO conferences (`name`, `workspace_id`, `api_id`) VALUES ( ?, ?, ? )");
+		  // perform a db.Query insert
+		now := time.Now()
+		stmt, err := db.Prepare("INSERT INTO conferences (`name`, `workspace_id`, `api_id`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ? )");
 		if err != nil {
 			handleInternalErr("CreateConference 3 Could not execute query..", err, w);
 			return 
 		}
 		defer stmt.Close()
-		res, err := stmt.Exec(conference.Name, conference.WorkspaceId, conference.APIId)
+		res, err := stmt.Exec(conference.Name, conference.WorkspaceId, conference.APIId, now, now)
 		
 		if err != nil {
 			handleInternalErr("CreateConference 4 Could not execute query", err, w)
@@ -810,13 +811,14 @@ func CreateDebit(w http.ResponseWriter, r *http.Request) {
 	minutes := math.Floor(debitReq.Seconds / 60)
 	dollars := minutes * rate.CallRate
 	cents := toCents( dollars )
-	stmt, err := db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`) VALUES ( ?, ?, ? )");
+	now := time.Now()
+	stmt, err := db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ? )");
 	if err != nil {
 		handleInternalErr("CreateDebit Could not execute query..", err, w);
 		return 
 	}
   defer stmt.Close()
-	_, err = stmt.Exec(debitReq.UserId, cents, debitReq.Source)
+	_, err = stmt.Exec(debitReq.UserId, cents, debitReq.Source, now, now)
 	if err != nil {
 		handleInternalErr("CreateDebit Could not execute query..", err, w);
 		return 
@@ -836,13 +838,14 @@ func CreateAPIUsageDebit(w http.ResponseWriter, r *http.Request) {
 		dollars := calculateTTSCosts(debitReq.Params.Length)
 		cents := toCents( dollars )
 		source := fmt.Sprintf("API usage - %s", debitReq.Type);
-		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`) VALUES ( ?, ?, ? )");
+		now := time.Now()
+		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ? )");
 		if err != nil {
 			handleInternalErr("CreateDebit Could not execute query..", err, w);
 			return 
 		}
     defer stmt.Close()
-		_, err = stmt.Exec(debitReq.UserId, cents, source)
+		_, err = stmt.Exec(debitReq.UserId, cents, source, now, now)
 		if err != nil {
 			handleInternalErr("CreateAPIUsageDebit Could not execute query..", err, w);
 			return 
@@ -851,13 +854,14 @@ func CreateAPIUsageDebit(w http.ResponseWriter, r *http.Request) {
 		dollars := calculateSTTCosts(debitReq.Params.RecordingLength)
 		cents := toCents( dollars )
 		source := fmt.Sprintf("API usage - %s", debitReq.Type);
-		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`) VALUES ( ?, ?, ? )");
+		now := time.Now()
+		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ? )");
 		if err != nil {
 			handleInternalErr("CreateDebit Could not execute query..", err, w);
 			return 
 		}
     defer stmt.Close()
-		_, err = stmt.Exec(debitReq.UserId, cents, source)
+		_, err = stmt.Exec(debitReq.UserId, cents, source, now, now)
 		if err != nil {
 			handleInternalErr("CreateAPIUsageDebit Could not execute query..", err, w);
 			return 
@@ -1039,16 +1043,17 @@ func CreateRecording(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("CreateRecording error.", err, w);
 		return
 	}
+	now := time.Now()
 	if recording.Tags != nil {
 		for _, v := range *recording.Tags {
 			fmt.Printf("adding tag to recording %s\r\n", v)
-			stmt, err := db.Prepare("INSERT INTO recording_tags (`recording_id`, `tag`) VALUES (?, ?)");
+			stmt, err := db.Prepare("INSERT INTO recording_tags (`recording_id`, `tag`, `created_at`, `updated_at`) VALUES (?, ?, ?, ?)");
 			if err != nil {
 				handleInternalErr("CreateRecording error.", err, w);
 			}
 
       defer stmt.Close()
-			res, err = stmt.Exec(recId, v)
+			res, err = stmt.Exec(recId, v, now, now)
 			if err != nil {
 				handleInternalErr("CreateRecording error.", err, w);
 				return 
