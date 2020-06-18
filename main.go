@@ -1043,7 +1043,6 @@ func CreateRecording(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("CreateRecording error.", err, w);
 		return
 	}
-	now := time.Now()
 	if recording.Tags != nil {
 		for _, v := range *recording.Tags {
 			fmt.Printf("adding tag to recording %s\r\n", v)
