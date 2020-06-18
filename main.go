@@ -694,7 +694,7 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 	}
 
   // perform a db.Query insert
-	stmt, err := db.Prepare("INSERT INTO calls (`from`, `to`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `api_id`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+	stmt, err := db.Prepare("INSERT INTO calls (`from`, `to`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
 	if err != nil {
 		handleInternalErr("CreateCall Could not execute query..", err, w);
 		return 
@@ -703,7 +703,7 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("CreateCall args from=%s, to=%s, status=%s, direction=%s, user_id=%s, workspace_id=%s, started=%s",
 		call.From, call.To, call.Status, call.Direction, call.UserId, call.WorkspaceId, now, call.APIId)
 
-	res, err := stmt.Exec(call.From, call.To, call.Status, call.Direction, "8", call.UserId, call.WorkspaceId, now, call.APIId)
+	res, err := stmt.Exec(call.From, call.To, call.Status, call.Direction, "8", call.UserId, call.WorkspaceId, now, now, now, call.APIId)
 
 		
 		if err != nil {
@@ -733,7 +733,7 @@ func UpdateCall(w http.ResponseWriter, r *http.Request) {
 	
 	if ( update.Status == "ended" ) {
 		// perform a db.Query insert
-		stmt, err := db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ? WHERE `api_id` = ?")
+		stmt, err := db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ?, `updated_at` = ? WHERE `api_id` = ?")
 		if err != nil {
 			fmt.Printf("UpdateCall 2 Could not execute query..");
 			fmt.Println(err)
@@ -742,7 +742,8 @@ func UpdateCall(w http.ResponseWriter, r *http.Request) {
 		}
 		defer stmt.Close()
 		endedAt := time.Now()
-		_, err = stmt.Exec(update.Status, endedAt, update.CallId)
+		updatedAt := time.Now()
+		_, err = stmt.Exec(update.Status, endedAt, updatedAt, update.CallId)
 		if err != nil {
 			handleInternalErr("UpdateCall 3 Could not execute query", err, w)
 			return
@@ -945,6 +946,7 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	var fax* Fax
 	file, handler, err := r.FormFile("file")
+	now := time.Now()
 	if err != nil {
 		handleInternalErr("CreateFax error occured", err, w)
 		return 
@@ -987,13 +989,13 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 	uri := createS3URL( "faxes", apiId )
 
 
-	stmt, err := db.Prepare("INSERT INTO faxes (`uri`, `size`, `name`, `user_id`, `call_id`, `workspace_id`, `api_id`) VALUES ( ?, ?, ?, ?, ?, ?, ? )");
+	stmt, err := db.Prepare("INSERT INTO faxes (`uri`, `size`, `name`, `user_id`, `call_id`, `workspace_id`, `api_id`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 	if err != nil {
 		handleInternalErr("CreateFax error occured", err, w)
 		return
 	}
   defer stmt.Close()
-	res, err := stmt.Exec(uri, handler.Size, name, userId, callId, workspaceId, apiId )
+	res, err := stmt.Exec(uri, handler.Size, name, userId, callId, workspaceId, apiId, now, now )
 	if err != nil {
 		handleInternalErr("CreateFax error occured", err, w)
 		return
@@ -1013,7 +1015,7 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 func CreateRecording(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
   var recording Recording
-
+	now := time.Now()
    err := json.NewDecoder(r.Body).Decode(&recording)
 	if err != nil {
 		handleInternalErr("CreateCall Could not decode JSON", err, w)
@@ -1022,13 +1024,12 @@ func CreateRecording(w http.ResponseWriter, r *http.Request) {
 	recording.APIId = createAPIID("rec")
 
   // perform a db.Query insert
-	stmt, err := db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-	if err != nil {
+	stmt, err := db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"); if err != nil {
 		handleInternalErr("CreateRecording error.", err, w);
 		return 
 	}
   defer stmt.Close()
-	res, err := stmt.Exec(recording.UserId, recording.CallId, recording.WorkspaceId, "started", "", "", "", recording.APIId)
+	res, err := stmt.Exec(recording.UserId, recording.CallId, recording.WorkspaceId, "started", "", "", "", recording.APIId, now, now)
 	if err != nil {
 		handleInternalErr("CreateRecording error.", err, w);
 		return 
@@ -1065,6 +1066,7 @@ func UpdateRecording(w http.ResponseWriter, r *http.Request) {
   //var recording Recording
 	file, handler, err := r.FormFile("file")
 	status := r.FormValue("status")
+	now := time.Now()
 	recordingId := r.FormValue("recording_id")
 	recordingIdInt, err := strconv.Atoi(recordingId)
 	if err != nil {
@@ -1084,13 +1086,13 @@ func UpdateRecording(w http.ResponseWriter, r *http.Request) {
 	apiId := createAPIID("rec")
 	go uploadS3("recordings", apiId, file)
 	uri := createS3URL( "recordings", apiId)
-	stmt, err := db.Prepare("UPDATE `recordings` SET `status` = ?, `uri` = ?, `size` = ? WHERE `id` = ?")
+	stmt, err := db.Prepare("UPDATE `recordings` SET `status` = ?, `uri` = ?, `size` = ?, `updated_at` = ? WHERE `id` = ?")
 	if err != nil {
 		handleInternalErr("UpdateRecording error occured", err, w)
 		return
 	}
   defer stmt.Close()
-	_, err = stmt.Exec(status, uri, handler.Size, recordingIdInt)
+	_, err = stmt.Exec(status, uri, handler.Size, now, recordingIdInt)
 	if err != nil {
 		handleInternalErr("UpdateRecording error occured", err, w)
 		return
