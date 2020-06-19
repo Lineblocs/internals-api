@@ -223,6 +223,9 @@ type MediaServer struct {
 	IpAddress string `json:"ip_address"`
 	PrivateIpAddress string `json:"private_ip_address"`
 }
+type EmailInfo struct {
+	Message string `json:"message"`
+}
 
 type GlobalSettings struct {
   ValidateCallerId bool
@@ -1731,7 +1734,43 @@ func IncomingMediaServerValidation(w http.ResponseWriter, r *http.Request) {
     w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
 
 }
-	
+func SendAdminEmail(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+  var emailInfo EmailInfo
+   err := json.NewDecoder(r.Body).Decode(&emailInfo)
+	if err != nil {
+		handleInternalErr("SendAdminEmail Could not decode JSON", err, w)
+		return 
+	}
+	mg := mailgun.NewMailgun(os.Getenv("MAILGUN_DOMAIN"),os.Getenv("MAILGUN_API_KEY"))
+	m := mg.NewMessage(
+		"Lineblocs <monitor@lineblocs.com>",
+		"Admin Error",
+		"Admin Error",
+		"contact@lineblocs.com")
+	body := `<html>
+<head></head>
+<body>
+	<h1>Lineblocs Admin Monitor</h1>
+	<p>` + emailInfo.Message + `</p>
+</body>
+</html>`;
+
+	m.SetHtml(body)
+	//m.AddAttachment("files/test.jpg")
+	//m.AddAttachment("files/test.txt")
+
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+	defer cancel()
+
+	_, _, err = mg.Send(ctx, m)
+	if err != nil {
+		handleInternalErr("SendAdminEmail error", err, w)
+		return
+	}
+	return
+}
+
 
 
 func main() {
@@ -1778,7 +1817,8 @@ func main() {
 	r.HandleFunc("/user/incomingPSTNValidation", IncomingPSTNValidation).Methods("GET");
 	r.HandleFunc("/user/incomingMediaServerValidation", IncomingMediaServerValidation).Methods("GET");
 
-
+	// Send Admin email
+	r.HandleFunc("/admin/sendAdminEmail", SendAdminEmail).Methods("POST");
 
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
 	var err error
