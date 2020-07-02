@@ -1232,7 +1232,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 	var flowJson sql.NullString
 	// Execute the query
 	row := db.QueryRow(`SELECT flows.workspace_id, flows.flow_json, did_numbers.number, workspaces.name, workspaces.name AS workspace_name, 
-        users.plan,
+        workspaces.plan,
         workspaces.byo_enabled,
         workspaces.creator_id,
         workspaces.id AS workspace_id,
@@ -1276,7 +1276,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 		byo_did_numbers.number, 
 		workspaces.name, 
 		workspaces.name AS workspace_name, 
-        users.plan,
+        workspaces.plan,
         workspaces.byo_enabled,
         workspaces.creator_id,
         workspaces.api_token,
@@ -1539,7 +1539,7 @@ func GetExtensionFlowInfo(w http.ResponseWriter, r *http.Request) {
 		extensions.username, 
 		workspaces.name,
 		workspaces.name AS workspace_name, 
-        users.plan,
+        workspaces.plan,
         workspaces.creator_id,
         workspaces.id AS workspace_id,
         workspaces.api_token,
