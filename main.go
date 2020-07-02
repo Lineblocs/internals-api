@@ -145,6 +145,7 @@ type Workspace struct {
   BYOEnabled bool `json:"byo_enabled"`
   IPWhitelistDisabled bool `json:"ip_whitelist_disabled"`
   OutboundMacroId int `json:"outbound_macro_id"`
+  Plan string `json:"plan"`
 }
 
 type WorkspaceParam struct {
@@ -280,9 +281,10 @@ func getWorkspaceFromDB(id int) (*Workspace, error) {
 	var name string
 	var creatorId int
 	var outboundMacroId sql.NullInt64
-	row := db.QueryRow(`SELECT id, name, creator_id, outbound_macro_id FROM workspaces WHERE id=?`, id)
+	var plan string
+	row := db.QueryRow(`SELECT id, name, creator_id, outbound_macro_id, plan FROM workspaces WHERE id=?`, id)
 
-	err := row.Scan(&workspaceId, &name, &creatorId, &outboundMacroId)
+	err := row.Scan(&workspaceId, &name, &creatorId, &outboundMacroId, &plan)
 	if ( err == sql.ErrNoRows ) {  //create conference
 		return nil, err
 	}
@@ -290,9 +292,9 @@ func getWorkspaceFromDB(id int) (*Workspace, error) {
 		return nil, err
 	}
     if reflect.TypeOf(outboundMacroId) == nil {
-		return &Workspace{Id: workspaceId, Name: name, CreatorId: creatorId}, nil
+		return &Workspace{Id: workspaceId, Name: name, CreatorId: creatorId, Plan: plan}, nil
 	}
-	return &Workspace{Id: workspaceId, Name: name, CreatorId: creatorId, OutboundMacroId: int(outboundMacroId.Int64)}, nil
+	return &Workspace{Id: workspaceId, Name: name, CreatorId: creatorId, OutboundMacroId: int(outboundMacroId.Int64), Plan: plan}, nil
 }
 func getWorkspaceByDomain(domain string) (*Workspace, error) {
 	var workspaceId int
@@ -689,6 +691,12 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("CreateCall Could not decode JSON", err, w)
 		return 
 	}
+   workspace, err := getWorkspaceFromDB(call.WorkspaceId)
+	if err != nil {
+		handleInternalErr("CreateCall Could not decode JSON", err, w)
+		return 
+	}
+
 	call.APIId = createAPIID("call")
 
 	if call.Direction == "outbound" {
@@ -697,16 +705,16 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 	}
 
   // perform a db.Query insert
-	stmt, err := db.Prepare("INSERT INTO calls (`from`, `to`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+	stmt, err := db.Prepare("INSERT INTO calls (`from`, `to`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
 	if err != nil {
 		handleInternalErr("CreateCall Could not execute query..", err, w);
 		return 
 	}
 	defer stmt.Close()
-	fmt.Printf("CreateCall args from=%s, to=%s, status=%s, direction=%s, user_id=%s, workspace_id=%s, started=%s",
-		call.From, call.To, call.Status, call.Direction, call.UserId, call.WorkspaceId, now, call.APIId)
+	fmt.Printf("CreateCall args from=%s, to=%s, status=%s, direction=%s, user_id=%s, workspace_id=%s, started=%s, plan=%s",
+		call.From, call.To, call.Status, call.Direction, call.UserId, call.WorkspaceId, now, call.APIId, workspace.Plan)
 
-	res, err := stmt.Exec(call.From, call.To, call.Status, call.Direction, "8", call.UserId, call.WorkspaceId, now, now, now, call.APIId)
+	res, err := stmt.Exec(call.From, call.To, call.Status, call.Direction, "8", call.UserId, call.WorkspaceId, now, now, now, call.APIId, workspace.Plan)
 
 		
 		if err != nil {
@@ -960,6 +968,12 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 
 	}
 
+	workspace, err := getWorkspaceFromDB(fax.WorkspaceId)
+	if err != nil {
+		fmt.Printf("could not get workspace..")
+		return
+	}
+
 	userId := r.FormValue("user_id")
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
@@ -996,13 +1010,13 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 	uri := createS3URL( "faxes", apiId )
 
 
-	stmt, err := db.Prepare("INSERT INTO faxes (`uri`, `size`, `name`, `user_id`, `call_id`, `workspace_id`, `api_id`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+	stmt, err := db.Prepare("INSERT INTO faxes (`uri`, `size`, `name`, `user_id`, `call_id`, `workspace_id`, `api_id`, `plan`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 	if err != nil {
 		handleInternalErr("CreateFax error occured", err, w)
 		return
 	}
   defer stmt.Close()
-	res, err := stmt.Exec(uri, handler.Size, name, userId, callId, workspaceId, apiId, now, now )
+	res, err := stmt.Exec(uri, handler.Size, name, userId, callId, workspaceId, apiId, workspace.Plan, now, now )
 	if err != nil {
 		handleInternalErr("CreateFax error occured", err, w)
 		return
@@ -1022,21 +1036,28 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 func CreateRecording(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
   var recording Recording
+
 	now := time.Now()
    err := json.NewDecoder(r.Body).Decode(&recording)
 	if err != nil {
 		handleInternalErr("CreateCall Could not decode JSON", err, w)
 		return 
 	}
+
+	workspace, err := getWorkspaceFromDB(recording.WorkspaceId)
+	if err != nil {
+		fmt.Printf("could not get workspace..")
+		return
+	}
 	recording.APIId = createAPIID("rec")
 
   // perform a db.Query insert
-	stmt, err := db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"); if err != nil {
+	stmt, err := db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"); if err != nil {
 		handleInternalErr("CreateRecording error.", err, w);
 		return 
 	}
   defer stmt.Close()
-	res, err := stmt.Exec(recording.UserId, recording.CallId, recording.WorkspaceId, "started", "", "", "", recording.APIId, now, now)
+	res, err := stmt.Exec(recording.UserId, recording.CallId, recording.WorkspaceId, "started", "", "", "", recording.APIId, workspace.Plan, now, now)
 	if err != nil {
 		handleInternalErr("CreateRecording error.", err, w);
 		return 
