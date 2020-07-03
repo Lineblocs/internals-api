@@ -1073,7 +1073,11 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 	defer f.Close()
 	apiId := createAPIID("fax")
 	uri := createS3URL( "faxes", apiId )
-
+	count, err := getFaxCount(workspace.Id)
+	if err != nil {
+		handleInternalErr("CreateFax error occured", err, w)
+		return
+	}
 
 	stmt, err := db.Prepare("INSERT INTO faxes (`uri`, `size`, `name`, `user_id`, `call_id`, `workspace_id`, `api_id`, `plan`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 	if err != nil {
@@ -1097,11 +1101,6 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("X-Fax-ID", strconv.FormatInt(faxId, 10))
 	  json.NewEncoder(w).Encode(fax)
 	limit, err := getPlanFaxLimit(workspace)
-	if err != nil {
-		handleInternalErr("CreateFax error occured", err, w)
-		return
-	}
-	count, err := getFaxCount(workspace.Id)
 	if err != nil {
 		handleInternalErr("CreateFax error occured", err, w)
 		return
