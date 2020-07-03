@@ -106,6 +106,7 @@ type Recording struct {
   Id int `json:"id"`
   UserId int `json:"user_id"`
   CallId int `json:"call_id"`
+  Size int `json:"size"`
   WorkspaceId int `json:"workspace_id"`
   APIId string `json:"api_id"`
   Tags *[]string `json:"tags"`
@@ -296,6 +297,33 @@ func getWorkspaceFromDB(id int) (*Workspace, error) {
 	}
 	return &Workspace{Id: workspaceId, Name: name, CreatorId: creatorId, OutboundMacroId: int(outboundMacroId.Int64), Plan: plan}, nil
 }
+
+func getRecordingSpace(id int) (int, error) {
+	var bytes int
+	row := db.QueryRow(`SELECT SUM(size) FROM recordings WHERE workspace_id=?`, id)
+
+	err := row.Scan(&bytes)
+	if ( err == sql.ErrNoRows ) {  //create conference
+		return 0, err
+	}
+	if ( err != nil ) {  //another error
+		return 0, err
+	}
+	return bytes, nil
+}
+func getFaxCount(id int) (*int, error) {
+	var count int
+	row := db.QueryRow(`SELECT COUNT(*) FROM faxes WHERE workspace_id=?`, id)
+
+	err := row.Scan(&count)
+	if ( err == sql.ErrNoRows ) {  //create conference
+		return nil, err
+	}
+	if ( err != nil ) {  //another error
+		return nil, err
+	}
+	return &count, nil
+}
 func getWorkspaceByDomain(domain string) (*Workspace, error) {
 	var workspaceId int
 	var name string
@@ -360,19 +388,46 @@ func getUserByDomain(domain string) (*WorkspaceCreatorFullInfo, error) {
 func getRecordingFromDB(id int) (*Recording, error) {
 	var apiId string
 	var ready int
+	var size int
 	var text string
-	row := db.QueryRow("SELECT api_id, transcription_ready, transcription_text FROM recordings WHERE id=?", id)
+	row := db.QueryRow("SELECT api_id, transcription_ready, transcription_text, size FROM recordings WHERE id=?", id)
 
-	err := row.Scan(&apiId, &ready, &text)
+	err := row.Scan(&apiId, &ready, &text, &size)
 	if ( err == sql.ErrNoRows ) {  //create conference
 		return nil, err
 	}
 	if ready == 1 {
-		return &Recording{APIId: apiId, Id: id, TranscriptionReady: true, TranscriptionText: text}, nil
+		return &Recording{APIId: apiId, Id: id, TranscriptionReady: true, TranscriptionText: text, Size: size}, nil
 	}
-	return &Recording{APIId: apiId, Id: id}, nil
+	return &Recording{APIId: apiId, Id: id, Size: size}, nil
 }
-
+//todo move to microservice
+func getPlanRecordingLimit(workspace* Workspace) (int, error) {
+	if workspace.Plan == "pay-as-you-go" {
+		return 1024, nil
+	} else if workspace.Plan == "starter" {
+		return 1024*2, nil
+	} else if workspace.Plan == "pro" {
+		return 1024*32, nil
+	} else if workspace.Plan == "starter" {
+		return 1024*128, nil
+	}
+	return 0, nil
+}
+//todo move to microservice
+func getPlanFaxLimit(workspace* Workspace) (*int, error) {
+	var res* int
+	if workspace.Plan == "pay-as-you-go" {
+		*res = 100
+	} else if workspace.Plan == "starter" {
+		*res = 100
+	} else if workspace.Plan == "pro" {
+		res =  nil
+	} else if workspace.Plan == "starter" {
+		res = nil
+	}
+	return res, nil
+}
 func sendLogRoutineEmail(log* LogRoutine, user* User, workspace* Workspace) error {
 	mg := mailgun.NewMailgun(os.Getenv("MAILGUN_DOMAIN"),os.Getenv("MAILGUN_API_KEY"))
 	m := mg.NewMessage(
@@ -814,6 +869,11 @@ func CreateDebit(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("CreateDebit Could not decode JSON", err, w)
 		return 
 	}
+	workspace, err := getWorkspaceFromDB(debitReq.WorkspaceId)
+	if err != nil {
+		fmt.Printf("could not get workspace..")
+		return
+	}
 	rate := lookupBestCallRate(debitReq.Number, debitReq.Type)
 	if rate == nil {
 		w.WriteHeader(http.StatusNotFound)
@@ -823,13 +883,13 @@ func CreateDebit(w http.ResponseWriter, r *http.Request) {
 	dollars := minutes * rate.CallRate
 	cents := toCents( dollars )
 	now := time.Now()
-	stmt, err := db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ? )");
+	stmt, err := db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ? )");
 	if err != nil {
 		handleInternalErr("CreateDebit Could not execute query..", err, w);
 		return 
 	}
   defer stmt.Close()
-	_, err = stmt.Exec(debitReq.UserId, cents, debitReq.Source, now, now)
+	_, err = stmt.Exec(debitReq.UserId, cents, debitReq.Source, workspace.Plan, now, now)
 	if err != nil {
 		handleInternalErr("CreateDebit Could not execute query..", err, w);
 		return 
@@ -845,18 +905,24 @@ func CreateAPIUsageDebit(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("CreateDebit Could not decode JSON", err, w)
 		return 
 	}
+	workspace, err := getWorkspaceFromDB(debitReq.WorkspaceId)
+	if err != nil {
+		fmt.Printf("could not get workspace..")
+		return
+	}
+
 	if debitReq.Type == "TTS" {
 		dollars := calculateTTSCosts(debitReq.Params.Length)
 		cents := toCents( dollars )
 		source := fmt.Sprintf("API usage - %s", debitReq.Type);
 		now := time.Now()
-		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ? )");
+		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ? )");
 		if err != nil {
 			handleInternalErr("CreateDebit Could not execute query..", err, w);
 			return 
 		}
     defer stmt.Close()
-		_, err = stmt.Exec(debitReq.UserId, cents, source, now, now)
+		_, err = stmt.Exec(debitReq.UserId, cents, source, workspace.Plan, now, now)
 		if err != nil {
 			handleInternalErr("CreateAPIUsageDebit Could not execute query..", err, w);
 			return 
@@ -866,13 +932,13 @@ func CreateAPIUsageDebit(w http.ResponseWriter, r *http.Request) {
 		cents := toCents( dollars )
 		source := fmt.Sprintf("API usage - %s", debitReq.Type);
 		now := time.Now()
-		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ? )");
+		stmt, err := db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ? )");
 		if err != nil {
 			handleInternalErr("CreateDebit Could not execute query..", err, w);
 			return 
 		}
     defer stmt.Close()
-		_, err = stmt.Exec(debitReq.UserId, cents, source, now, now)
+		_, err = stmt.Exec(debitReq.UserId, cents, source, workspace.Plan, now, now)
 		if err != nil {
 			handleInternalErr("CreateAPIUsageDebit Could not execute query..", err, w);
 			return 
@@ -1006,7 +1072,6 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 	apiId := createAPIID("fax")
-	go uploadS3("faxes", apiId, file)
 	uri := createS3URL( "faxes", apiId )
 
 
@@ -1030,7 +1095,23 @@ func CreateFax(w http.ResponseWriter, r *http.Request) {
 
 	fax = &Fax{ UserId: userIdInt, WorkspaceId: workspaceIdInt, CallId: callIdInt, Uri: uri }
 	w.Header().Set("X-Fax-ID", strconv.FormatInt(faxId, 10))
-  	json.NewEncoder(w).Encode(fax)
+	  json.NewEncoder(w).Encode(fax)
+	limit, err := getPlanFaxLimit(workspace)
+	if err != nil {
+		handleInternalErr("CreateFax error occured", err, w)
+		return
+	}
+	count, err := getFaxCount(workspace.Id)
+	if err != nil {
+		handleInternalErr("CreateFax error occured", err, w)
+		return
+	}
+	newCount := (*count) + 1
+	if newCount > *limit {
+		fmt.Printf("not saving fax due to limit reached..")
+		return
+	}
+	go uploadS3("faxes", apiId, file)
 }
 
 func CreateRecording(w http.ResponseWriter, r *http.Request) {
@@ -1049,6 +1130,7 @@ func CreateRecording(w http.ResponseWriter, r *http.Request) {
 		fmt.Printf("could not get workspace..")
 		return
 	}
+
 	recording.APIId = createAPIID("rec")
 
   // perform a db.Query insert
@@ -1097,6 +1179,19 @@ func UpdateRecording(w http.ResponseWriter, r *http.Request) {
 	now := time.Now()
 	recordingId := r.FormValue("recording_id")
 	recordingIdInt, err := strconv.Atoi(recordingId)
+	record, err := getRecordingFromDB( recordingIdInt )
+	if err != nil {
+		fmt.Printf("could not get recording..")
+		return
+	}
+
+	workspace, err := getWorkspaceFromDB(record.WorkspaceId)
+	if err != nil {
+		fmt.Printf("could not get workspace..")
+		return
+	}
+
+
 	if err != nil {
 		handleInternalErr("UpdateRecording error occured", err, w)
 		return 
@@ -1111,8 +1206,12 @@ func UpdateRecording(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
+	size, err := getRecordingSpace(workspace.Id)
+	if err != nil {
+		fmt.Printf("could not get recording space..")
+		return
+	}
 	apiId := createAPIID("rec")
-	go uploadS3("recordings", apiId, file)
 	uri := createS3URL( "recordings", apiId)
 	stmt, err := db.Prepare("UPDATE `recordings` SET `status` = ?, `uri` = ?, `size` = ?, `updated_at` = ? WHERE `id` = ?")
 	if err != nil {
@@ -1125,7 +1224,14 @@ func UpdateRecording(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("UpdateRecording error occured", err, w)
 		return
 	}
-
+	//will not save
+	limit, err := getPlanRecordingLimit(workspace)
+	newSpace := size + int(handler.Size)
+	if newSpace > limit {
+		fmt.Printf("not saving recording due to space limit reached..")
+		return
+	}
+	go uploadS3("recordings", apiId, file)
 }
 
 func UpdateRecordingTranscription(w http.ResponseWriter, r *http.Request) {
