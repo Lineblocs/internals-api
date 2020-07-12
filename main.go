@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/mailgun/mailgun-go/v4"
+	lineblocs "bitbucket.org/infinitet3ch/lineblocs-go-helpers"
 )
 
 type Call struct {
@@ -55,6 +56,7 @@ type Conference struct {
 type DebitCreateReq struct {
   UserId int `json:"user_id"`
   WorkspaceId int `json:"workspace_id"`
+  ModuleId int `json:"module_id"`
 
   Source string `json:"source"`
   Number string `json:"number"`
@@ -428,7 +430,7 @@ func getPlanFaxLimit(workspace* Workspace) (*int, error) {
 	}
 	return res, nil
 }
-func sendLogRoutineEmail(log* LogRoutine, user* User, workspace* Workspace) error {
+func sendLogRoutineEmail(log* LogRoutine, user* lineblocs.User, workspace* Workspace) error {
 	mg := mailgun.NewMailgun(os.Getenv("MAILGUN_DOMAIN"),os.Getenv("MAILGUN_API_KEY"))
 	m := mg.NewMessage(
 		"Lineblocs <monitor@lineblocs.com>",
@@ -463,10 +465,10 @@ func sendLogRoutineEmail(log* LogRoutine, user* User, workspace* Workspace) erro
 }
 
 func startLogRoutine(log* LogRoutine) (*string, error) {
-	var user* User;
+	var user* lineblocs.User;
 	var workspace* Workspace;
 
-    user, err := getUserFromDB(log.UserId)
+    user, err := lineblocs.GetUserFromDB(log.UserId)
 	if err != nil {
 		fmt.Printf("could not get user..")
 		return nil, err
@@ -883,13 +885,13 @@ func CreateDebit(w http.ResponseWriter, r *http.Request) {
 	dollars := minutes * rate.CallRate
 	cents := toCents( dollars )
 	now := time.Now()
-	stmt, err := db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ? )");
+	stmt, err := db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`, `plan_snapshot`, `module_id`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ? )");
 	if err != nil {
 		handleInternalErr("CreateDebit Could not execute query..", err, w);
 		return 
 	}
   defer stmt.Close()
-	_, err = stmt.Exec(debitReq.UserId, cents, debitReq.Source, workspace.Plan, now, now)
+	_, err = stmt.Exec(debitReq.UserId, cents, debitReq.Source, workspace.Plan, debitReq.ModuleId, now, now)
 	if err != nil {
 		handleInternalErr("CreateDebit Could not execute query..", err, w);
 		return 
