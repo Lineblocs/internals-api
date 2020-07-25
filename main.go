@@ -514,7 +514,7 @@ func checkRouteMatches(from string, to string, prefix string, prepend string, ma
 	}
 	return valid, err
 }
-func shouldUseProviderNext(name string, ipPrivate string) (bool, error) {
+func shouldUseHostNext(name string, ipPrivate string) (bool, error) {
 	return true, nil
 }
 func checkCIDRMatch(sourceIp string, fullIp string) (bool, error) {
@@ -1454,6 +1454,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 
 }
 func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("received PSTN request..\r\n");
 	from := getQueryVariable(r, "from")
 	to := getQueryVariable(r, "to")
 	domain := getQueryVariable(r, "domain")
@@ -1464,6 +1465,7 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if workspace.BYOEnabled {
+		fmt.Println("Checking BYO..");
 		results, err := db.Query(`SELECT byo_carriers.name, byo_carriers.ip_address, byo_carriers_routes.prefix, byo_carriers_routes.prepend, byo_carriers_routes.match
 		FROM byo_carriers_routes
 		INNER JOIN byo_carriers  ON byo_carriers.id = byo_carriers_routes.carrier_id
@@ -1506,9 +1508,11 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 	}
-	results, err := db.Query(`SELECT sip_providers.name, sip_providers_hosts.ip_address
+
+	// do LCR based on dial prefixes
+	results, err := db.Query(`SELECT sip_providers.id, sip_providers.dial_prefix, sip_providers.name, sip_providers_rates.rate_ref_id, sip_providers_rates.rate
 		FROM sip_providers
-		INNER JOIN sip_providers_hosts ON sip_providers_hosts.provider_id = sip_providers.id
+		INNER JOIN sip_providers_rates ON sip_providers_rates.provider_id = sip_providers.id
 		WHERE sip_providers.type_of_provider = 'outbound'
     OR sip_providers.type_of_provider = 'both'
 		`)
@@ -1516,33 +1520,108 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("GetPSTNProviderIP error", err, w)
 		return
 	}
+
+	var lowestRate *float64 = nil;
+	var lowestProviderId *int;
+	var lowestDialPrefix *string;
+	var longestMatch *int;
   defer results.Close()
 	for results.Next() {
+		fmt.Println("Checking non BYO..");
+		var id int
+		var dialPrefix string
 		var name string
-	  var ipAddr sql.NullString
-		err = results.Scan(&name, &ipAddr)
+		  var rateRefId int
+	  	var rate float64;
+		err = results.Scan(&id, &dialPrefix, &name, &rateRefId, &rate)
 		if err != nil {
 			handleInternalErr("GetPSTNProviderIP error", err, w)
 			return
 		}
-    if !ipAddr.Valid {
-      fmt.Printf("skipping 2 PSTN IP result as private IP is empty..\r\n");
-      continue
-    }
-
-		result, err := shouldUseProviderNext(name, ipAddr.String)
+		fmt.Println("Checking rate from provider: " + name);
+		results1, err := db.Query(`SELECT dial_prefix
+			FROM call_rates_dial_prefixes
+			WHERE call_rates_dial_prefixes.call_rate_id = ?
+			`, rateRefId);
 		if err != nil {
 			handleInternalErr("GetPSTNProviderIP error", err, w)
 			return
 		}
+		defer results1.Close()
+		// TODO check which host is best for routing
 
-		if result {
-			var number string
-			number = *to
-			info := &WorkspacePSTNInfo{ IPAddr: ipAddr.String, DID: number }
-			json.NewEncoder(w).Encode(&info)
+	  	var rateDialPrefix string
+		for results1.Next() {
+			results1.Scan(&rateDialPrefix)
+			full := rateDialPrefix
+			valid, err := regexp.MatchString(full, *to)
+			if err != nil {
+				handleInternalErr("GetPSTNProviderIP error", err, w)
+				return
+			}
+			if valid {
+				fullLen := len(full)
+				if (longestMatch == nil || fullLen >= *longestMatch) && (lowestRate == nil || rate < *lowestRate) {
+					lowestProviderId = &id
+					lowestRate = &rate
+					lowestDialPrefix = &dialPrefix
+					longestMatch = &fullLen
+				}
+			}
+		}
+	}
+	if lowestProviderId != nil {
+		var number string
+		number = *lowestDialPrefix + *to
+
+		// lookup hosts
+		fmt.Printf("Looking up hosts..\r\n");
+		// do LCR based on dial prefixes
+		results1, err := db.Query(`SELECT sip_providers_hosts.id, sip_providers_hosts.ip_address, sip_providers_hosts.name, sip_providers_hosts.priority_prefixes
+			FROM sip_providers_hosts
+			WHERE sip_providers_hosts.provider_id = ?
+			`, *lowestProviderId)
+		if err != nil {
+			handleInternalErr("GetPSTNProviderIP error", err, w)
 			return
 		}
+		defer results1.Close()
+		// TODO check which host is best for routing
+		// add area code checking
+		var info *WorkspacePSTNInfo
+		var bestProviderId *int
+		var bestIpAddr *string
+		for results1.Next() {
+			var id int
+			var ipAddr string
+			var name string
+			var prefixPriorities string
+			results1.Scan(&id, &ipAddr, &name, &prefixPriorities)
+			fmt.Printf("Checking SIP host %s, IP: %s\r\n", name, ipAddr)
+			prefixArr := strings.Split(prefixPriorities, ",")
+			info = &WorkspacePSTNInfo{ IPAddr: ipAddr, DID: number }
+			if bestProviderId == nil {
+				bestProviderId = &id
+				bestIpAddr = &ipAddr
+			}
+			// take priority
+			if len(prefixArr) != 0 {
+				for _, prefix := range prefixArr {
+					valid, err := regexp.MatchString(prefix, *to)
+					if err != nil {
+						handleInternalErr("GetPSTNProviderIP error", err, w)
+						return
+					}
+					if valid {
+						bestProviderId = &id
+						bestIpAddr = &ipAddr
+					}
+				}
+			}
+		}
+		info = &WorkspacePSTNInfo{ IPAddr: *bestIpAddr, DID: number }
+
+		json.NewEncoder(w).Encode(info);
 	}
 	w.WriteHeader(http.StatusNotFound)
 }
