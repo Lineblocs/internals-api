@@ -644,21 +644,36 @@ func checkIsMakingOutboundCallFirstTime(call Call) {
 }
 func sendEmail(user *User, subject string, body string) {
 }
-func someLoadBalancingLogic() (*MediaServer,error) {
-	results, err := db.Query("SELECT ip_address,private_ip_address FROM media_servers");
-    if err != nil {
-		return nil,err
-	}
-  defer results.Close()
-    for results.Next() {
+
+func createLBResult(results *sql.Rows) (*MediaServer,error) {
+	for results.Next() {
 		value := MediaServer{};
-		err = results.Scan(&value.IpAddress,&value.PrivateIpAddress);
+		err := results.Scan(&value.IpAddress,&value.PrivateIpAddress);
 		if err != nil {
 			return nil,err
 		}
 		return &value,nil
 	}
 	return nil,nil
+
+}
+func someLoadBalancingLogic(rtcOptimized bool) (*MediaServer,error) {
+	var err error
+	var results *sql.Rows
+	if rtcOptimized {
+		results, err := db.Query("SELECT ip_address,private_ip_address FROM media_servers WHERE webrtc_optimized=1");
+		if err != nil {
+			return nil, err
+		}
+		defer results.Close()
+		return createLBResult(results);
+	}
+	results, err = db.Query("SELECT ip_address,private_ip_address FROM media_servers WHERE webrtc_optimized=0");
+	if err != nil {
+		return nil, err
+	}
+
+	return createLBResult(results);
 }
 func doVerifyCaller(workspaceId int, number string) (bool, error) {
 	var workspace* Workspace;
@@ -1307,7 +1322,17 @@ func VerifyCallerByDomain(w http.ResponseWriter, r *http.Request) {
   w.WriteHeader(http.StatusNoContent)
 }
 func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
-	server, err := someLoadBalancingLogic()
+	opt := getQueryVariable(r, "rtcOptimized")
+	var err error
+	var rtcOptimized bool
+	rtcOptimized, err = strconv.ParseBool(*opt);
+	if err != nil {
+		handleInternalErr("GetUserAssignedIP error occured", err, w)
+		return
+	}
+
+	server, err := someLoadBalancingLogic(rtcOptimized)
+
 	if err != nil {
 		handleInternalErr("GetUserAssignedIP error occured", err, w)
 		return
@@ -1693,7 +1718,7 @@ func GetDIDAcceptOption(w http.ResponseWriter, r *http.Request) {
 	handleInternalErr("GetDIDAcceptOption error 2 occured", err, w)
 }
 func GetDIDAssignedIP(w http.ResponseWriter, r *http.Request) {
-	server, err := someLoadBalancingLogic()
+	server, err := someLoadBalancingLogic(false)
 	if err != nil {
 		handleInternalErr("GetUserAssignedIP error occured", err, w)
 		return
@@ -1979,7 +2004,42 @@ func SendAdminEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	return
 }
+func StoreRegistration(w http.ResponseWriter, r *http.Request) {
+	domain := r.FormValue("domain")
+	//ip := r.FormValue("ip")
+	user := r.FormValue("user")
+	//contact := r.FormValue("contact")
+	now := time.Now()
+	workspace, err := getWorkspaceByDomain(domain);
+	var expires int
 
+	expires, err = strconv.Atoi(r.FormValue("expires"))
+	
+	if err != nil {
+		fmt.Printf("could not get expiry.. not setting online\r\n");
+		return;
+	}
+	if err != nil {
+		fmt.Printf("StoreRegistration error..");
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return 
+	}
+
+	stmt, err := db.Prepare("UPDATE extensions SET `last_registered` = ?, `register_expires`  = ? WHERE `username` = ? AND `workspace_id` = ?")
+	if err != nil {
+		fmt.Printf("StoreRegistration 2 Could not execute query..");
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return 
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(now, expires, user, workspace.Id)
+	if err != nil {
+		handleInternalErr("StoreRegistration 3 Could not execute query", err, w)
+		return
+	}
+}
 
 
 func main() {
@@ -2025,6 +2085,7 @@ func main() {
 	r.HandleFunc("/user/getCodeFlowInfo", GetCodeFlowInfo).Methods("GET");
 	r.HandleFunc("/user/incomingPSTNValidation", IncomingPSTNValidation).Methods("GET");
 	r.HandleFunc("/user/incomingMediaServerValidation", IncomingMediaServerValidation).Methods("GET");
+	r.HandleFunc("/user/storeRegistration", StoreRegistration).Methods("POST");
 
 	// Send Admin email
 	r.HandleFunc("/admin/sendAdminEmail", SendAdminEmail).Methods("POST");
