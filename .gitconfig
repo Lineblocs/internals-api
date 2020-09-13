@@ -1,4 +1,5 @@
 [url "git@gitlab.com:"]
  insteadOf = https://gitlab.com/
-[url "git@bitbucket.org:"]
- insteadOf = https://bitbucket.org/
+ [url "https://infinitet3ch:5EhCwe5VwFCj2U5deZjB@bitbucket.org"]
+    insteadOf = https://bitbucket.org
+
