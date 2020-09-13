@@ -26,6 +26,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/mailgun/mailgun-go/v4"
+	"github.com/clockworksoul/smudge"
 	lineblocs "bitbucket.org/infinitet3ch/lineblocs-go-helpers"
 )
 
@@ -226,6 +227,8 @@ type MacroFunction struct {
 type MediaServer struct {
 	IpAddress string `json:"ip_address"`
 	PrivateIpAddress string `json:"private_ip_address"`
+	RtcOptimized bool `json:"rtc_optimized"`
+	Node *smudge.Node
 }
 type EmailInfo struct {
 	Message string `json:"message"`
@@ -237,7 +240,6 @@ type GlobalSettings struct {
 
 var db* sql.DB;
 var settings *GlobalSettings;
-
 func createAPIID(prefix string) string {
 	id := guuid.New()
 	return prefix + "-" + id.String()
@@ -2042,8 +2044,55 @@ func StoreRegistration(w http.ResponseWriter, r *http.Request) {
 }
 
 
+type MyStatusListener struct {
+    smudge.StatusListener
+}
+
+func (m MyStatusListener) OnChange(node *smudge.Node, status smudge.NodeStatus) {
+    fmt.Printf("Node %s is now status %s\n", node.Address(), status)
+}
+
+type MyBroadcastListener struct {
+    smudge.BroadcastListener
+}
+
+func (m MyBroadcastListener) OnBroadcast(b *smudge.Broadcast) {
+    fmt.Printf("Received broadcast from %s: %s\n",
+        b.Origin().Address(),
+        string(b.Bytes()))
+}
+
+func startSmudge() (error) {
+	var err error
+    heartbeatMillis := 500
+    listenPort := 9999
+
+    // Set configuration options
+    smudge.SetListenPort(listenPort)
+    smudge.SetHeartbeatMillis(heartbeatMillis)
+    smudge.SetListenIP(net.ParseIP("127.0.0.1"))
+
+    // Add the status listener
+    smudge.AddStatusListener(MyStatusListener{})
+
+    // Add the broadcast listener
+    smudge.AddBroadcastListener(MyBroadcastListener{})
+
+	servers,err := lineblocs.CreateMediaServers()
+	if err != nil {
+		return err
+	}
+	for _, server := range servers {
+		smudge.AddNode(server.Node)
+	}
+
+    // Start the server!
+	smudge.Begin()
+	return nil
+}
+
 func main() {
-	fmt.Print("starting Lineblocs API server..");
+	var err error
     r := mux.NewRouter()
     // Routes consist of a path and a handler function.
 	r.HandleFunc("/call/createCall", CreateCall).Methods("POST");
@@ -2091,16 +2140,15 @@ func main() {
 	r.HandleFunc("/admin/sendAdminEmail", SendAdminEmail).Methods("POST");
 
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
-	var err error
-	db, err = sql.Open("mysql", `lineblocs:&!UER~7$Z>fx3S3J@tcp(lineblocs.ckehyurhpc6m.ca-central-1.rds.amazonaws.com:3306)/lineblocs?parseTime=true`)
-	//db, err = sql.Open("mysql", "root:mysql@tcp(127.0.0.1:3306)/lineblocs?parseTime=true") //add parse time
+	db, err =lineblocs.CreateDBConn()
+  settings = &GlobalSettings{ValidateCallerId: false}
+	err  = startSmudge()
 	if err != nil {
-		panic("Could not connect to MySQL");
+		panic( err )
 		return
 	}
-  db.SetMaxOpenConns(10)
-  settings = &GlobalSettings{ValidateCallerId: false}
     // Bind to a port and pass our router in
     log.Fatal(http.ListenAndServe(":80", loggedRouter))
-    //log.Fatal(http.ListenAndServe(":8009", loggedRouter))
+	//log.Fatal(http.ListenAndServe(":8009", loggedRouter))
+
 }

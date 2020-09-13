@@ -6,4 +6,7 @@ go get -u github.com/ttacon/libphonenumber
 go get -u github.com/aws/aws-sdk-go/aws
 go get -u github.com/aws/aws-sdk-go/aws/session
 go get -u github.com/aws/aws-sdk-go/service/s3
+go get -u github.com/clockworksoul/smudge
+go get -u github.com/jinzhu/now
 go get -u github.com/mailgun/mailgun-go/v4
+go get -u github.com/stripe/stripe-go/v71
