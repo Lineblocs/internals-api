@@ -10,6 +10,7 @@ import (
 	"net"
 	"strings"
 	"context"
+	"sync"
 	//"errors"
 	"mime/multipart"
 	"github.com/gorilla/mux"
@@ -39,10 +40,12 @@ type Call struct {
   UserId int `json:"user_id"`
   WorkspaceId int  `json:"workspace_id"`
   APIId string `json:"api_id"`
+  SourceIp string `json:"source_ip"`
 }
 type CallUpdateReq struct {
   CallId int `json:"call_id"`
   Status string `json:"status"`
+  SourceIp string `json:"source_ip"`
 }
 type RecordingTranscriptionReq struct {
 	RecordingId int `json:"recording_id"`
@@ -149,6 +152,7 @@ type Workspace struct {
   BYOEnabled bool `json:"byo_enabled"`
   IPWhitelistDisabled bool `json:"ip_whitelist_disabled"`
   OutboundMacroId int `json:"outbound_macro_id"`
+  Region string `json:"region"`
   Plan string `json:"plan"`
 }
 
@@ -224,12 +228,7 @@ type MacroFunction struct {
 	Code string `json:"code"`
 	CompiledCode string `json:"compiled_code"`
 }
-type MediaServer struct {
-	IpAddress string `json:"ip_address"`
-	PrivateIpAddress string `json:"private_ip_address"`
-	RtcOptimized bool `json:"rtc_optimized"`
-	Node *smudge.Node
-}
+
 type EmailInfo struct {
 	Message string `json:"message"`
 }
@@ -238,8 +237,14 @@ type GlobalSettings struct {
   ValidateCallerId bool
 }
 
+type ServerData struct{
+  mu sync.RWMutex
+  servers []*lineblocs.MediaServer
+}
+
 var db* sql.DB;
 var settings *GlobalSettings;
+var data *ServerData;
 func createAPIID(prefix string) string {
 	id := guuid.New()
 	return prefix + "-" + id.String()
@@ -508,6 +513,27 @@ func startLogRoutine(log* LogRoutine) (*string, error) {
 
 	return &logIdStr, err
 }
+func incrementServerCallCount(call* Call) (error) {
+	data.mu.Lock()
+	defer data.mu.Unlock()
+	for _, server := range data.servers {
+		if server.IpAddress == call.SourceIp {
+			server.CallCount = server.CallCount + 1
+		}
+	}
+	return nil
+}
+func decrementServerCallCount(call* CallUpdateReq) (error) {
+	data.mu.Lock()
+	defer data.mu.Unlock()
+	for _, server := range data.servers {
+		if server.IpAddress == call.SourceIp {
+			server.CallCount = server.CallCount + 1
+		}
+	}
+	return nil
+}
+
 func checkRouteMatches(from string, to string, prefix string, prepend string, match string) (bool, error) {
 	full := prefix + match
 	valid, err := regexp.MatchString(full, to)
@@ -647,9 +673,9 @@ func checkIsMakingOutboundCallFirstTime(call Call) {
 func sendEmail(user *User, subject string, body string) {
 }
 
-func createLBResult(results *sql.Rows) (*MediaServer,error) {
+func createLBResult(results *sql.Rows) (*lineblocs.MediaServer,error) {
 	for results.Next() {
-		value := MediaServer{};
+		value := lineblocs.MediaServer{};
 		err := results.Scan(&value.IpAddress,&value.PrivateIpAddress);
 		if err != nil {
 			return nil,err
@@ -659,24 +685,33 @@ func createLBResult(results *sql.Rows) (*MediaServer,error) {
 	return nil,nil
 
 }
-func someLoadBalancingLogic(rtcOptimized bool) (*MediaServer,error) {
-	var err error
-	var results *sql.Rows
-	if rtcOptimized {
-		results, err := db.Query("SELECT ip_address,private_ip_address FROM media_servers WHERE webrtc_optimized=1");
-		if err != nil {
-			return nil, err
-		}
-		defer results.Close()
-		return createLBResult(results);
-	}
-	results, err = db.Query("SELECT ip_address,private_ip_address FROM media_servers WHERE webrtc_optimized=0");
-	if err != nil {
-		return nil, err
-	}
 
-	return createLBResult(results);
+// get the server with the least amount of
+// calls
+func getUserRoutedServer(rtcOptimized bool, workspace *Workspace) (*lineblocs.MediaServer,error) {
+	var result *lineblocs.MediaServer
+	for _, server := range data.servers {
+		if result == nil || result != nil && server.CallCount < result.CallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
+			result = server
+		}
+	}
+	return result, nil
+
 }
+
+// get the server closest to the DID profile
+func getDIDRoutedServer(rtcOptimized bool) (*lineblocs.MediaServer,error) {
+		var result *lineblocs.MediaServer
+	for _, server := range data.servers {
+		if result == nil || result != nil && server.CallCount < result.CallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
+			result = server
+		}
+	}
+	return result, nil
+
+
+}
+
 func doVerifyCaller(workspaceId int, number string) (bool, error) {
 	var workspace* Workspace;
 
@@ -801,6 +836,13 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 			handleInternalErr("CreateCall Could not execute query..", err, w);
 		return
 	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+	//increment call count on server
+		err = incrementServerCallCount(&call)
+	if err != nil {
+			handleInternalErr("CreateCall Could not increment call count..", err, w);
+		return
+	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+
     w.Header().Set("X-Call-ID", strconv.FormatInt(callId, 10))
   	json.NewEncoder(w).Encode(&call)
 }
@@ -831,6 +873,12 @@ func UpdateCall(w http.ResponseWriter, r *http.Request) {
 		_, err = stmt.Exec(update.Status, endedAt, updatedAt, update.CallId)
 		if err != nil {
 			handleInternalErr("UpdateCall 3 Could not execute query", err, w)
+			return
+		}
+	    //increment call count on server
+		err = decrementServerCallCount(&update)
+		if err != nil {
+			handleInternalErr("UpdateCall Could not decrement call count..", err, w);
 			return
 		}
 	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
@@ -1328,12 +1376,20 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 	var err error
 	var rtcOptimized bool
 	rtcOptimized, err = strconv.ParseBool(*opt);
+	domain := getQueryVariable(r, "domain")
+	//ru := getQueryVariable(r, "ru")
+	workspace, err := getWorkspaceByDomain(*domain)
+	if err != nil {
+		handleInternalErr("GetUserAssignedIP error", err, w)
+		return
+	}
+
 	if err != nil {
 		handleInternalErr("GetUserAssignedIP error occured", err, w)
 		return
 	}
 
-	server, err := someLoadBalancingLogic(rtcOptimized)
+	server, err := getUserRoutedServer(rtcOptimized, workspace)
 
 	if err != nil {
 		handleInternalErr("GetUserAssignedIP error occured", err, w)
@@ -1720,7 +1776,7 @@ func GetDIDAcceptOption(w http.ResponseWriter, r *http.Request) {
 	handleInternalErr("GetDIDAcceptOption error 2 occured", err, w)
 }
 func GetDIDAssignedIP(w http.ResponseWriter, r *http.Request) {
-	server, err := someLoadBalancingLogic(false)
+	server, err := getDIDRoutedServer(false)
 	if err != nil {
 		handleInternalErr("GetUserAssignedIP error occured", err, w)
 		return
@@ -2091,8 +2147,8 @@ func startSmudge() (error) {
 	return nil
 }
 
-func main() {
-	var err error
+func startHTTPServer() {
+  settings = &GlobalSettings{ValidateCallerId: false}
     r := mux.NewRouter()
     // Routes consist of a path and a handler function.
 	r.HandleFunc("/call/createCall", CreateCall).Methods("POST");
@@ -2140,15 +2196,93 @@ func main() {
 	r.HandleFunc("/admin/sendAdminEmail", SendAdminEmail).Methods("POST");
 
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
-	db, err =lineblocs.CreateDBConn()
-  settings = &GlobalSettings{ValidateCallerId: false}
-	err  = startSmudge()
+
+	// Bind to a port and pass our router in
+    log.Fatal(http.ListenAndServe(":80", loggedRouter))
+}
+
+func startSmudgeMonitor() {
+	routers, err := lineblocs.GetSIPRouters()
+	//seconds := 5
 	if err != nil {
-		panic( err )
+		panic(err)
 		return
 	}
-    // Bind to a port and pass our router in
-    log.Fatal(http.ListenAndServe(":80", loggedRouter))
-	//log.Fatal(http.ListenAndServe(":8009", loggedRouter))
+	duration := time.Duration(5)*time.Second
+	for {
+		for _, router := range routers {
+			fmt.Printf("Getting status from SIP router %s\r\n", router.IpAddress)
+			servers, err := getJson("http://" + router.IpAddress + ":8000/Status")
+			if err != nil {
+				//no reach
+				fmt.Printf("error occured: %s\r\n", err)
+				time.Sleep(duration)
+				continue
+			}
+			data.mu.Lock()
+			for _, dataServer := range data.servers {
+				for _, server := range servers {
+					if server.IpAddress == dataServer.IpAddress {
+						//update the status
+						//fmt.Printf("Updating status of %s to %s\r\n", server.IpAddress, server.Status)
+						dataServer.Status = server.Status
+					}
+				}
+			}
+			data.mu.Unlock()
+			time.Sleep(duration)
+		}
+	}
+}
 
+
+func getJson(url string) ([]lineblocs.MediaServer, error) {
+	var myClient = &http.Client{Timeout: 10 * time.Second}
+	r, err := myClient.Get(url)
+	target := []lineblocs.MediaServer{}
+    if err != nil {
+        return nil, err
+    }
+    defer r.Body.Close()
+
+	err = json.NewDecoder(r.Body).Decode(&target)
+	if err != nil {
+        return nil, err
+    }
+
+	return target, nil
+}
+
+
+func main() {
+	var err error
+	servers,err := lineblocs.CreateMediaServers()
+
+    
+    data = &ServerData{
+		mu: sync.RWMutex{},
+		servers: servers }
+
+	if err != nil {
+		panic(err)
+	}
+	db, err =lineblocs.CreateDBConn()
+	if err != nil {
+		panic(err)
+	}
+
+
+
+	var wg sync.WaitGroup
+	wg.Add(2)
+	
+    go func() {
+		startSmudgeMonitor()
+        wg.Done()
+    }()
+    go func() {
+		startHTTPServer()
+		wg.Done()
+	}()
+		wg.Wait()
 }
