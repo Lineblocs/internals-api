@@ -27,7 +27,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/mailgun/mailgun-go/v4"
-	"github.com/clockworksoul/smudge"
 	lineblocs "bitbucket.org/infinitet3ch/lineblocs-go-helpers"
 )
 
@@ -528,7 +527,7 @@ func decrementServerCallCount(call* CallUpdateReq) (error) {
 	defer data.mu.Unlock()
 	for _, server := range data.servers {
 		if server.IpAddress == call.SourceIp {
-			server.CallCount = server.CallCount + 1
+			server.CallCount = server.CallCount - 1
 		}
 	}
 	return nil
@@ -689,6 +688,8 @@ func createLBResult(results *sql.Rows) (*lineblocs.MediaServer,error) {
 // get the server with the least amount of
 // calls
 func getUserRoutedServer(rtcOptimized bool, workspace *Workspace) (*lineblocs.MediaServer,error) {
+	data.mu.Lock()
+	defer data.mu.Lock()
 	var result *lineblocs.MediaServer
 	for _, server := range data.servers {
 		if result == nil || result != nil && server.CallCount < result.CallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
@@ -701,7 +702,9 @@ func getUserRoutedServer(rtcOptimized bool, workspace *Workspace) (*lineblocs.Me
 
 // get the server closest to the DID profile
 func getDIDRoutedServer(rtcOptimized bool) (*lineblocs.MediaServer,error) {
-		var result *lineblocs.MediaServer
+	data.mu.Lock()
+	defer data.mu.Lock()
+	var result *lineblocs.MediaServer
 	for _, server := range data.servers {
 		if result == nil || result != nil && server.CallCount < result.CallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
 			result = server
@@ -2099,54 +2102,6 @@ func StoreRegistration(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-
-type MyStatusListener struct {
-    smudge.StatusListener
-}
-
-func (m MyStatusListener) OnChange(node *smudge.Node, status smudge.NodeStatus) {
-    fmt.Printf("Node %s is now status %s\n", node.Address(), status)
-}
-
-type MyBroadcastListener struct {
-    smudge.BroadcastListener
-}
-
-func (m MyBroadcastListener) OnBroadcast(b *smudge.Broadcast) {
-    fmt.Printf("Received broadcast from %s: %s\n",
-        b.Origin().Address(),
-        string(b.Bytes()))
-}
-
-func startSmudge() (error) {
-	var err error
-    heartbeatMillis := 500
-    listenPort := 9999
-
-    // Set configuration options
-    smudge.SetListenPort(listenPort)
-    smudge.SetHeartbeatMillis(heartbeatMillis)
-    smudge.SetListenIP(net.ParseIP("127.0.0.1"))
-
-    // Add the status listener
-    smudge.AddStatusListener(MyStatusListener{})
-
-    // Add the broadcast listener
-    smudge.AddBroadcastListener(MyBroadcastListener{})
-
-	servers,err := lineblocs.CreateMediaServers()
-	if err != nil {
-		return err
-	}
-	for _, server := range servers {
-		smudge.AddNode(server.Node)
-	}
-
-    // Start the server!
-	smudge.Begin()
-	return nil
-}
-
 func startHTTPServer() {
   settings = &GlobalSettings{ValidateCallerId: false}
     r := mux.NewRouter()
@@ -2211,8 +2166,7 @@ func startSmudgeMonitor() {
 	duration := time.Duration(5)*time.Second
 	for {
 		for _, router := range routers {
-			fmt.Printf("Getting status from SIP router %s\r\n", router.IpAddress)
-			servers, err := getJson("http://" + router.IpAddress + ":8000/Status")
+			servers, err := getRouterStatuses(router)
 			if err != nil {
 				//no reach
 				fmt.Printf("error occured: %s\r\n", err)
@@ -2224,7 +2178,7 @@ func startSmudgeMonitor() {
 				for _, server := range servers {
 					if server.IpAddress == dataServer.IpAddress {
 						//update the status
-						//fmt.Printf("Updating status of %s to %s\r\n", server.IpAddress, server.Status)
+						fmt.Printf("Updating status of %s to %s\r\n", server.IpAddress, server.Status)
 						dataServer.Status = server.Status
 					}
 				}
@@ -2236,7 +2190,8 @@ func startSmudgeMonitor() {
 }
 
 
-func getJson(url string) ([]lineblocs.MediaServer, error) {
+func getRouterStatuses(router *lineblocs.SIPRouter) ([]lineblocs.MediaServer, error) {
+	url := "http://" + router.IpAddress + ":8000/Status"
 	var myClient = &http.Client{Timeout: 10 * time.Second}
 	r, err := myClient.Get(url)
 	target := []lineblocs.MediaServer{}
