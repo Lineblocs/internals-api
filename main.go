@@ -517,7 +517,7 @@ func incrementServerCallCount(call* Call) (error) {
 	defer data.mu.Unlock()
 	for _, server := range data.servers {
 		if server.IpAddress == call.SourceIp {
-			server.CallCount = server.CallCount + 1
+			server.LiveCallCount = server.LiveCallCount + 1
 		}
 	}
 	return nil
@@ -527,7 +527,7 @@ func decrementServerCallCount(call* CallUpdateReq) (error) {
 	defer data.mu.Unlock()
 	for _, server := range data.servers {
 		if server.IpAddress == call.SourceIp {
-			server.CallCount = server.CallCount - 1
+			server.LiveCallCount = server.LiveCallCount - 1
 		}
 	}
 	return nil
@@ -692,7 +692,7 @@ func getUserRoutedServer(rtcOptimized bool, workspace *Workspace) (*lineblocs.Me
 	defer data.mu.Lock()
 	var result *lineblocs.MediaServer
 	for _, server := range data.servers {
-		if result == nil || result != nil && server.CallCount < result.CallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
+		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
 			result = server
 		}
 	}
@@ -706,7 +706,7 @@ func getDIDRoutedServer(rtcOptimized bool) (*lineblocs.MediaServer,error) {
 	defer data.mu.Lock()
 	var result *lineblocs.MediaServer
 	for _, server := range data.servers {
-		if result == nil || result != nil && server.CallCount < result.CallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
+		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
 			result = server
 		}
 	}
@@ -840,11 +840,14 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 	//increment call count on server
+
+	/*
 		err = incrementServerCallCount(&call)
 	if err != nil {
 			handleInternalErr("CreateCall Could not increment call count..", err, w);
 		return
 	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+	*/
 
     w.Header().Set("X-Call-ID", strconv.FormatInt(callId, 10))
   	json.NewEncoder(w).Encode(&call)
@@ -878,12 +881,14 @@ func UpdateCall(w http.ResponseWriter, r *http.Request) {
 			handleInternalErr("UpdateCall 3 Could not execute query", err, w)
 			return
 		}
-	    //increment call count on server
+		//increment call count on server
+		/*
 		err = decrementServerCallCount(&update)
 		if err != nil {
 			handleInternalErr("UpdateCall Could not decrement call count..", err, w);
 			return
 		}
+		*/
 	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 
   	w.WriteHeader(http.StatusNoContent)
@@ -2157,35 +2162,30 @@ func startHTTPServer() {
 }
 
 func startSmudgeMonitor() {
-	routers, err := lineblocs.GetSIPRouters()
-	//seconds := 5
-	if err != nil {
-		panic(err)
-		return
-	}
 	duration := time.Duration(5)*time.Second
 	for {
-		for _, router := range routers {
-			servers, err := getRouterStatuses(router)
-			if err != nil {
-				//no reach
-				fmt.Printf("error occured: %s\r\n", err)
-				time.Sleep(duration)
-				continue
-			}
-			data.mu.Lock()
-			for _, dataServer := range data.servers {
-				for _, server := range servers {
-					if server.IpAddress == dataServer.IpAddress {
-						//update the status
-						fmt.Printf("Updating status of %s to %s\r\n", server.IpAddress, server.Status)
-						dataServer.Status = server.Status
-					}
+		newServers, err := lineblocs.CreateMediaServers()
+		if err != nil {
+			//no reach
+			fmt.Printf("error occured: %s\r\n", err)
+			time.Sleep(duration)
+			continue
+		}
+
+		data.mu.Lock()
+		for _, dataServer := range data.servers {
+			for _, server := range newServers {
+				if server.IpAddress == dataServer.IpAddress {
+					//update the status
+					fmt.Printf("Updating status of %s to %s\r\n", server.IpAddress, server.Status)
+					dataServer.Status = server.Status
+					dataServer.LiveCallCount = server.LiveCallCount
+					dataServer.LiveCPUPCTUsed = server.LiveCPUPCTUsed
 				}
 			}
-			data.mu.Unlock()
-			time.Sleep(duration)
 		}
+		data.mu.Unlock()
+		time.Sleep(duration)
 	}
 }
 
