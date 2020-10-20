@@ -689,7 +689,7 @@ func createLBResult(results *sql.Rows) (*lineblocs.MediaServer,error) {
 // calls
 func getUserRoutedServer(rtcOptimized bool, workspace *Workspace) (*lineblocs.MediaServer,error) {
 	data.mu.Lock()
-	defer data.mu.Lock()
+	defer data.mu.Unlock()
 	var result *lineblocs.MediaServer
 	for _, server := range data.servers {
 		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
@@ -1380,6 +1380,7 @@ func VerifyCallerByDomain(w http.ResponseWriter, r *http.Request) {
   w.WriteHeader(http.StatusNoContent)
 }
 func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
+	fmt.Printf("Get assigned IP called..\r\n");
 	opt := getQueryVariable(r, "rtcOptimized")
 	var err error
 	var rtcOptimized bool
@@ -2163,7 +2164,7 @@ func startHTTPServer() {
 }
 
 func startSmudgeMonitor() {
-	duration := time.Duration(5)*time.Second
+	duration := time.Duration(60)*time.Second
 	for {
 		newServers, err := lineblocs.CreateMediaServers()
 		if err != nil {
