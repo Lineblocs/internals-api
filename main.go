@@ -1405,6 +1405,7 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 	}
 	if server == nil {
 		handleInternalErr("GetUserAssignedIP could not get server", err, w)
+		return
 	}
 	w.Write([]byte(server.PrivateIpAddress));
 }
