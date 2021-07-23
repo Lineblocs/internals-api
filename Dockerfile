@@ -24,7 +24,7 @@ RUN GOPRIVATE=bitbucket.org/infinitet3ch go mod download
 COPY . .
 
 # Build the Go app
-RUN go build -o main .
+RUN GOPRIVATE=bitbucket.org/infinitet3ch go build -o main .
 
 # Expose port 80 to the outside world
 EXPOSE 80

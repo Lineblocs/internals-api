@@ -12,6 +12,8 @@ bitbucket.org/infinitet3ch/lineblocs-go-helpers v0.0.0-20200914040533-05e232b961
 bitbucket.org/infinitet3ch/lineblocs-go-helpers v0.0.0-20200914040533-05e232b96135/go.mod h1:45xnfyAMD5hSOudLqN0nSllAgB5ra+h8yBgYb9KmBNc=
 bitbucket.org/infinitet3ch/lineblocs-go-helpers v0.0.0-20201014043102-6d39345a2a1d h1:Dw9UnUHsRINO+sh6qdk6tgd3GoV1QaFBS6N5ZGhwUTQ=
 bitbucket.org/infinitet3ch/lineblocs-go-helpers v0.0.0-20201014043102-6d39345a2a1d/go.mod h1:45xnfyAMD5hSOudLqN0nSllAgB5ra+h8yBgYb9KmBNc=
+bitbucket.org/infinitet3ch/lineblocs-go-helpers v0.0.0-20210723000142-7b8ed9cfaa26 h1:W2JNlIqnCDZTMncP9QHdErUHZ1/I4NbXk79sSzBxoT0=
+bitbucket.org/infinitet3ch/lineblocs-go-helpers v0.0.0-20210723000142-7b8ed9cfaa26/go.mod h1:45xnfyAMD5hSOudLqN0nSllAgB5ra+h8yBgYb9KmBNc=
 cloud.google.com/go v0.26.0/go.mod h1:aQUYkXzVsufM+DwF1aE+0xfcU+56JwCaLick0ClmMTw=
 github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/aws/aws-sdk-go v1.33.5/go.mod h1:5zCpMtNQVjRREroY7sYe8lOMRSxkhG6MZveU8YkpAk0=
