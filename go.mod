@@ -3,7 +3,7 @@ module lineblocs.com/internal-api
 go 1.14
 
 require (
-	bitbucket.org/infinitet3ch/lineblocs-go-helpers v0.0.0-20201014043102-6d39345a2a1d
+	bitbucket.org/infinitet3ch/lineblocs-go-helpers v0.0.0-20210723000142-7b8ed9cfaa26
 	github.com/aws/aws-sdk-go v1.35.7
 	github.com/clockworksoul/smudge v1.0.1
 	github.com/go-chi/chi v4.1.2+incompatible // indirect
