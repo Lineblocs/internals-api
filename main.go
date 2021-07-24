@@ -1384,7 +1384,18 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 	opt := getQueryVariable(r, "rtcOptimized")
 	var err error
 	var rtcOptimized bool
-	rtcOptimized, err = strconv.ParseBool(*opt);
+	// default
+	rtcOptimized = false
+
+	if opt != nil {
+		rtcOptimized, err = strconv.ParseBool(*opt);
+	}
+	if err != nil {
+		handleInternalErr("GetUserAssignedIP error", err, w)
+		return
+	}
+
+
 	domain := getQueryVariable(r, "domain")
 	//ru := getQueryVariable(r, "ru")
 	workspace, err := getWorkspaceByDomain(*domain)
