@@ -692,7 +692,7 @@ func getUserRoutedServer(rtcOptimized bool, workspace *Workspace) (*lineblocs.Me
 	defer data.mu.Unlock()
 	var result *lineblocs.MediaServer
 	for _, server := range data.servers {
-		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
+		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
 			result = server
 		}
 	}
@@ -706,7 +706,7 @@ func getDIDRoutedServer(rtcOptimized bool) (*lineblocs.MediaServer,error) {
 	defer data.mu.Lock()
 	var result *lineblocs.MediaServer
 	for _, server := range data.servers {
-		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && server.Status == "ALIVE" && rtcOptimized == server.RtcOptimized {
+		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
 			result = server
 		}
 	}
