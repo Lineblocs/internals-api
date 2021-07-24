@@ -1397,6 +1397,7 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 
 
 	domain := getQueryVariable(r, "domain")
+	fmt.Printf("Finding server for domain " + domain + "..\r\n");
 	//ru := getQueryVariable(r, "ru")
 	workspace, err := getWorkspaceByDomain(*domain)
 	if err != nil {
@@ -1419,6 +1420,7 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("GetUserAssignedIP could not get server", err, w)
 		return
 	}
+	fmt.Printf("Found server " + server.PrivateIpAddress + "..\r\n");
 	w.Write([]byte(server.PrivateIpAddress));
 }
 
