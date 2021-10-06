@@ -1490,13 +1490,13 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.APIToken,
 			&info.APISecret )
 	if ( err == nil && err != sql.ErrNoRows ) {  
-    if ( flowJson.Valid ) {
-      info.FlowJSON = flowJson.String
-    }
+		if ( flowJson.Valid ) {
+		info.FlowJSON = flowJson.String
+		}
 
 		params, err := getWorkspaceParams(info.WorkspaceId)
 		if err != nil {
-			handleInternalErr("GetDIDNumberData error", err, w)
+			handleInternalErr("GetDIDNumberData 1 error", err, w)
 			return
 		}
 
@@ -1520,10 +1520,6 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 		INNER JOIN users ON users.id = workspaces.creator_id
 		WHERE byo_did_numbers.number = ?	
 		`, number);
-  if ( flowJson.Valid ) {
-    info.FlowJSON = flowJson.String
-  }
-
 	err = row.Scan(
 			&info.WorkspaceId,
 			&flowJson,
@@ -1539,13 +1535,13 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 
 			&info.APISecret )
 	if ( err == nil && err != sql.ErrNoRows ) {  
-    if ( flowJson.Valid ) {
-      info.FlowJSON = flowJson.String
-    }
+		if ( flowJson.Valid ) {
+		info.FlowJSON = flowJson.String
+		}
 
 		params, err := getWorkspaceParams(info.WorkspaceId)
 		if err != nil {
-			handleInternalErr("GetDIDNumberData error", err, w)
+			handleInternalErr("GetDIDNumberData 2 error", err, w)
 			return
 		}
 
@@ -1554,7 +1550,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err != nil {
-		handleInternalErr("GetDIDNumberData error", err, w)
+		handleInternalErr("GetDIDNumberData 3 error", err, w)
 		return
 	}
 
