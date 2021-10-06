@@ -1491,7 +1491,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.APISecret )
 	if ( err == nil && err != sql.ErrNoRows ) {  
 		if ( flowJson.Valid ) {
-		info.FlowJSON = flowJson.String
+			info.FlowJSON = flowJson.String
 		}
 
 		params, err := getWorkspaceParams(info.WorkspaceId)
@@ -1502,6 +1502,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 
 		info.WorkspaceParams = params
 		json.NewEncoder(w).Encode(&info)
+		return
 	}
 	// Execute the query
 	row = db.QueryRow(`SELECT 
@@ -1536,7 +1537,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.APISecret )
 	if ( err == nil && err != sql.ErrNoRows ) {  
 		if ( flowJson.Valid ) {
-		info.FlowJSON = flowJson.String
+			info.FlowJSON = flowJson.String
 		}
 
 		params, err := getWorkspaceParams(info.WorkspaceId)
@@ -1547,6 +1548,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 
 		info.WorkspaceParams = params
 		json.NewEncoder(w).Encode(&info)
+		return
 	}
 
 	if err != nil {
