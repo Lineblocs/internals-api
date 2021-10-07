@@ -1552,6 +1552,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.APISecret )
 	if ( err != nil ) {
 		handleInternalErr("GetDIDNumberData 3 error", err, w)
+		return
 	}
 
 	if ( flowJson.Valid ) {
