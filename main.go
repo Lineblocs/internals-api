@@ -1496,7 +1496,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.APISecret )
 	
     checkOtherTable := false
-	if ( err != sql.ErrNoRows ) {  
+	if ( err == sql.ErrNoRows ) {  
     	checkOtherTable = true
 	}
 
