@@ -1501,7 +1501,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.APIToken,
 			&info.APISecret )
 	
-	if err != sql.ErrNoRows {
+	if err != nil && err != sql.ErrNoRows {
 			handleInternalErr("GetDIDNumberData lookup error", err, w)
 			return
 	}
