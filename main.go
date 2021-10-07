@@ -352,11 +352,15 @@ func getWorkspaceByDomain(domain string) (*Workspace, error) {
 func getWorkspaceParams(workspaceId int) (*[]WorkspaceParam, error) {
 	// Execute the query
 	results, err := db.Query("SELECT `key`, `value` FROM workspace_params WHERE `workspace_id` = ?", workspaceId)
+  	defer results.Close()
+	params := []WorkspaceParam{};
+	if ( err == sql.ErrNoRows ) { 
+		// no records setup were setup, just return empty
+		return &params, nil
+	}
     if err != nil {
 		return nil, err;
 	}
-  defer results.Close()
-	params := []WorkspaceParam{};
 
     for results.Next() {
 		param := WorkspaceParam{};
@@ -1490,7 +1494,17 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.CreatorId,
 			&info.APIToken,
 			&info.APISecret )
-	if ( err == nil && err != sql.ErrNoRows ) {  
+	
+    checkOtherTable := false
+	if ( err != sql.ErrNoRows ) {  
+    	checkOtherTable = true
+	}
+
+	if err != nil {
+			handleInternalErr("GetDIDNumberData lookup error", err, w)
+			return
+	}
+	if ( !checkOtherTable ) {
 		if ( flowJson.Valid ) {
 			info.FlowJSON = flowJson.String
 		}
@@ -1537,25 +1551,22 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 
 			&info.APISecret )
 	if ( err == nil && err != sql.ErrNoRows ) {  
-		if ( flowJson.Valid ) {
-			info.FlowJSON = flowJson.String
-		}
-
-		params, err := getWorkspaceParams(info.WorkspaceId)
-		if err != nil {
-			handleInternalErr("GetDIDNumberData 2 error", err, w)
-			return
-		}
-
-		info.WorkspaceParams = params
-		json.NewEncoder(w).Encode(&info)
-		return
-	}
-
-	if err != nil {
 		handleInternalErr("GetDIDNumberData 3 error", err, w)
+	}
+
+
+	if ( flowJson.Valid ) {
+		info.FlowJSON = flowJson.String
+	}
+
+	params, err := getWorkspaceParams(info.WorkspaceId)
+	if err != nil {
+		handleInternalErr("GetDIDNumberData 2 error", err, w)
 		return
 	}
+
+	info.WorkspaceParams = params
+	json.NewEncoder(w).Encode(&info)
 
 }
 func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
