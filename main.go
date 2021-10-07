@@ -1470,7 +1470,12 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 	var flowJson sql.NullString
 	fmt.Printf("Looking up number: %s", *number)
 	// Execute the query
-	row := db.QueryRow(`SELECT flows.workspace_id, flows.flow_json, did_numbers.number, workspaces.name, workspaces.name AS workspace_name, 
+	row := db.QueryRow(`SELECT 
+		flows.workspace_id, 
+		flows.flow_json, 
+		did_numbers.number, 
+		workspaces.name, 
+		workspaces.name AS workspace_name, 
         workspaces.plan,
         workspaces.byo_enabled,
         workspaces.creator_id,
@@ -1492,6 +1497,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.Plan,
 			&info.BYOEnabled,
 			&info.CreatorId,
+			&info.WorkspaceId,
 			&info.APIToken,
 			&info.APISecret )
 	
@@ -1531,6 +1537,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
         workspaces.plan,
         workspaces.byo_enabled,
         workspaces.creator_id,
+        workspaces.id AS workspace_id,
         workspaces.api_token,
 		workspaces.api_secret FROM workspaces
 		INNER JOIN byo_did_numbers ON byo_did_numbers.workspace_id = workspaces.id	
@@ -1549,6 +1556,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 
 			&info.BYOEnabled,
 			&info.CreatorId,
+			&info.WorkspaceId,
 			&info.APIToken,
 
 			&info.APISecret )
