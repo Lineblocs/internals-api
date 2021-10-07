@@ -1464,7 +1464,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 	number := getQueryVariable(r, "number")
 	var info WorkspaceDIDInfo;
 	var flowJson sql.NullString
-	fmt.Printf("Looking up number: %s", number)
+	fmt.Printf("Looking up number: %s", *number)
 	// Execute the query
 	row := db.QueryRow(`SELECT flows.workspace_id, flows.flow_json, did_numbers.number, workspaces.name, workspaces.name AS workspace_name, 
         workspaces.plan,
