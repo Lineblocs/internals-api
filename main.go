@@ -1495,15 +1495,17 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.APIToken,
 			&info.APISecret )
 	
+	if err != sql.ErrNoRows {
+			handleInternalErr("GetDIDNumberData lookup error", err, w)
+			return
+	}
+
+
     checkOtherTable := false
 	if ( err == sql.ErrNoRows ) {  
     	checkOtherTable = true
 	}
 
-	if err != nil {
-			handleInternalErr("GetDIDNumberData lookup error", err, w)
-			return
-	}
 	if ( !checkOtherTable ) {
 		if ( flowJson.Valid ) {
 			info.FlowJSON = flowJson.String
