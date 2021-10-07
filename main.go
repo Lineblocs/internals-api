@@ -1478,7 +1478,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 		INNER JOIN flows ON flows.id = did_numbers.flow_id	
 		INNER JOIN users ON users.id = workspaces.creator_id
 		WHERE did_numbers.api_number = ?	
-		`, number);
+		`, *number);
 	err := row.Scan(
 			&info.WorkspaceId,
       &flowJson,
@@ -1521,7 +1521,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 		INNER JOIN flows ON flows.id = byo_did_numbers.flow_id	
 		INNER JOIN users ON users.id = workspaces.creator_id
 		WHERE byo_did_numbers.number = ?	
-		`, number);
+		`, *number);
 	err = row.Scan(
 			&info.WorkspaceId,
 			&flowJson,
