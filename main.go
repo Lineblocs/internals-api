@@ -1550,24 +1550,17 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 			&info.APIToken,
 
 			&info.APISecret )
-	if ( err == nil && err != sql.ErrNoRows ) {  
+	if ( err != nil ) {
 		handleInternalErr("GetDIDNumberData 3 error", err, w)
 	}
-
 
 	if ( flowJson.Valid ) {
 		info.FlowJSON = flowJson.String
 	}
 
 	params, err := getWorkspaceParams(info.WorkspaceId)
-	if err != nil {
-		handleInternalErr("GetDIDNumberData 2 error", err, w)
-		return
-	}
-
 	info.WorkspaceParams = params
 	json.NewEncoder(w).Encode(&info)
-
 }
 func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("received PSTN request..\r\n");
