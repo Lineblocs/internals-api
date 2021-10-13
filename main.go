@@ -565,10 +565,7 @@ func checkPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 	sip_providers_whitelist_ips.ip_address, 
 	sip_providers_whitelist_ips.range
 	FROM sip_providers_whitelist_ips
-	INNER JOIN sip_providers ON sip_providers.id = sip_providers_whitelist_ips.provider_id
-	INNER JOIN did_numbers ON did_numbers.workspace_id = sip_providers_whitelist_ips.workspace_id
-	WHERE did_numbers.api_number = ?
-	`, did)
+	INNER JOIN sip_providers ON sip_providers.id = sip_providers_whitelist_ips.provider_id`)
     if err != nil {
 		return false, err
 	}
