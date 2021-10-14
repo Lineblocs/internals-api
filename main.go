@@ -701,6 +701,24 @@ func getUserRoutedServer(rtcOptimized bool, workspace *Workspace) (*lineblocs.Me
 
 }
 
+// get the server with the least amount of
+// calls
+func getUserRoutedServer2(rtcOptimized bool, workspace *Workspace) (*lineblocs.MediaServer,error) {
+	servers, err := lineblocs.CreateMediaServers()
+
+	if err != nil {
+		return nil, err
+	}
+	var result *lineblocs.MediaServer
+	for _, server := range servers {
+		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
+			result = server
+		}
+	}
+	return result, nil
+
+}
+
 // get the server closest to the DID profile
 func getDIDRoutedServer(rtcOptimized bool) (*lineblocs.MediaServer,error) {
 	data.mu.Lock()
@@ -714,6 +732,22 @@ func getDIDRoutedServer(rtcOptimized bool) (*lineblocs.MediaServer,error) {
 	return result, nil
 
 
+}
+// get the server closest to the DID profile
+func getDIDRoutedServer2(rtcOptimized bool) (*lineblocs.MediaServer,error) {
+	servers, err := lineblocs.CreateMediaServers()
+
+	if err != nil {
+		return nil, err
+	}
+
+	var result *lineblocs.MediaServer
+	for _, server := range servers {
+		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
+			result = server
+		}
+	}
+	return result, nil
 }
 
 func doVerifyCaller(workspaceId int, number string) (bool, error) {
@@ -1411,7 +1445,7 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server, err := getUserRoutedServer(rtcOptimized, workspace)
+	server, err := getUserRoutedServer2(rtcOptimized, workspace)
 
 	if err != nil {
 		handleInternalErr("GetUserAssignedIP error occured", err, w)
@@ -1811,7 +1845,7 @@ func GetDIDAcceptOption(w http.ResponseWriter, r *http.Request) {
 	handleInternalErr("GetDIDAcceptOption error 2 occured", err, w)
 }
 func GetDIDAssignedIP(w http.ResponseWriter, r *http.Request) {
-	server, err := getDIDRoutedServer(false)
+	server, err := getDIDRoutedServer2(false)
 	if err != nil {
 		handleInternalErr("GetUserAssignedIP error occured", err, w)
 		return
@@ -1970,21 +2004,24 @@ func IncomingPSTNValidation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if match {
-			fmt.Printf("Matched incoming DID..")
-			valid, err := finishValidation(*number, didWorkspaceId)
-			if err != nil {
-				handleInternalErr("IncomingPSTNValidation error 2 valid", err, w)
-				return
-			}
-			if !valid {
-				fmt.Printf("number not valid..")
-				w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
-				return
-			}
-		    w.WriteHeader(http.StatusNoContent) // send the headers with a 204 response code.
+		if !match {
+			fmt.Println("IncomingPSTNValidation no match found 1")
+			w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
 			return
 		}
+		fmt.Printf("Matched incoming DID..")
+		valid, err := finishValidation(*number, didWorkspaceId)
+		if err != nil {
+			handleInternalErr("IncomingPSTNValidation error 2 valid", err, w)
+			return
+		}
+		if !valid {
+			fmt.Printf("number not valid..")
+			w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
+			return
+		}
+		w.WriteHeader(http.StatusNoContent) // send the headers with a 204 response code.
+		return
 	}
 
 	if err != sql.ErrNoRows {
@@ -1998,34 +2035,32 @@ func IncomingPSTNValidation(w http.ResponseWriter, r *http.Request) {
 	var byoDidWorkspaceId string
 	err = row.Scan(&byoDidNumber,
 			&byoDidWorkspaceId)
-	if ( err == nil ) {  //create conference
-		match, err := checkBYOPSTNIPWhitelist(*did, *source) 
-		if err != nil {
-			handleInternalErr("IncomingPSTNValidation error 3", err, w)
-			return
-		}
-
-		if match {
-			fmt.Printf("Matched incoming DID..")
-			valid, err := finishValidation(*number, byoDidWorkspaceId)
-			if err != nil {
-				handleInternalErr("IncomingPSTNValidation error 4 valid", err, w)
-				return
-			}
-			if !valid {
-				fmt.Printf("number not valid..")
-				w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
-				return
-			}
-		    w.WriteHeader(http.StatusNoContent) // send the headers with a 204 response code.
-			return
-		}
+	if ( err != nil ) {  //create conference
+		handleInternalErr("IncomingPSTNValidation error 3", err, w)
+		return
 	}
-
-
-	fmt.Printf("No results were found..")
-
-	w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
+	match, err := checkBYOPSTNIPWhitelist(*did, *source) 
+	if err != nil {
+		handleInternalErr("IncomingPSTNValidation error 3", err, w)
+		return
+	}
+	if !match {
+		fmt.Println("IncomingPSTNValidation no match found 2")
+		w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
+		return
+	}
+	fmt.Printf("Matched incoming DID..")
+	valid, err := finishValidation(*number, byoDidWorkspaceId)
+	if err != nil {
+		handleInternalErr("IncomingPSTNValidation error 4 valid", err, w)
+		return
+	}
+	if !valid {
+		fmt.Printf("number not valid..")
+		w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
+		return
+	}
+	w.WriteHeader(http.StatusNoContent) // send the headers with a 204 response code.
 }
 func IncomingMediaServerValidation(w http.ResponseWriter, r *http.Request) {
 	//number:= getQueryVariable(r, "number")
