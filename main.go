@@ -1894,25 +1894,23 @@ func GetExtensionFlowInfo(w http.ResponseWriter, r *http.Request) {
 
 	var info ExtensionFlowInfo
 	var trialStartedTime time.Time
-	row := db.QueryRow(`SELECT 
-		flows.workspace_id, 
-		flows.flow_json, 
-		extensions.username, 
-		workspaces.name,
-		workspaces.name AS workspace_name, 
-        workspaces.plan,
-        workspaces.creator_id,
-        workspaces.id AS workspace_id,
-        workspaces.api_token,
-		workspaces.api_secret
-		users.free_trial_started
-		FROM workspaces
-		INNER JOIN extensions ON extensions.workspace_id = workspaces.id
-		INNER JOIN flows ON flows.workspace_id = workspaces.id
-		INNER JOIN users ON users.id = workspaces.creator_id
-		WHERE extensions.username = ? 
-		AND extensions.workspace_id = ? 
-		`, extension, workspaceId)
+	row := db.QueryRow(`SELECT flows.workspace_id,
+flows.flow_json,
+extensions.username,
+workspaces.name,
+workspaces.name AS workspace_name,
+workspaces.plan,
+workspaces.creator_id,
+workspaces.id AS workspace_id,
+workspaces.api_token,
+workspaces.api_secret,
+users.free_trial_started
+FROM workspaces
+INNER JOIN extensions ON extensions.workspace_id = workspaces.id
+INNER JOIN flows ON flows.id = extensions.flow_id
+INNER JOIN users ON users.id = workspaces.creator_id
+WHERE extensions.username = ?
+AND extensions.workspace_id = ?`, extension, workspaceId)
 	err := row.Scan(&info.WorkspaceId, &info.FlowJSON, &info.Username, &info.Name, &info.WorkspaceName, &info.Plan,
 			&info.CreatorId, &info.Id, &info.APIToken, &info.APISecret, &trialStartedTime)
 	if ( err == sql.ErrNoRows ) {  //create conference
