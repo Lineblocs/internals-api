@@ -176,6 +176,7 @@ type WorkspaceCreatorFullInfo struct {
 type WorkspaceDIDInfo struct {
   WorkspaceId int `json:"workspace_id"`
   Number string `json:"number"`
+  FlowId int `json:"flow_id"`
   FlowJSON string `json:"flow_json"`
   WorkspaceName string `json:"workspace_name"`
   Name string `json:"name"`
@@ -1549,6 +1550,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("Looking up number: %s", *number)
 	// Execute the query
 	row := db.QueryRow(`SELECT 
+		flows.id AS flow_id,
 		flows.workspace_id, 
 		flows.flow_json, 
 		did_numbers.number, 
@@ -1567,6 +1569,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 		WHERE did_numbers.api_number = ?	
 		`, *number);
 	err := row.Scan(
+			&info.FlowId,
 			&info.WorkspaceId,
       &flowJson,
 			&info.Number,
@@ -1607,6 +1610,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 	}
 	// Execute the query
 	row = db.QueryRow(`SELECT 
+		flows.id AS flow_id,
 		flows.workspace_id, 
 		flows.flow_json, 
 		byo_did_numbers.number, 
@@ -1624,6 +1628,7 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 		WHERE byo_did_numbers.number = ?	
 		`, *number);
 	err = row.Scan(
+			&info.FlowId,
 			&info.WorkspaceId,
 			&flowJson,
 			&info.Number,
