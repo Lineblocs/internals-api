@@ -197,6 +197,7 @@ type CallerIDInfo struct {
   CallerID string `json:"caller_id"`
 }
 type ExtensionFlowInfo struct {
+  FlowId int `json:"flow_id"`
   CallerID string `json:"caller_id"`
   WorkspaceId int `json:"workspace_id"`
   FlowJSON string `json:"flow_json"`
@@ -1947,6 +1948,7 @@ func GetExtensionFlowInfo(w http.ResponseWriter, r *http.Request) {
 	var info ExtensionFlowInfo
 	var trialStartedTime time.Time
 	row := db.QueryRow(`SELECT flows.workspace_id,
+flows.id AS flow_id,
 flows.flow_json,
 extensions.username,
 workspaces.name,
@@ -1963,7 +1965,7 @@ INNER JOIN flows ON flows.id = extensions.flow_id
 INNER JOIN users ON users.id = workspaces.creator_id
 WHERE extensions.username = ?
 AND extensions.workspace_id = ?`, extension, workspaceId)
-	err := row.Scan(&info.WorkspaceId, &info.FlowJSON, &info.Username, &info.Name, &info.WorkspaceName, &info.Plan,
+	err := row.Scan(&info.FlowId,&info.WorkspaceId, &info.FlowJSON, &info.Username, &info.Name, &info.WorkspaceName, &info.Plan,
 			&info.CreatorId, &info.Id, &info.APIToken, &info.APISecret, &trialStartedTime)
 	if ( err == sql.ErrNoRows ) {  //create conference
 		w.WriteHeader(http.StatusNotFound)
