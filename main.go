@@ -40,6 +40,11 @@ type Call struct {
   WorkspaceId int  `json:"workspace_id"`
   APIId string `json:"api_id"`
   SourceIp string `json:"source_ip"`
+  ChannelId string `json:"channel_id"`
+  StartedAt string `json:"started_at"`
+  CreatedAt string `json:"created_at"`
+  UpdatedAt string `json:"updated_at"`
+  PlanSnapshot string `json:"plan_snapshot"`
 }
 type CallUpdateReq struct {
   CallId int `json:"call_id"`
@@ -412,6 +417,30 @@ func getRecordingFromDB(id int) (*Recording, error) {
 		return &Recording{APIId: apiId, Id: id, TranscriptionReady: true, TranscriptionText: text, Size: size}, nil
 	}
 	return &Recording{APIId: apiId, Id: id, Size: size}, nil
+}
+
+
+func getCallFromDB(id int) (*Call, error) {
+	row := db.QueryRow("SELECT `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) FROM calls WHERE id = ?", id)
+	call := Call{}
+	err := row.Scan(
+				&call.From, 
+				&call.To, 
+				&call.ChannelId, 
+				&call.Status, 
+				&call.Direction, 
+				&call.Duration,
+				&call.UserId, 
+				&call.WorkspaceId, 
+				&call.StartedAt,
+				&call.CreatedAt,
+				&call.UpdatedAt,
+				&call.APIId, 
+				&call.PlanSnapshot)
+	if ( err == sql.ErrNoRows ) {  //create conference
+		return nil, err
+	}
+	return &call, nil
 }
 //todo move to microservice
 func getPlanRecordingLimit(workspace* Workspace) (int, error) {
@@ -852,16 +881,16 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 	}
 
   // perform a db.Query insert
-	stmt, err := db.Prepare("INSERT INTO calls (`from`, `to`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+	stmt, err := db.Prepare("INSERT INTO calls (`from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
 	if err != nil {
 		handleInternalErr("CreateCall Could not execute query..", err, w);
 		return 
 	}
 	defer stmt.Close()
-	fmt.Printf("CreateCall args from=%s, to=%s, status=%s, direction=%s, user_id=%s, workspace_id=%s, started=%s, plan=%s",
-		call.From, call.To, call.Status, call.Direction, call.UserId, call.WorkspaceId, now, call.APIId, workspace.Plan)
+	fmt.Printf("CreateCall args from=%s, to=%s, channel_id=%s, status=%s, direction=%s, user_id=%s, workspace_id=%s, started=%s, plan=%s",
+		call.From, call.To, call.ChannelId, call.Status, call.Direction, call.UserId, call.WorkspaceId, now, call.APIId, workspace.Plan)
 
-	res, err := stmt.Exec(call.From, call.To, call.Status, call.Direction, "8", call.UserId, call.WorkspaceId, now, now, now, call.APIId, workspace.Plan)
+	res, err := stmt.Exec(call.From, call.To, call.ChannelId, call.Status, call.Direction, "8", call.UserId, call.WorkspaceId, now, now, now, call.APIId, workspace.Plan)
 
 		
 		if err != nil {
@@ -887,6 +916,7 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("X-Call-ID", strconv.FormatInt(callId, 10))
   	json.NewEncoder(w).Encode(&call)
 }
+
 
 func UpdateCall(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
@@ -928,6 +958,23 @@ func UpdateCall(w http.ResponseWriter, r *http.Request) {
 
   	w.WriteHeader(http.StatusNoContent)
 }
+
+func FetchCall(w http.ResponseWriter, r *http.Request) {
+	id := getQueryVariable(r, "id")
+	id_int, err := strconv.Atoi(*id)
+	if err != nil {
+		handleInternalErr("FetchCall error occured", err, w)
+		return
+	}
+	call, err := getCallFromDB( id_int )
+	if err != nil {
+		handleInternalErr("FetchCall error occured", err, w)
+		return
+	}
+  	json.NewEncoder(w).Encode(&call)
+
+}
+
 
 func CreateConference(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
@@ -2173,6 +2220,7 @@ func startHTTPServer() {
     // Routes consist of a path and a handler function.
 	r.HandleFunc("/call/createCall", CreateCall).Methods("POST");
 	r.HandleFunc("/call/updateCall", UpdateCall).Methods("POST");
+	r.HandleFunc("/call/fetchCall", FetchCall).Methods("GET");
 	r.HandleFunc("/conference/createConference", CreateConference).Methods("POST");
 	
 	//debits
