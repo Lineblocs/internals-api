@@ -1974,6 +1974,47 @@ AND extensions.workspace_id = ?`, extension, workspaceId)
 	info.FreeTrialStatus = checkFreeTrialStatus(info.Plan, trialStartedTime)
 	json.NewEncoder(w).Encode(&info)
 }
+
+func GetFlowInfo(w http.ResponseWriter, r *http.Request) {
+	flowId := getQueryVariable(r, "flow_id")
+	workspaceId := getQueryVariable(r, "workspace")
+	//number := getQueryVariable(r, "number")
+	//workspace, err := getWorkspaceFromDB(*workspaceId)
+	/*
+	if err != nil {
+		handleInternalErr("GetExtensionFlowInfo error", err, w)
+		return
+	}
+	*/
+
+	var info ExtensionFlowInfo
+	var trialStartedTime time.Time
+	row := db.QueryRow(`SELECT flows.workspace_id,
+flows.id AS flow_id,
+flows.flow_json,
+extensions.username,
+workspaces.name,
+workspaces.name AS workspace_name,
+workspaces.plan,
+workspaces.creator_id,
+workspaces.id AS workspace_id,
+workspaces.api_token,
+workspaces.api_secret,
+users.free_trial_started
+FROM workspaces
+INNER JOIN flows ON flows.id = extensions.flow_id
+INNER JOIN users ON users.id = workspaces.creator_id
+WHERE flows.public_id = ?
+AND extensions.workspace_id = ?`, flowId, workspaceId)
+	err := row.Scan(&info.FlowId,&info.WorkspaceId, &info.FlowJSON, &info.Name, &info.WorkspaceName, &info.Plan,
+			&info.CreatorId, &info.Id, &info.APIToken, &info.APISecret, &trialStartedTime)
+	if ( err == sql.ErrNoRows ) {  //create conference
+		w.WriteHeader(http.StatusNotFound)
+		return
+	}
+	info.FreeTrialStatus = checkFreeTrialStatus(info.Plan, trialStartedTime)
+	json.NewEncoder(w).Encode(&info)
+}
 func GetDIDDomain(w http.ResponseWriter, r *http.Request) {
 
 }
@@ -2261,6 +2302,7 @@ func startHTTPServer() {
 	r.HandleFunc("/user/addPSTNProviderTechPrefix", AddPSTNProviderTechPrefix).Methods("GET");
 	r.HandleFunc("/user/getCallerIdToUse", GetCallerIdToUse).Methods("GET");
 	r.HandleFunc("/user/getExtensionFlowInfo", GetExtensionFlowInfo).Methods("GET");
+	r.HandleFunc("/user/getFlowInfo", GetFlowInfo).Methods("GET");
 	r.HandleFunc("/user/getDIDDomain", GetDIDDomain).Methods("GET");
 	r.HandleFunc("/user/getCodeFlowInfo", GetCodeFlowInfo).Methods("GET");
 	r.HandleFunc("/user/incomingPSTNValidation", IncomingPSTNValidation).Methods("GET");
