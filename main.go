@@ -579,12 +579,22 @@ func checkRouteMatches(from string, to string, prefix string, prepend string, ma
 func shouldUseHostNext(name string, ipPrivate string) (bool, error) {
 	return true, nil
 }
-func checkCIDRMatch(sourceIp string, fullIp string) (bool, error) {
-	_, net1, err :=  net.ParseCIDR(sourceIp + "/32")
+func checkCIDRMatch(sourceIp string, ipWithCidr string) (bool, error) {
+	// remove port if needed
+
+	ipSlice1 := strings.Split(sourceIp, ":")
+	ip1 := ipSlice1[0]
+	cidr := strings.Split(ipWithCidr, "/")
+
+	ipSlice2 := strings.Split(ipWithCidr, ":")
+	ip2 = ipSlice2[0] + "/" + cidr[1]
+
+
+	_, net1, err :=  net.ParseCIDR(ip1 + "/32")
 	if err != nil {
 		return false, err
 	}
-	_, net2, err :=  net.ParseCIDR(fullIp)
+	_, net2, err :=  net.ParseCIDR(ip2)
 	if err != nil {
 		return false, err
 	}
@@ -609,10 +619,10 @@ func checkPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 		  return false, err
 
 		}
-		fullIp := ipAddr + ipAddrRange
-		match, err := checkCIDRMatch(sourceIp, fullIp) 
+		ipWithCidr := ipAddr + ipAddrRange
+		match, err := checkCIDRMatch(sourceIp, ipWithCidr) 
 		if err != nil {
-		  fmt.Printf("error matching CIDR source %s, full %s\r\n", sourceIp, fullIp)
+		  fmt.Printf("error matching CIDR source %s, full %s\r\n", sourceIp, ipWithCidr)
 		  continue
 		}
 		if match {
@@ -641,10 +651,10 @@ func checkBYOPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 		if err != nil {
 			return false, err
 		}
-		fullIp := ipAddr + ipAddrRange
-		match, err := checkCIDRMatch(sourceIp, fullIp) 
+		ipWithCidr := ipAddr + ipAddrRange
+		match, err := checkCIDRMatch(sourceIp, ipWithCidr) 
 		if err != nil {
-		  fmt.Printf("error matching CIDR source %s, full %s\r\n", sourceIp, fullIp)
+		  fmt.Printf("error matching CIDR source %s, full %s\r\n", sourceIp, ipWithCidr)
 		  continue
 		}
 		if match {
@@ -1860,8 +1870,8 @@ func IPWhitelistLookup(w http.ResponseWriter, r *http.Request) {
 			return
 
 		}
-		fullIp := ip + ipRange
-		match,err := checkCIDRMatch(*source, fullIp) 
+		ipWithCidr := ip + ipRange
+		match,err := checkCIDRMatch(*source, ipWithCidr) 
 		if err != nil {
 			handleInternalErr("IPWhitelistLookup error", err, w)
 			return
