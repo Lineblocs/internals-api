@@ -584,10 +584,16 @@ func checkCIDRMatch(sourceIp string, ipWithCidr string) (bool, error) {
 
 	ipSlice1 := strings.Split(sourceIp, ":")
 	ip1 := ipSlice1[0]
-	cidr := strings.Split(ipWithCidr, "/")
 
+	// check if there is port
 	ipSlice2 := strings.Split(ipWithCidr, ":")
-	ip2 = ipSlice2[0] + "/" + cidr[1]
+	var ip2 string
+	if len(ipSlice2) > 1 {
+		cidr := strings.Split(ipSlice2[1], "/")
+		ip2 = ipSlice2[0] + "/" + cidr[1]
+	} else {
+		ip2 = ipSlice2[0]
+	}
 
 
 	_, net1, err :=  net.ParseCIDR(ip1 + "/32")
