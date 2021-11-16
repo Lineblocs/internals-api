@@ -122,6 +122,8 @@ type Recording struct {
   Tags *[]string `json:"tags"`
 	TranscriptionReady bool `json:"transcription_ready"`
 	TranscriptionText string `json:"transcription_text"`
+	StorageId string `json:"storage_id"`
+	StorageServerIp string `json:"storage_server_ip"`
 }
 
 type VerifyNumber struct {
@@ -1308,12 +1310,12 @@ func CreateRecording(w http.ResponseWriter, r *http.Request) {
 	recording.APIId = createAPIID("rec")
 
   // perform a db.Query insert
-	stmt, err := db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"); if err != nil {
+	stmt, err := db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `plan_snapshot`, `storage_id`, `storage_server_ip`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"); if err != nil {
 		handleInternalErr("CreateRecording error.", err, w);
 		return 
 	}
   defer stmt.Close()
-	res, err := stmt.Exec(recording.UserId, recording.CallId, recording.WorkspaceId, "started", "", "", "", recording.APIId, workspace.Plan, now, now)
+	res, err := stmt.Exec(recording.UserId, recording.CallId, recording.WorkspaceId, "started", "", "", "", recording.APIId, workspace.Plan, recording.StorageId, recording.StorageServerIp, now, now)
 	if err != nil {
 		handleInternalErr("CreateRecording error.", err, w);
 		return 
