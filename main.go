@@ -257,6 +257,7 @@ type Settings struct {
 	SmtpUser string `json:"smtp_user"`
 	SmtpPassword string `json:"smtp_password"`
 	SmtTls string `json:"smtp_tls"`
+	GoogleServiceAccountJson string `json:"google_service_account_json"`
 }
 type GlobalSettings struct {
   ValidateCallerId bool
@@ -2311,7 +2312,7 @@ func StoreRegistration(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func GetSettings(w http.ResponseWriter, r *http.Request) {
-	results, err := db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls`")
+	results, err := db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls`")
   	defer results.Close()
 	if ( err == sql.ErrNoRows ) { 
 		// no records setup were setup, just return empty
@@ -2331,6 +2332,7 @@ func GetSettings(w http.ResponseWriter, r *http.Request) {
 		err := results.Scan( &settings.AwsAccessKeyId,
 		&settings.AwsSecretAccessKey,
 		&settings.AwsRegion,
+		&settings.GoogleServiceAccountJson,
 		&settings.StripePubKey,
 		&settings.StripePrivateKey,
 		&settings.StripeTestPubKey,
