@@ -162,6 +162,8 @@ type Workspace struct {
   Plan string `json:"plan"`
 }
 
+
+
 type WorkspaceParam struct {
 	Key string `json:"key"`
 	Value string `json:"value"`
@@ -241,6 +243,21 @@ type EmailInfo struct {
 	Message string `json:"message"`
 }
 
+type Settings struct {
+	AwsAccessKeyId string `json:"aws_access_key_id"`
+	AwsSecretAccessKey string `json:"aws_secret_access_key"`
+	AwsRegion string `json:"aws_region"`
+	StripePubKey string `json:"stripe_pub_key"`
+	StripePrivateKey string `json:"stripe_private_key"`
+	StripeTestPubKey string `json:"stripe_test_pub_key"`
+	StripeTestPrivateKey string `json:"stripe_test_private_key"`
+	StripeMode string `json:"stripe_mode"`
+	SmtpHost string `json:"smtp_host"`
+	SmtpPort string `json:"smtp_port"`
+	SmtpUser string `json:"smtp_user"`
+	SmtpPassword string `json:"smtp_password"`
+	SmtTls string `json:"smtp_tls"`
+}
 type GlobalSettings struct {
   ValidateCallerId bool
 }
@@ -2293,6 +2310,46 @@ func StoreRegistration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+func GetSettings(w http.ResponseWriter, r *http.Request) {
+	results, err := db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls`")
+  	defer results.Close()
+	if ( err == sql.ErrNoRows ) { 
+		// no records setup were setup, just return empty
+		fmt.Printf("GetSettings no rows found..")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+    if err != nil {
+		fmt.Printf("GetSettings error: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	settings := Settings{}
+    for results.Next() {
+
+		err := results.Scan( &settings.AwsAccessKeyId,
+		&settings.AwsSecretAccessKey,
+		&settings.AwsRegion,
+		&settings.StripePubKey,
+		&settings.StripePrivateKey,
+		&settings.StripeTestPubKey,
+		&settings.StripeTestPrivateKey,
+		&settings.StripeMode,
+		&settings.SmtpHost,
+		&settings.SmtpPort,
+		&settings.SmtpUser,
+		&settings.SmtpPassword,
+		&settings.SmtTls )
+        if err != nil {
+			fmt.Printf("GetSettings error: " + err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(&settings)
+	}
+}
+
 
 func startHTTPServer() {
   settings = &GlobalSettings{ValidateCallerId: false}
@@ -2340,6 +2397,8 @@ func startHTTPServer() {
 	r.HandleFunc("/user/incomingPSTNValidation", IncomingPSTNValidation).Methods("GET");
 	r.HandleFunc("/user/incomingMediaServerValidation", IncomingMediaServerValidation).Methods("GET");
 	r.HandleFunc("/user/storeRegistration", StoreRegistration).Methods("POST");
+
+	r.HandleFunc("/user/getSettings", GetSettings).Methods("GET");
 
 	// Send Admin email
 	r.HandleFunc("/admin/sendAdminEmail", SendAdminEmail).Methods("POST");
