@@ -256,7 +256,7 @@ type Settings struct {
 	SmtpPort string `json:"smtp_port"`
 	SmtpUser string `json:"smtp_user"`
 	SmtpPassword string `json:"smtp_password"`
-	SmtTls string `json:"smtp_tls"`
+	SmtpTls string `json:"smtp_tls"`
 	GoogleServiceAccountJson string `json:"google_service_account_json"`
 }
 type GlobalSettings struct {
