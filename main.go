@@ -2350,7 +2350,7 @@ func StoreRegistration(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func GetSettings(w http.ResponseWriter, r *http.Request) {
-	results, err := db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls`")
+	results, err := db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls` FROM `api_credentials`")
   	defer results.Close()
 	if ( err == sql.ErrNoRows ) { 
 		// no records setup were setup, just return empty
