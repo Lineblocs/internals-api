@@ -932,6 +932,18 @@ func toCents(dollars float64) int {
 	return int( result )
 }
 
+func healthz(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "text/plain")
+  // execute test query...
+	results, err := db.Query("SELECT k8s_pod_id FROM sip_routers")
+	if err != nil {
+		handleInternalErr("healthz error", err, w)
+		return
+	}
+	defer results.Close()
+  fmt.Fprintf(w, "OK\n")
+}
+
 func CreateCall(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
   var call Call
@@ -2350,7 +2362,7 @@ func StoreRegistration(w http.ResponseWriter, r *http.Request) {
 	}
 }
 func GetSettings(w http.ResponseWriter, r *http.Request) {
-	results, err := db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls` FROM `api_credentials`")
+	results, err := db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls`")
   	defer results.Close()
 	if ( err == sql.ErrNoRows ) { 
 		// no records setup were setup, just return empty
@@ -2395,6 +2407,7 @@ func startHTTPServer() {
   settings = &GlobalSettings{ValidateCallerId: false}
     r := mux.NewRouter()
     // Routes consist of a path and a handler function.
+	r.HandleFunc("/healthz", healthz).Methods("POST");
 	r.HandleFunc("/call/createCall", CreateCall).Methods("POST");
 	r.HandleFunc("/call/updateCall", UpdateCall).Methods("POST");
 	r.HandleFunc("/call/fetchCall", FetchCall).Methods("GET");
