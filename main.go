@@ -1582,7 +1582,7 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server, err := getUserRoutedServer2(rtcOptimized, workspace, routerip)
+	server, err := getUserRoutedServer2(rtcOptimized, workspace, *routerip)
 
 	if err != nil {
 		handleInternalErr("GetUserAssignedIP error occured", err, w)
@@ -2380,7 +2380,7 @@ func GetSettings(w http.ResponseWriter, r *http.Request) {
 		&settings.SmtpPort,
 		&settings.SmtpUser,
 		&settings.SmtpPassword,
-		&settings.SmtTls )
+		&settings.SmtpTls )
         if err != nil {
 			fmt.Printf("GetSettings error: " + err.Error())
 			w.WriteHeader(http.StatusInternalServerError)
