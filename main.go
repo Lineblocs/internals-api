@@ -293,6 +293,42 @@ func calculateSTTCosts(recordingLength float64) float64 {
 	var result float64 = 0.006 * billable
 	return result
 }
+
+
+func createMediaServersForRouter(routerip string) ([]*lineblocs.MediaServer, error) {
+	var servers []*lineblocs.MediaServer;
+	db, err := lineblocs.CreateDBConn()
+	if err != nil {
+		return nil, err
+	}
+
+	results, err := db.Query(`SELECT 
+media_servers.id,
+media_servers.ip_address,
+media_servers.private_ip_address,
+media_servers.webrtc_optimized,
+media_servers.live_call_count,
+media_servers.live_cpu_pct_used,
+media_servers.live_status 
+FROM sip_routers 
+INNER JOIN sip_routers_media_servers ON sip_routers_media_servers.router_id = sip_routers.id
+INNER JOIN media_servers ON media_servers.id =  sip_routers_media_servers.server_id
+WHERE sip_routers.ip_address = '?';`, routerip)
+	if err != nil {
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		value := lineblocs.MediaServer{};
+		err := results.Scan(&value.Id,&value.IpAddress,&value.PrivateIpAddress,&value.RtcOptimized,&value.LiveCallCount,&value.LiveCPUPCTUsed,&value.Status);
+		if err != nil {
+			return nil, err
+		}
+		servers= append(servers, &value)
+	}
+	return servers, nil
+}
 func getUserFromDB(id int) (*User, error) {
 	var userId int
 	var username string
@@ -770,16 +806,16 @@ func getUserRoutedServer(rtcOptimized bool, workspace *Workspace) (*lineblocs.Me
 }
 
 // get the server with the least amount of
-// calls
-func getUserRoutedServer2(rtcOptimized bool, workspace *Workspace) (*lineblocs.MediaServer,error) {
-	servers, err := lineblocs.CreateMediaServers()
-
+// CPU
+func getUserRoutedServer2(rtcOptimized bool, workspace *Workspace, routerip string) (*lineblocs.MediaServer,error) {
+	servers, err := createMediaServersForRouter(routerip)
 	if err != nil {
 		return nil, err
 	}
 	var result *lineblocs.MediaServer
 	for _, server := range servers {
-		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
+		//if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
+		if result == nil || result != nil && server.LiveCPUPCTUsed  < result.LiveCPUPCTUsed && rtcOptimized == server.RtcOptimized {
 			result = server
 		}
 	}
@@ -1532,6 +1568,7 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 
 
 	domain := getQueryVariable(r, "domain")
+	routerip := getQueryVariable(r, "routerip")
 	fmt.Printf("Finding server for domain " + *domain + "..\r\n");
 	//ru := getQueryVariable(r, "ru")
 	workspace, err := getWorkspaceByDomain(*domain)
@@ -1545,7 +1582,7 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	server, err := getUserRoutedServer2(rtcOptimized, workspace)
+	server, err := getUserRoutedServer2(rtcOptimized, workspace, routerip)
 
 	if err != nil {
 		handleInternalErr("GetUserAssignedIP error occured", err, w)
