@@ -852,7 +852,8 @@ func getDIDRoutedServer2(rtcOptimized bool) (*lineblocs.MediaServer,error) {
 
 	var result *lineblocs.MediaServer
 	for _, server := range servers {
-		if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
+		//if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
+		if result == nil || result != nil && server.LiveCPUPCTUsed  < result.LiveCPUPCTUsed && rtcOptimized == server.RtcOptimized {
 			result = server
 		}
 	}
