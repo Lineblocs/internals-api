@@ -814,6 +814,11 @@ func getUserRoutedServer2(rtcOptimized bool, workspace *Workspace, routerip stri
 	}
 	var result *lineblocs.MediaServer
 	for _, server := range servers {
+		// class of server
+		// type of call
+		// use all metrics
+
+		//
 		//if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
 		if result == nil || result != nil && server.LiveCPUPCTUsed  < result.LiveCPUPCTUsed && rtcOptimized == server.RtcOptimized {
 			result = server
