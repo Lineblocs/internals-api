@@ -2413,7 +2413,7 @@ func startHTTPServer() {
   settings = &GlobalSettings{ValidateCallerId: false}
     r := mux.NewRouter()
     // Routes consist of a path and a handler function.
-	r.HandleFunc("/healthz", healthz).Methods("POST");
+	r.HandleFunc("/healthz", healthz).Methods("GET");
 	r.HandleFunc("/call/createCall", CreateCall).Methods("POST");
 	r.HandleFunc("/call/updateCall", UpdateCall).Methods("POST");
 	r.HandleFunc("/call/fetchCall", FetchCall).Methods("GET");
