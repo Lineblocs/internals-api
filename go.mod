@@ -17,6 +17,7 @@ require (
 	github.com/mailgun/mailgun-go v2.0.0+incompatible
 	github.com/mailgun/mailgun-go/v4 v4.2.0
 	github.com/mailru/easyjson v0.7.6 // indirect
+	github.com/nadirhamid/golang-etcd-rate-limiter v0.0.0-20211208035044-4233e2e00177 // indirect
 	github.com/stripe/stripe-go/v71 v71.48.0 // indirect
 	github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2 // indirect
 	github.com/ttacon/libphonenumber v1.1.0

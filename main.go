@@ -20,7 +20,6 @@ import (
 	"database/sql"
 	"encoding/json"
 	"regexp"
-	"golang.org/x/time/rate"
 	_ "github.com/go-sql-driver/mysql"
 	guuid "github.com/google/uuid"
 	libphonenumber "github.com/ttacon/libphonenumber"
@@ -28,6 +27,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/mailgun/mailgun-go/v4"
+	"github.com/nadirhamid/golang-etcd-rate-limiter"
+    "go.etcd.io/etcd/clientv3"
 	lineblocs "bitbucket.org/infinitet3ch/lineblocs-go-helpers"
 )
 
@@ -273,55 +274,15 @@ var db* sql.DB;
 var settings *GlobalSettings;
 var data *ServerData;
 
-// IPRateLimiter .
-type IPRateLimiter struct {
-	ips map[string]*rate.Limiter
-	mu  *sync.RWMutex
-	r   rate.Limit
-	b   int
+func createETCDClient() (*clientv3.Client, error) {
+	dialTimeout := time.Duration(time.Second * 10)
+	etcdAddr := os.Getenv("ETCD_ENDPOINT")
+    cli, err := clientv3.New(clientv3.Config{
+        DialTimeout: dialTimeout,
+        Endpoints: []string{etcdAddr},
+    })
+	return cli, err
 }
-
-// NewIPRateLimiter .
-func NewIPRateLimiter(r rate.Limit, b int) *IPRateLimiter {
-	i := &IPRateLimiter{
-		ips: make(map[string]*rate.Limiter),
-		mu:  &sync.RWMutex{},
-		r:   r,
-		b:   b,
-	}
-
-	return i
-}
-
-// AddIP creates a new rate limiter and adds it to the ips map,
-// using the IP address as the key
-func (i *IPRateLimiter) AddIP(ip string) *rate.Limiter {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	limiter := rate.NewLimiter(i.r, i.b)
-
-	i.ips[ip] = limiter
-
-	return limiter
-}
-
-// GetLimiter returns the rate limiter for the provided IP address if it exists.
-// Otherwise calls AddIP to add IP address to the map
-func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
-	i.mu.Lock()
-	limiter, exists := i.ips[ip]
-
-	if !exists {
-		i.mu.Unlock()
-		return i.AddIP(ip)
-	}
-
-	i.mu.Unlock()
-
-	return limiter
-}
-
 func createAPIID(prefix string) string {
 	id := guuid.New()
 	return prefix + "-" + id.String()
@@ -2567,15 +2528,35 @@ func getRouterStatuses(router *lineblocs.SIPRouter) ([]lineblocs.MediaServer, er
 }
 
 func limitMiddleware(next http.Handler) http.Handler {
+ 	cli, err:= createETCDClient()
+	interval:=time.Duration(time.Second * 5)
+	flushinterval:=time.Duration(time.Second * 30)
+	usingEtcd := err != nil
+    var limit uint64 = 60
+	if !usingEtcd {
+            fmt.Println("could not connect to ETCD - rate limits are disabled")
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
- 		var limiter *rate.Limiter
-		addr := getQueryVariable(r, "addr")
-		if addr == nil {
-			limiter = limiterCollection.GetLimiter(*addr)
-		} else {
-			limiter = limiterCollection.GetLimiter(r.RemoteAddr)
+		if !usingEtcd {
+			next.ServeHTTP(w, r)
+			return
 		}
-		if !limiter.Allow() {
+		var addr string
+		requestedAddr := getQueryVariable(r, "addr")
+		if requestedAddr != nil {
+			addr=*requestedAddr
+		} else {
+			addr=r.RemoteAddr
+		}
+        rate:= limiter.NewRateLimiter(cli, addr,limit, interval, flushinterval)
+        rate.ProcessLimits()
+        over,err:=rate.IsOverLimit()
+        if err != nil {
+				handleInternalErr("rate_limit error", err, w)
+                return
+        }
+        if over {
+            fmt.Println("rate limit exhausted..")
 			http.Error(w, http.StatusText(http.StatusTooManyRequests), http.StatusTooManyRequests)
 			return
 		}
@@ -2584,8 +2565,6 @@ func limitMiddleware(next http.Handler) http.Handler {
 	})
 }
 
-
-var limiterCollection = NewIPRateLimiter(1, 5)
 
 func main() {
 	var err error
