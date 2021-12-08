@@ -2480,52 +2480,7 @@ func startHTTPServer() {
     log.Fatal(http.ListenAndServe(":80", limitMiddleware( loggedRouter )))
 }
 
-func startSmudgeMonitor() {
-	duration := time.Duration(60)*time.Second
-	for {
-		newServers, err := lineblocs.CreateMediaServers()
-		if err != nil {
-			//no reach
-			fmt.Printf("error occured: %s\r\n", err)
-			time.Sleep(duration)
-			continue
-		}
 
-		data.mu.Lock()
-		for _, dataServer := range data.servers {
-			for _, server := range newServers {
-				if server.IpAddress == dataServer.IpAddress {
-					//update the status
-					fmt.Printf("Updating status of %s to %s\r\n", server.IpAddress, server.Status)
-					dataServer.Status = server.Status
-					dataServer.LiveCallCount = server.LiveCallCount
-					dataServer.LiveCPUPCTUsed = server.LiveCPUPCTUsed
-				}
-			}
-		}
-		data.mu.Unlock()
-		time.Sleep(duration)
-	}
-}
-
-
-func getRouterStatuses(router *lineblocs.SIPRouter) ([]lineblocs.MediaServer, error) {
-	url := "http://" + router.IpAddress + ":8000/Status"
-	var myClient = &http.Client{Timeout: 10 * time.Second}
-	r, err := myClient.Get(url)
-	target := []lineblocs.MediaServer{}
-    if err != nil {
-        return nil, err
-    }
-    defer r.Body.Close()
-
-	err = json.NewDecoder(r.Body).Decode(&target)
-	if err != nil {
-        return nil, err
-    }
-
-	return target, nil
-}
 
 func limitMiddleware(next http.Handler) http.Handler {
  	cli, err:= createETCDClient()
@@ -2586,15 +2541,11 @@ func main() {
 
 
 	var wg sync.WaitGroup
-	wg.Add(2)
+	wg.Add(1)
 	
-    go func() {
-		startSmudgeMonitor()
-        wg.Done()
-    }()
     go func() {
 		startHTTPServer()
 		wg.Done()
 	}()
-		wg.Wait()
+	wg.Wait()
 }
