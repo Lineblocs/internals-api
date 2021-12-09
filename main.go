@@ -277,9 +277,13 @@ var data *ServerData;
 func createETCDClient() (*clientv3.Client, error) {
 	dialTimeout := time.Duration(time.Second * 10)
 	etcdAddr := os.Getenv("ETCD_ENDPOINT")
+	user := os.Getenv("ETCD_USERNAME")
+	pass := os.Getenv("ETCD_PASSWORD")
     cli, err := clientv3.New(clientv3.Config{
         DialTimeout: dialTimeout,
         Endpoints: []string{etcdAddr},
+		Username: user,
+		Password: pass,
     })
 	return cli, err
 }
@@ -2479,15 +2483,14 @@ func startHTTPServer() {
 	// Bind to a port and pass our router in
     log.Fatal(http.ListenAndServe(":80", limitMiddleware( loggedRouter )))
 }
-
+func checkIfCarrier( token string ) ( bool ) {
+	return true
+}
 
 
 func limitMiddleware(next http.Handler) http.Handler {
  	cli, err:= createETCDClient()
-	interval:=time.Duration(time.Second * 5)
-	flushinterval:=time.Duration(time.Second * 30)
 	usingEtcd := err != nil
-    var limit uint64 = 60
 	if !usingEtcd {
             fmt.Println("could not connect to ETCD - rate limits are disabled")
 	}
@@ -2502,6 +2505,22 @@ func limitMiddleware(next http.Handler) http.Handler {
 			addr=*requestedAddr
 		} else {
 			addr=r.RemoteAddr
+		}
+		interval:=time.Duration(time.Second * 60)
+		flushinterval:=time.Duration(time.Second * 30)
+		carrier := r.Header.Get("X-Carrier-Auth")
+
+		isCarrier := false
+		
+		if carrier != "" {
+			isCarrier  =checkIfCarrier( carrier )
+		}
+
+		// limit for users
+
+    	var limit uint64 = 60
+		if isCarrier {
+			limit = 3600
 		}
         rate:= limiter.NewRateLimiter(cli, addr,limit, interval, flushinterval)
         rate.ProcessLimits()
