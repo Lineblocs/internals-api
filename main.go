@@ -2490,7 +2490,7 @@ func checkIfCarrier( token string ) ( bool ) {
 
 func limitMiddleware(next http.Handler) http.Handler {
  	cli, err:= createETCDClient()
-	usingEtcd := err != nil
+	usingEtcd := err == nil
 	if !usingEtcd {
             fmt.Println("could not connect to ETCD - rate limits are disabled")
 	}
