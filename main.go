@@ -1085,6 +1085,23 @@ func FetchCall(w http.ResponseWriter, r *http.Request) {
 
 }
 
+func SetSIPCallID(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+	callid := r.FormValue("callid")
+	apiid := r.FormValue("apiid")
+	stmt, err := db.Prepare("UPDATE calls SET sip_call_id = ? WHERE id = ?")
+	if err != nil {
+		handleInternalErr("SetSIPCallID 1 could not execute query..", err, w);
+		return 
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(callid, apiid)
+	
+	if err != nil {
+		handleInternalErr("SetSIPCallID 2 could not execute query..", err, w);
+		return
+	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+}
 
 func CreateConference(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
@@ -2480,6 +2497,7 @@ func startHTTPServer() {
 	r.HandleFunc("/call/createCall", CreateCall).Methods("POST");
 	r.HandleFunc("/call/updateCall", UpdateCall).Methods("POST");
 	r.HandleFunc("/call/fetchCall", FetchCall).Methods("GET");
+	r.HandleFunc("/call/setSIPCallID", SetSIPCallID).Methods("POST");
 	r.HandleFunc("/conference/createConference", CreateConference).Methods("POST");
 	
 	//debits
