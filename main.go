@@ -2508,7 +2508,7 @@ func limitMiddleware(next http.Handler) http.Handler {
 		}
 		interval:=time.Duration(time.Second * 60)
 		flushinterval:=time.Duration(time.Second * 30)
-		carrier := r.Header.Get("X-Carrier-Auth")
+		carrier := r.Header.Get("X-Lineblocs-Carrier-Auth")
 
 		isCarrier := false
 		
