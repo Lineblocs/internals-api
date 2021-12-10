@@ -43,6 +43,7 @@ type Call struct {
   APIId string `json:"api_id"`
   SourceIp string `json:"source_ip"`
   ChannelId string `json:"channel_id"`
+  SIPCallId string `json:"call_id"`
   StartedAt string `json:"started_at"`
   CreatedAt string `json:"created_at"`
   UpdatedAt string `json:"updated_at"`
@@ -990,7 +991,7 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 	}
 
   // perform a db.Query insert
-	stmt, err := db.Prepare("INSERT INTO calls (`from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+	stmt, err := db.Prepare("INSERT INTO calls (`from`, `to`, `channel_id`, `status`, `direction`, `duration`, `sip_call_id`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
 	if err != nil {
 		handleInternalErr("CreateCall Could not execute query..", err, w);
 		return 
@@ -999,7 +1000,7 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("CreateCall args from=%s, to=%s, channel_id=%s, status=%s, direction=%s, user_id=%s, workspace_id=%s, started=%s, plan=%s",
 		call.From, call.To, call.ChannelId, call.Status, call.Direction, call.UserId, call.WorkspaceId, now, call.APIId, workspace.Plan)
 
-	res, err := stmt.Exec(call.From, call.To, call.ChannelId, call.Status, call.Direction, "8", call.UserId, call.WorkspaceId, now, now, now, call.APIId, workspace.Plan)
+	res, err := stmt.Exec(call.From, call.To, call.ChannelId, call.Status, call.Direction, "8", call.SIPCallId, call.UserId, call.WorkspaceId, now, now, now, call.APIId, workspace.Plan)
 
 		
 		if err != nil {
@@ -2383,6 +2384,52 @@ func StoreRegistration(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func CreateSIPReport(w http.ResponseWriter, r *http.Request) {
+	requestto:= r.FormValue("requestto")
+	//user := r.FormValue("user")
+	//domain := r.FormValue("domain")
+	callid := r.FormValue("callid")
+	status := r.FormValue("status")
+
+	res, err := db.Query("SELECT sip_providers.id FROM sip_providers_hosts INNER JOIN sip_providers ON sip_providers.id = sip_providers_hosts.provider_id WHERE sip_providers_hosts.ip_address = ?  LIMIT 1", requestto)
+
+
+	if err != nil {
+		fmt.Printf("CreateSIPReport 1 Could not execute query..");
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return 
+	}
+	defer res.Close()
+
+
+	for res.Next() {
+		var provider int
+		res.Scan( &provider )
+		// create the report
+		stmt, err := db.Prepare("UPDATE `calls` SET sip_status = ? WHERE sip_call_id = ?")
+		if err != nil {
+			fmt.Printf("CreateSIPReport 2 Could not execute query..");
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return 
+		}
+		defer stmt.Close()
+		statusAsInt, err := strconv.Atoi( status )
+		if err != nil {
+			fmt.Printf("CreateSIPReport 3 error in convert..");
+			fmt.Println(err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return 
+		}
+		_, err = stmt.Exec(statusAsInt, callid)
+		if err != nil {
+			handleInternalErr("CreateSIPReport 4 Could not execute query", err, w)
+			return
+		}
+	}
+}
 func GetSettings(w http.ResponseWriter, r *http.Request) {
 	results, err := db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls` FROM api_credentials")
   	defer results.Close()
@@ -2451,6 +2498,8 @@ func startHTTPServer() {
 	r.HandleFunc("/recording/updateRecording", UpdateRecording).Methods("POST");
 	r.HandleFunc("/recording/updateRecordingTranscription", UpdateRecordingTranscription).Methods("POST");
 	r.HandleFunc("/recording/getRecording", GetRecording).Methods("GET");
+	// carrier functions
+	r.HandleFunc("/carrier/createSIPReport", CreateSIPReport).Methods("POST");
 
 	// user functions
 	r.HandleFunc("/user/verifyCaller", VerifyCaller).Methods("GET");
