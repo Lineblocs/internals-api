@@ -11,7 +11,6 @@ import (
 	"strings"
 	"context"
 	"sync"
-	"errors"
 	//"errors"
 	"mime/multipart"
 	"github.com/gorilla/mux"
@@ -287,11 +286,6 @@ func createETCDClient() (*clientv3.Client, error) {
 		Username: user,
 		Password: pass,
     })
-	conn := cli.ActiveConnection()
-
-	if err == nil && conn.GetState().String() != "READY" {
-		return nil, errors.New("could not connect to grpc..")
-	}
 	return cli, err
 }
 func createAPIID(prefix string) string {
