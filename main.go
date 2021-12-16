@@ -11,6 +11,7 @@ import (
 	"strings"
 	"context"
 	"sync"
+	"errors"
 	//"errors"
 	"mime/multipart"
 	"github.com/gorilla/mux"
@@ -286,6 +287,11 @@ func createETCDClient() (*clientv3.Client, error) {
 		Username: user,
 		Password: pass,
     })
+	conn := cli.ActiveConnection()
+
+	if err == nil && conn.GetState().String() != "READY" {
+		return nil, errors.New("could not connect to grpc..")
+	}
 	return cli, err
 }
 func createAPIID(prefix string) string {
@@ -1102,6 +1108,38 @@ func SetSIPCallID(w http.ResponseWriter, r *http.Request) {
 		return
 	}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
 }
+
+func SetProviderByIP(w http.ResponseWriter, r *http.Request) {
+  w.Header().Set("Content-Type", "application/json")
+	ip := r.FormValue("ip")
+	apiid := r.FormValue("apiid")
+
+	results, err := db.Query(`SELECT sip_providers_hosts.provider_id FROM sip_providers_hosts WHERE sip_providers_hosts.ip_address = ?`, ip)
+	if err != nil {
+		handleInternalErr("SetProviderByID error", err, w)
+		return
+	}
+	defer results.Close()
+	for results.Next() {
+		var providerId int
+		results.Scan(&providerId);
+		stmt, err := db.Prepare("UPDATE calls SET provider_id = ? WHERE id = ?")
+		if err != nil {
+			handleInternalErr("SetProviderByID 1 could not execute query..", err, w);
+			return 
+		}
+		defer stmt.Close()
+		_, err = stmt.Exec(providerId, apiid)
+		
+		if err != nil {
+			handleInternalErr("SetProviderByID 2 could not execute query..", err, w);
+			return
+		}                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              
+	}
+
+}
+
+
 
 func CreateConference(w http.ResponseWriter, r *http.Request) {
   w.Header().Set("Content-Type", "application/json")
@@ -2498,6 +2536,8 @@ func startHTTPServer() {
 	r.HandleFunc("/call/updateCall", UpdateCall).Methods("POST");
 	r.HandleFunc("/call/fetchCall", FetchCall).Methods("GET");
 	r.HandleFunc("/call/setSIPCallID", SetSIPCallID).Methods("POST");
+	r.HandleFunc("/call/setProviderByIP", SetProviderByIP).Methods("POST");
+
 	r.HandleFunc("/conference/createConference", CreateConference).Methods("POST");
 	
 	//debits
