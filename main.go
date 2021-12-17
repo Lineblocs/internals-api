@@ -1999,7 +1999,6 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 		info = &WorkspacePSTNInfo{ IPAddr: *bestIpAddr, DID: number }
 
 		json.NewEncoder(w).Encode(info);
-		w.WriteHeader(http.StatusOK) 
 		return
 	}
 	w.WriteHeader(http.StatusNotFound)
