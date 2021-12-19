@@ -198,6 +198,13 @@ type WorkspacePSTNInfo struct {
 type CallerIDInfo struct {
 	CallerID string `json:"caller_id"`
 }
+
+type RoutableProvider struct {
+	Rate float64 `json:"rate"`
+	DialPrefix string `json:"dial_prefix"`
+	Provider int `json:"provider"`
+	IPAddress int `json:"ip_address"`
+}
 type ExtensionFlowInfo struct {
 	FlowId          int               `json:"flow_id"`
 	CallerID        string            `json:"caller_id"`
@@ -1811,6 +1818,10 @@ func GetDIDNumberData(w http.ResponseWriter, r *http.Request) {
 	info.WorkspaceParams = params
 	json.NewEncoder(w).Encode(&info)
 }
+
+func buildProviderIPs() {
+
+}
 func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 	fmt.Printf("received PSTN request..\r\n")
 	from := getQueryVariable(r, "from")
@@ -1880,10 +1891,14 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var routableProviders  []*RoutableProvider
 	var lowestRate *float64 = nil
 	var lowestProviderId *int
 	var lowestDialPrefix *string
 	var longestMatch *int
+
+	routableProviders = make([]*RoutableProvider,0)
+
 	defer results.Close()
 	for results.Next() {
 		fmt.Println("Checking non BYO..")
@@ -1920,6 +1935,14 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 			}
 			if valid {
 				fullLen := len(full)
+
+ 				if (longestMatch == nil || fullLen >= *longestMatch) {
+					provider := RoutableProvider{
+						Provider: id,
+						Rate: rate,
+						DialPrefix: dialPrefix }
+					routableProviders = append( routableProviders, &provider )
+				}
 				if (longestMatch == nil || fullLen >= *longestMatch) && (lowestRate == nil || rate < *lowestRate) {
 					lowestProviderId = &id
 					lowestRate = &rate
