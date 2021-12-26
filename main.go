@@ -2468,6 +2468,36 @@ func CreateSIPReport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 }
+
+func GetBestRTPProxy(w http.ResponseWriter, r *http.Request) {
+	//routerip := getQueryVariable(r, "routerip")
+	results,err := db.Query(`SELECT rtpproxy_sock, set_id, cpu_pct, cpu_used FROM rtpproxy_sockets`)
+	// Execute the query
+	if err != nil {
+		handleInternalErr("GetBestRTPProxy error 1", err, w)
+		return
+	}
+	defer results.Close()
+	var lowestCPU *float64 = nil
+	var socketAddrResult string
+	for results.Next() {
+		var rtpSock string
+		var setId int
+		var cpuPct float64
+		var cpuUsed float64
+		err = results.Scan(&rtpSock, &setId, &cpuPct, &cpuUsed)
+		if err != nil {
+			handleInternalErr("GetBestRTPProxy error 2", err, w)
+			return
+		}
+		if lowestCPU == nil || cpuPct < *lowestCPU{
+			lowestCPU = &cpuPct
+ 			socketAddrResult =rtpSock
+		}
+	}
+	w.Write([]byte(socketAddrResult))
+}
+
 func GetSettings(w http.ResponseWriter, r *http.Request) {
 	results, err := db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls` FROM api_credentials")
 	defer results.Close()
@@ -2566,7 +2596,7 @@ func startHTTPServer() {
 
 	// Send Admin email
 	r.HandleFunc("/admin/sendAdminEmail", SendAdminEmail).Methods("POST")
-
+	r.HandleFunc("/getBestRTPProxy", GetBestRTPProxy).Methods("GET")
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
 
 	// Bind to a port and pass our router in
