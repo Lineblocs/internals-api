@@ -1,6 +1,6 @@
-module lineblocs.com/internal-api
+module lineblocs.com/api
 
-go 1.14
+go 1.15
 
 require (
 	bitbucket.org/infinitet3ch/lineblocs-go-helpers v0.0.0-20210723000142-7b8ed9cfaa26
@@ -24,3 +24,4 @@ require (
 	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 )
+

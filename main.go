@@ -32,6 +32,7 @@ import (
 	limiter "github.com/nadirhamid/golang-etcd-rate-limiter"
 	libphonenumber "github.com/ttacon/libphonenumber"
 	"go.etcd.io/etcd/clientv3"
+	"lineblocs.com/api/helpers"
 )
 
 type Call struct {
@@ -288,6 +289,29 @@ func createETCDClient() (*clientv3.Client, error) {
 		Password:    pass,
 	})
 	return cli, err
+}
+
+
+func createRoutingFlow(callfrom, callto, workspaceid *string) (*helpers.Flow, error) {
+	var info helpers.FlowInfo
+	var flowJson helpers.FlowVars
+
+	// find flow by user id
+	// if no flow available, use country flow
+	row := db.QueryRow(`SELECT routing_flows.id AS flow_id,
+routing_flows.flow_json
+FROM routing_flows
+WHERE flows.workspace_id= ?`, *workspaceid)
+	err := row.Scan(&info.FlowId,&info.FlowJSON)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal( []byte(info.FlowJSON), &flowJson )
+	if err != nil {
+		return nil, err
+	}
+
+	return helpers.NewFlow( info.FlowId, &flowJson	 ), nil
 }
 func createAPIID(prefix string) string {
 	id := guuid.New()
@@ -2109,6 +2133,21 @@ func GetCallerIdToUse(w http.ResponseWriter, r *http.Request) {
 func AddPSTNProviderTechPrefix(w http.ResponseWriter, r *http.Request) {
 
 }
+func ProcessRouterFlow(w http.ResponseWriter, r *http.Request) {
+	var flow *helpers.Flow;
+	callto := getQueryVariable(r, "callto")
+	callfrom := getQueryVariable(r, "callfrom")
+	userId := getQueryVariable(r, "userid")
+
+	flow,err :=createRoutingFlow( callfrom, callto, userId )
+	if err != nil {
+			handleInternalErr("ProcessRouterFlow error 1", err, w)
+			return
+	}
+}
+
+
+
 func GetExtensionFlowInfo(w http.ResponseWriter, r *http.Request) {
 	extension := getQueryVariable(r, "extension")
 	workspaceId := getQueryVariable(r, "workspace")
@@ -2570,6 +2609,10 @@ func startHTTPServer() {
 	r.HandleFunc("/recording/getRecording", GetRecording).Methods("GET")
 	// carrier functions
 	r.HandleFunc("/carrier/createSIPReport", CreateSIPReport).Methods("POST")
+
+	r.HandleFunc("/carrier/processRouterFlow", ProcessRouterFlow).Methods("GET")
+
+
 
 	// user functions
 	r.HandleFunc("/user/verifyCaller", VerifyCaller).Methods("GET")
