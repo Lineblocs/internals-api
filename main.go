@@ -300,18 +300,44 @@ func createRoutingFlow(callfrom, callto, workspaceid *string) (*helpers.Flow, er
 	// if no flow available, use country flow
 	row := db.QueryRow(`SELECT routing_flows.id AS flow_id,
 routing_flows.flow_json
-FROM routing_flows
+FROM workspaces
+LEFT JOIN routing_flows ON routing_flows.id = workspaces.flow_id
 WHERE flows.workspace_id= ?`, *workspaceid)
 	err := row.Scan(&info.FlowId,&info.FlowJSON)
-	if err != nil {
-		return nil, err
-	}
-	err = json.Unmarshal( []byte(info.FlowJSON), &flowJson )
-	if err != nil {
-		return nil, err
+
+	if err != sql.ErrNoRows { //lookup country flow
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal( []byte(info.FlowJSON), &flowJson )
+		if err != nil {
+			return nil, err
+		}
+
+		return helpers.NewFlow( info.FlowId, &flowJson	 ), nil
 	}
 
-	return helpers.NewFlow( info.FlowId, &flowJson	 ), nil
+	// lookup by country
+	row := db.QueryRow(`SELECT routing_flows.id AS flow_id,
+routing_flows.flow_json
+FROM sip_countries
+LEFT JOIN routing_flows ON routing_flows.id = sip_countries.flow_id
+WHERE flows.workspace_id= ?`, *workspaceid)
+	err := row.Scan(&info.FlowId,&info.FlowJSON)
+
+	if err != sql.ErrNoRows { //lookup country flow
+		if err != nil {
+			return nil, err
+		}
+		err = json.Unmarshal( []byte(info.FlowJSON), &flowJson )
+		if err != nil {
+			return nil, err
+		}
+
+		return helpers.NewFlow( info.FlowId, &flowJson	 ), nil
+	}
+
+
 }
 func createAPIID(prefix string) string {
 	id := guuid.New()

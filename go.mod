@@ -20,8 +20,7 @@ require (
 	github.com/nadirhamid/golang-etcd-rate-limiter v0.0.0-20211209233410-d23e838ae919 // indirect
 	github.com/stripe/stripe-go/v71 v71.48.0 // indirect
 	github.com/ttacon/builder v0.0.0-20170518171403-c099f663e1c2 // indirect
-	github.com/ttacon/libphonenumber v1.1.0
+	github.com/ttacon/libphonenumber v1.2.1
 	golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11 // indirect
 	google.golang.org/protobuf v1.25.0 // indirect
 )
-

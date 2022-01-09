@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"strconv"
 	"errors"
+	"sort"
 	//"encoding/json"
 	"reflect"
 )
@@ -109,6 +110,27 @@ func findCellInFlow(id string, flow *Flow) (*Cell) {
 	cell := Cell{ Cell: cellToFind, EventVars: make( map[string]string ) }
 	return &cell
 }
+
+func findLinkByName( links []*Link, direction string, tag string) (*Link, error) {
+		fmt.Println("FindLinkByName called...")
+	for _, link := range links {
+		fmt.Println("FindLinkByName checking source port: " + link.Link.Source.Port)
+		fmt.Println("FindLinkByName checking target port: " + link.Link.Target.Port)
+		if direction == "source" {
+			fmt.Println("FindLinkByName checking link: " + link.Source.Cell.Name)
+			if link.Link.Source.Port == tag {
+				return link, nil
+			}
+		} else if direction == "target" {
+
+			fmt.Println("FindLinkByName checking link: " + link.Target.Cell.Name)
+			if link.Link.Target.Port == tag {
+				return link, nil
+			}
+		}
+	}
+	return nil, errors.New("Could not find link")
+}
 	
 func createCellData(cell *Cell, flow *Flow) {
 	var model Model = Model{
@@ -211,12 +233,24 @@ func addCellToFlow(id string, flow *Flow) (*Cell) {
 
 type FlowContext struct {
 	DbConn *sql.DB
+	Cell *Cell
+	Data map[string]string
+	Providers []*RoutablePSTNProvider
 }
-
 
 type RoutablePSTNProvider struct {
+	Id int
+	Name string
+	Hosts []RoutableHost
+	Data map[string] int
+}
+
+type RoutableHost struct {
+	Priority int
 	IPAddr string
 }
+
+
 
 type FlowResponse struct {
 	Providers []*RoutablePSTNProvider
@@ -229,36 +263,156 @@ type Manager struct {
 	Ctx *FlowContext 
 }
 type CallCapacityManager struct {
-	Manager
+*Manager
 }
 func NewCallCapacityManager(ctx *FlowContext) (*CallCapacityManager) {
-	return &CallCapacityManager{};
+	return &CallCapacityManager{&Manager{Ctx: ctx}};
 }
 
 func (man *CallCapacityManager) Process() (*FlowResponse, error) {
-	return nil, nil
+	db:= man.Ctx.DbConn
+	cell:= man.Ctx.Cell
+	//providers := make( []*RoutablePSTNProvider,0 )
+	providers := man.Ctx.Providers
+
+	outLink, _ := findLinkByName( cell.TargetLinks, "source", "Out")
+	noMatchLink, _ := findLinkByName( cell.TargetLinks, "source", "No match")
+	// lookup by country
+	results,err  := db.Query(`SELECT sip_providers.provider_id, 
+sip_providers_hosts.name,
+sip_providers_hosts.ip_address,
+sip_providers_hosts.priority,
+sip_providers.active_channels
+FROM sip_providers_hosts
+INNER JOIN sip_providers_call_rates ON sip_providers_call_rates.provider_id = sip_providers_hosts.provider_id
+INNER JOIN sip_providers ON sip_providers.id = sip_providers_hosts.provider_id
+INNER JOIN sip_countries ON sip_countries.id = sip_providers_call_rates.country_id
+WHERE sip_countries.country_code= ?`, man.Ctx.Data["dest_code"])
+
+	defer results.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	for results.Next() {
+		var providerId int
+		var name string
+		var ipAddr string
+		var priority int
+		var channels int
+		// for each row, scan the result into our tag composite object
+		err = results.Scan(&providerId, &name, &ipAddr, &priority, &channels)
+		if err != nil {
+			return nil, err
+		}
+		provider := createOrUseExistingProvider( providers, providerId )
+		host := RoutableHost{
+			Priority: priority,
+			IPAddr: ipAddr }
+		provider.Data["channels"] = channels
+		provider.Hosts = append( provider.Hosts, host )
+		providers = append( providers, provider )
+	}
+	// sort based on costs
+	sort.SliceStable(providers, func(i, j int) bool {
+		return providers[i].Data["channels"] < providers[j].Data["channels"]
+	})
+
+	return createFlowResponse( providers, outLink, noMatchLink ), nil
 }
 
 
 type LowCostManager struct {
-	Manager
+*Manager
 }
 
 func NewLowCostManager(ctx *FlowContext) (*LowCostManager) {
-	return &LowCostManager{}
+	return &LowCostManager{&Manager{Ctx: ctx}}
+}
+func createOrUseExistingProvider( providers []*RoutablePSTNProvider, providerId int) (*RoutablePSTNProvider) {
+	for _, value := range providers  {
+		if value.Id == providerId {
+			return value
+		}
+	}
+
+	// create new one
+	return &RoutablePSTNProvider{Id: providerId, Hosts: make([]RoutableHost, 0), Data: make( map[string]int )}
+}
+func createFlowResponse( providers []*RoutablePSTNProvider, outLink, noMatchLink *Link) (*FlowResponse) {
+	var link* Link = outLink
+
+	if len( providers ) == 0 {
+		link = noMatchLink
+	}
+	resp := FlowResponse{
+		Providers: providers,
+		Link: link	}
+	return &resp
 }
 
 func (man *LowCostManager) Process() (*FlowResponse, error) {
-	return nil, nil
+	db:= man.Ctx.DbConn
+	cell:= man.Ctx.Cell
+	//providers := make( []*RoutablePSTNProvider,0 )
+	providers := man.Ctx.Providers
+
+	outLink, _ := findLinkByName( cell.TargetLinks, "source", "Out")
+	noMatchLink, _ := findLinkByName( cell.TargetLinks, "source", "No match")
+	// lookup by country
+	results,err  := db.Query(`SELECT sip_providers_call_rates.provider_id, 
+sip_providers_hosts.name,
+sip_providers_hosts.ip_address,
+sip_providers_hosts.priority,
+sip_providers_hosts.priority,
+sip_providers_call_rates.rate,
+FROM sip_providers_hosts
+INNER JOIN sip_providers_call_rates ON sip_providers_call_rates.provider_id = sip_providers_hosts.provider_id
+INNER JOIN sip_providers ON sip_providers.id = sip_providers_hosts.provider_id
+INNER JOIN sip_countries ON sip_countries.id = sip_providers_call_rates.country_id
+WHERE sip_countries.country_code= ?`, man.Ctx.Data["dest_code"])
+
+	defer results.Close()
+
+	if err != nil {
+		return nil, err
+	}
+
+	for results.Next() {
+		var providerId int
+		var name string
+		var ipAddr string
+		var priority int
+		var rate int
+		// for each row, scan the result into our tag composite object
+		err = results.Scan(&providerId, &name, &ipAddr, &priority, &rate)
+		if err != nil {
+			return nil, err
+		}
+		provider := createOrUseExistingProvider( providers, providerId )
+		host := RoutableHost{
+			Priority: priority,
+			IPAddr: ipAddr }
+		provider.Data["cost"] = rate
+		provider.Hosts = append( provider.Hosts, host )
+		providers = append( providers, provider )
+	}
+	// sort based on costs
+	sort.SliceStable(providers, func(i, j int) bool {
+		return providers[i].Data["cost"] < providers[j].Data["cost"]
+	})
+
+	return createFlowResponse( providers, outLink, noMatchLink ), nil
 }
 
 
 type HighCostManager struct {
-	Manager
+*Manager
 }
 
 func NewHighCostManager(ctx *FlowContext) (*HighCostManager) {
-	return &HighCostManager{}
+	return &HighCostManager{&Manager{Ctx: ctx}};
 }
 
 func (man *HighCostManager) Process() (*FlowResponse, error) {
@@ -266,11 +420,11 @@ func (man *HighCostManager) Process() (*FlowResponse, error) {
 }
 
 type LocationCheckManager struct {
-	Manager
+*Manager
 }
 
 func NewLocationCheckManager(ctx *FlowContext) (*LocationCheckManager) {
-	return &LocationCheckManager{}
+	return &LocationCheckManager{&Manager{Ctx: ctx}};
 }
 
 func (man *LocationCheckManager) Process() (*FlowResponse, error) {
@@ -278,11 +432,11 @@ func (man *LocationCheckManager) Process() (*FlowResponse, error) {
 }
 
 type SortServersManager struct {
-	Manager
+*Manager
 }
 
 func NewSortServersManager(ctx *FlowContext) (*SortServersManager) {
-	return &SortServersManager{}
+	return &SortServersManager{&Manager{Ctx: ctx}};
 }
 
 func (man *SortServersManager) Process() (*FlowResponse, error) {
@@ -294,11 +448,11 @@ func (man *SortServersManager) Process() (*FlowResponse, error) {
 
 
 type UserPriorityManager struct {
-	Manager
+*Manager
 }
 
 func NewUserPriorityManager(ctx *FlowContext) (*UserPriorityManager) {
-	return &UserPriorityManager{}
+	return &UserPriorityManager{&Manager{Ctx: ctx}};
 }
 
 func (man *UserPriorityManager) Process() (*FlowResponse, error) {
@@ -306,11 +460,11 @@ func (man *UserPriorityManager) Process() (*FlowResponse, error) {
 }
 
 type EndRoutingManager struct {
-	Manager
+*Manager
 }
 
 func NewEndRoutingManager(ctx *FlowContext) (*EndRoutingManager) {
-	return &EndRoutingManager{}
+	return &EndRoutingManager{&Manager{Ctx: ctx}};
 }
 
 func (man *EndRoutingManager) Process() (*FlowResponse, error) {
@@ -320,11 +474,11 @@ func (man *EndRoutingManager) Process() (*FlowResponse, error) {
 
 
 type NoRoutingManager struct {
-	Manager
+*Manager
 }
 
 func NewNoRoutingManager(ctx *FlowContext) (*NoRoutingManager) {
-	return &NoRoutingManager{}
+	return &NoRoutingManager{&Manager{Ctx: ctx}};
 }
 
 func (man *NoRoutingManager) Process() (*FlowResponse, error) {
@@ -337,16 +491,21 @@ func (man *NoRoutingManager) Process() (*FlowResponse, error) {
 
 
 
-func ProcessFlow( ctx *FlowContext, flow *Flow, cell *Cell) ([]*RoutablePSTNProvider, error) {
+func ProcessFlow( flow *Flow, cell *Cell, providers []*RoutablePSTNProvider, data map[string]string, db *sql.DB) ([]*RoutablePSTNProvider, error) {
 	fmt.Println("source link count: " + strconv.Itoa( len( cell.SourceLinks )))
 	fmt.Println("target link count: " + strconv.Itoa( len( cell.TargetLinks )))
 	// execute it
 	var mngr BaseManager
-	providers:=make([]*RoutablePSTNProvider,0)
+	var isFinished bool = false
+
+	ctx := &FlowContext{
+		DbConn: db,
+		Data: data,
+		Cell: cell }
 	switch ; cell.Cell.Type {
 		case "devs.LaunchModel":
 			for _, link := range cell.SourceLinks {
-				return ProcessFlow( ctx, flow, link.Target )
+				return ProcessFlow( flow, link.Target, providers, data, db )
 			}
 			return providers,nil
 		case "devs.CallCapacityModel":
@@ -363,8 +522,10 @@ func ProcessFlow( ctx *FlowContext, flow *Flow, cell *Cell) ([]*RoutablePSTNProv
 			mngr = NewSortServersManager(ctx)
 		case "devs.EndRoutingModel":
 			mngr = NewEndRoutingManager(ctx)
+			isFinished = true
 		case "devs.NoRoutingModel":
 			mngr = NewNoRoutingManager(ctx)
+			isFinished = true
 		default:
 			fmt.Println("unknown type of cell..")
 			return nil,errors.New("unknown type of cell..")
@@ -377,12 +538,19 @@ func ProcessFlow( ctx *FlowContext, flow *Flow, cell *Cell) ([]*RoutablePSTNProv
 		return nil, err
 	}
 
-	if resp.Link == nil {
+	if resp.Link == nil || isFinished {
 		return resp.Providers, nil
 	}
 	next := resp.Link
-	return ProcessFlow( ctx, flow, next.Target )
+	return ProcessFlow(  flow, next.Target, providers, data, db )
 }
+func StartProcessingFlow( flow *Flow, cell *Cell,  data map[string]string, db *sql.DB) ([]*RoutablePSTNProvider, error) {
+
+	emptyProviders:=make([]*RoutablePSTNProvider,0)
+	providers, err := ProcessFlow( flow, flow.Cells[ 0 ], emptyProviders, data, db )
+	return providers, err
+}
+	
 func NewFlow(id int,vars *FlowVars) (*Flow) {
 	flow := &Flow{FlowId: id, Vars: vars}
 	fmt.Printf("number of cells %d\r\n", len(flow.Vars.Graph.Cells))
