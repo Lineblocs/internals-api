@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"errors"
 
 	//"errors"
 	"database/sql"
@@ -291,18 +292,21 @@ func createETCDClient() (*clientv3.Client, error) {
 	return cli, err
 }
 
-
-func createRoutingFlow(callfrom, callto, workspaceid *string) (*helpers.Flow, error) {
+func createRoutingFlow(originCode, destCode, userId *string) (*helpers.Flow, error) {
 	var info helpers.FlowInfo
 	var flowJson helpers.FlowVars
 
 	// find flow by user id
 	// if no flow available, use country flow
-	row := db.QueryRow(`SELECT routing_flows.id AS flow_id,
-routing_flows.flow_json
-FROM workspaces
-LEFT JOIN routing_flows ON routing_flows.id = workspaces.flow_id
-WHERE flows.workspace_id= ?`, *workspaceid)
+	row := db.QueryRow(`SELECT router_flows.id AS flow_id,
+router_flows.flow_json
+FROM workspaces_users
+INNER JOIN router_flows ON router_flows.id = workspaces.flow_id
+INNER JOIN workspaces ON workspaces.id = workspaces_users.workspace_id
+INNER JOIN workspaces_routing_flows ON workspaces_routing_flows.workspace_id = workspaces.id
+WHERE workspaces_users.user_id= ?
+AND workspaces_routing_flows.dest_code= ?
+`, *userId, *destCode)
 	err := row.Scan(&info.FlowId,&info.FlowJSON)
 
 	if err != sql.ErrNoRows { //lookup country flow
@@ -318,12 +322,12 @@ WHERE flows.workspace_id= ?`, *workspaceid)
 	}
 
 	// lookup by country
-	row := db.QueryRow(`SELECT routing_flows.id AS flow_id,
-routing_flows.flow_json
+	row = db.QueryRow(`SELECT router_flows.id AS flow_id,
+router_flows.flow_json
 FROM sip_countries
-LEFT JOIN routing_flows ON routing_flows.id = sip_countries.flow_id
-WHERE flows.workspace_id= ?`, *workspaceid)
-	err := row.Scan(&info.FlowId,&info.FlowJSON)
+INNER JOIN router_flows ON router_flows.id = sip_countries.flow_id
+WHERE sip_countries.country_code= ?`, *destCode)
+	err = row.Scan(&info.FlowId,&info.FlowJSON)
 
 	if err != sql.ErrNoRows { //lookup country flow
 		if err != nil {
@@ -337,7 +341,7 @@ WHERE flows.workspace_id= ?`, *workspaceid)
 		return helpers.NewFlow( info.FlowId, &flowJson	 ), nil
 	}
 
-
+	return nil, errors.New("no routing flow found...")
 }
 func createAPIID(prefix string) string {
 	id := guuid.New()
@@ -2165,11 +2169,49 @@ func ProcessRouterFlow(w http.ResponseWriter, r *http.Request) {
 	callfrom := getQueryVariable(r, "callfrom")
 	userId := getQueryVariable(r, "userid")
 
-	flow,err :=createRoutingFlow( callfrom, callto, userId )
+	destCode, err := helpers.ParseCountryCode(*callto)
+
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println( "code is: " + destCode )
+
+	originCode, err := helpers.ParseCountryCode(*callfrom)
+
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println( "code is: " + originCode )
+	flow,err =createRoutingFlow( callfrom, callto, userId )
 	if err != nil {
 			handleInternalErr("ProcessRouterFlow error 1", err, w)
 			return
 	}
+
+	data := make(map[string]string)
+	data["origin_code"] = originCode
+	data["dest_code"] = destCode
+	data["from"] = *callfrom
+	data["to"] = *callto
+
+	providers, err := helpers.StartProcessingFlow( flow, flow.Cells[ 0 ], data, db )
+
+	if err != nil {
+		panic(err)
+	}
+	if len( providers ) == 0 {
+		fmt.Println("No providers available..")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	provider:=providers[0]
+	if len( provider.Hosts ) == 0 {
+		fmt.Println("No IPs to route to..")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	host:=provider.Hosts[0]
+	w.Write([]byte(host.IPAddr))
 }
 
 
