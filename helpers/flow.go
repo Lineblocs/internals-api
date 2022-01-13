@@ -248,6 +248,7 @@ type RoutablePSTNProvider struct {
 type RoutableHost struct {
 	Priority int
 	IPAddr string
+	Prefix string
 }
 
 
@@ -282,7 +283,8 @@ func (man *CallCapacityManager) Process() (*FlowResponse, error) {
 sip_providers_hosts.name,
 sip_providers_hosts.ip_address,
 sip_providers_hosts.priority,
-sip_providers.active_channels
+sip_providers.active_channels,
+sip_providers_hosts.priority_prefixes
 FROM sip_providers_hosts
 INNER JOIN sip_providers_call_rates ON sip_providers_call_rates.provider_id = sip_providers_hosts.provider_id
 INNER JOIN sip_providers ON sip_providers.id = sip_providers_hosts.provider_id
@@ -301,13 +303,15 @@ WHERE sip_countries.country_code= ?`, man.Ctx.Data["dest_code"])
 		var ipAddr string
 		var priority int
 		var channels int
+		var prefixes string
 		// for each row, scan the result into our tag composite object
-		err = results.Scan(&providerId, &name, &ipAddr, &priority, &channels)
+		err = results.Scan(&providerId, &name, &ipAddr, &priority, &channels, &prefixes)
 		if err != nil {
 			return nil, err
 		}
 		provider := createOrUseExistingProvider( providers, providerId )
 		host := RoutableHost{
+			Prefix: prefixes,
 			Priority: priority,
 			IPAddr: ipAddr }
 		provider.Data["channels"] = channels

@@ -1933,6 +1933,8 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// do LCR based on dial prefixes
+
+	/*
 	results, err := db.Query(`SELECT sip_providers.id, sip_providers.dial_prefix, sip_providers.name, sip_providers_rates.rate_ref_id, sip_providers_rates.rate
 		FROM sip_providers
 		INNER JOIN sip_providers_rates ON sip_providers_rates.provider_id = sip_providers.id
@@ -2060,7 +2062,78 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(info)
 		return
 	}
-	w.WriteHeader(http.StatusNotFound)
+	*/
+
+
+
+	destCode, err := helpers.ParseCountryCode(*to)
+
+	if err != nil {
+		fmt.Println("Couldnt parse country code for destination number... error: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	fmt.Println( "code is: " + destCode )
+
+	originCode, err := helpers.ParseCountryCode(*from)
+
+	if err != nil {
+		fmt.Println("Couldnt parse country code for origination number... error: " + err.Error())
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	var flow *helpers.Flow
+	fmt.Println( "code is: " + originCode )
+
+	creator := strconv.Itoa(workspace.CreatorId)
+	flow,err =createRoutingFlow( from, to, &creator )
+	if err != nil {
+			handleInternalErr("ProcessRouterFlow error 1", err, w)
+			return
+	}
+
+	data := make(map[string]string)
+	data["origin_code"] = originCode
+	data["dest_code"] = destCode
+	data["from"] = *from
+	data["to"] = *to
+
+	providers, err := helpers.StartProcessingFlow( flow, flow.Cells[ 0 ], data, db )
+
+	if err != nil {
+		panic(err)
+	}
+	if len( providers ) == 0 {
+		fmt.Println("No providers available..")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	provider:=providers[0]
+	if len( provider.Hosts ) == 0 {
+		fmt.Println("No IPs to route to..")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	if len( providers ) == 0  {
+		fmt.Println("No providers available..")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	bestProvider:=provider
+	if len( bestProvider.Hosts)  == 0  {
+		fmt.Println("No hosts available..")
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	bestIpAddr:=provider.Hosts[ 0 ].IPAddr
+	var number string
+	number = bestProvider.Hosts[0].Prefix + *to
+
+
+	info := &WorkspacePSTNInfo{IPAddr: bestIpAddr, DID: number}
+	json.NewEncoder(w).Encode(info)
 }
 func IPWhitelistLookup(w http.ResponseWriter, r *http.Request) {
 	source := getQueryVariable(r, "ip")
