@@ -125,6 +125,7 @@ type Recording struct {
 	WorkspaceId        int       `json:"workspace_id"`
 	APIId              string    `json:"api_id"`
 	Tags               *[]string `json:"tags"`
+	Trim bool      `json:"trim"`
 	TranscriptionReady bool      `json:"transcription_ready"`
 	TranscriptionText  string    `json:"transcription_text"`
 	StorageId          string    `json:"storage_id"`
@@ -1496,7 +1497,7 @@ func CreateRecording(w http.ResponseWriter, r *http.Request) {
 	recording.APIId = createAPIID("rec")
 
 	// perform a db.Query insert
-	stmt, err := db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `plan_snapshot`, `storage_id`, `storage_server_ip`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `plan_snapshot`, `storage_id`, `storage_server_ip`, `trim`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		handleInternalErr("CreateRecording error.", err, w)
 		return
@@ -1514,6 +1515,7 @@ func CreateRecording(w http.ResponseWriter, r *http.Request) {
 		workspace.Plan,
 		recording.StorageId,
 		recording.StorageServerIp,
+		recording.Trim,
 		now,
 		now)
 	if err != nil {
