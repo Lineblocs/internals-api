@@ -208,6 +208,15 @@ type RoutableProvider struct {
 	Provider int `json:"provider"`
 	IPAddress int `json:"ip_address"`
 }
+
+type SIPTrunkInfo struct {
+	Domain        string            `json:"domain"`
+	WorkspaceId     int               `json:"workspace_id"`
+	WorkspaceName   string            `json:"workspace_name"`
+	CreatorId       int               `json:"creator_id"`
+}
+
+
 type ExtensionFlowInfo struct {
 	FlowId          int               `json:"flow_id"`
 	CallerID        string            `json:"caller_id"`
@@ -2213,6 +2222,18 @@ func GetDIDAssignedIP(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Write([]byte(server.PrivateIpAddress))
 }
+func GetTrunkAssignedIP(w http.ResponseWriter, r *http.Request) {
+	server, err := getDIDRoutedServer2(false)
+	if err != nil {
+		handleInternalErr("GetUserAssignedIP error occured", err, w)
+		return
+	}
+	if server == nil {
+		handleInternalErr("GetUserAssignedIP could not get server", err, w)
+	}
+	w.Write([]byte(server.PrivateIpAddress))
+}
+
 func GetCallerIdToUse(w http.ResponseWriter, r *http.Request) {
 	domain := getQueryVariable(r, "domain")
 	extension := getQueryVariable(r, "extension")
@@ -2441,13 +2462,15 @@ func IncomingPSTNValidation(w http.ResponseWriter, r *http.Request) {
 	number := getQueryVariable(r, "number")
 	source := getQueryVariable(r, "source")
 	// Execute the query
-	row := db.QueryRow(`SELECT did_numbers.number, did_numbers.api_number, did_numbers.workspace_id FROM did_numbers WHERE did_numbers.api_number = ?`, did)
+	row := db.QueryRow(`SELECT did_numbers.number, did_numbers.api_number, did_numbers.workspace_id, did_numbers.routing_to FROM did_numbers WHERE did_numbers.api_number = ?`, did)
 	var didNumber string
 	var didApiNumber string
 	var didWorkspaceId string
+	var routingTo string
 	err := row.Scan(&didNumber,
 		&didApiNumber,
-		&didWorkspaceId)
+		&didWorkspaceId,
+		&routingTo)
 	if err == nil { //create conference
 		match, err := checkPSTNIPWhitelist(*did, *source)
 		if err != nil {
@@ -2471,7 +2494,7 @@ func IncomingPSTNValidation(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
 			return
 		}
-		w.WriteHeader(http.StatusNoContent) // send the headers with a 204 response code.
+		w.Write([]byte(routingTo));
 		return
 	}
 
@@ -2511,8 +2534,44 @@ func IncomingPSTNValidation(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
 		return
 	}
-	w.WriteHeader(http.StatusNoContent) // send the headers with a 204 response code.
+	w.Write([]byte("byo_carrier"));
+	//w.WriteHeader(http.StatusNoContent) // send the headers with a 204 response code.
 }
+
+func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
+	did := getQueryVariable(r, "did")
+	//number := getQueryVariable(r, "number")
+	source := getQueryVariable(r, "source")
+	// Execute the query
+	results, err := db.Query(`SELECT 
+	sip_trunks_termination_acl.identifier,
+	sip_trunks_termination_acl.cidr_addr,
+	FROM sip_trunks_termination_acl
+	INNER JOIN sip_trunks ON sip_trunks.id = sip_trunks_termination_acl.trunk_id`, did)
+	if err != nil { //create conference
+		handleInternalErr("IncomingTrunkValidation error 1 valid", err, w)
+		return
+	}
+	for results.Next() {
+		var identifier string
+		var cidrAddr string
+		err := results.Scan(
+			&identifier,
+			&cidrAddr)
+		match, err := checkCIDRMatch(*source, cidrAddr)
+		if err != nil {
+			fmt.Printf("error matching CIDR source %s, full %s\r\n", source, cidrAddr)
+			continue
+		}
+		if match {
+			w.WriteHeader(http.StatusNoContent) // send the headers with a 204 response code.
+			return
+		}
+	}
+	fmt.Printf("no trunk match found....")
+	w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
+}
+
 func IncomingMediaServerValidation(w http.ResponseWriter, r *http.Request) {
 	//number:= getQueryVariable(r, "number")
 	source := getQueryVariable(r, "source")
@@ -2583,6 +2642,45 @@ func SendAdminEmail(w http.ResponseWriter, r *http.Request) {
 	}
 	return
 }
+
+func ProcessSIPTrunkCall(w http.ResponseWriter, r *http.Request) {
+	did := getQueryVariable(r, "did")
+	results, err := db.Query(`
+		SELECT did_numbers.number, 
+		sip_trunks_origination_endpoints.sip_addr
+		FROM sip_trunks_origination_endpoints
+		INNER JOIN sip_trunks ON sip_trunks.id = did_numbers.routing_to_id 
+		INNER JOIN sip_trunks_origination_endpoints ON sip_trunks_origination_endpoints.trunk_id = sip_Trunks.id
+		WHERE did_numbers.api_number = ?`, did)
+	if err != nil {
+		handleInternalErr("ProcessSIPTrunkCall error 1", err, w)
+		return
+	}
+	defer results.Close()
+
+	var sipAddrs []string = make([]string,0)
+	var bestSIPAddr string
+	for results.Next() {
+		var didNumber string
+		var sipAddr string
+		err := results.Scan(&didNumber,
+			&sipAddr);
+		if err != nil {
+			handleInternalErr("ProcessSIPTrunkCall error 2", err, w)
+			return
+		}
+		sipAddrs = append(sipAddrs, sipAddr);
+	}
+
+	if len( sipAddrs ) == 0 {
+		handleInternalErr("ProcessSIPTrunkCall error 2 -- no origination endpoints", err, w)
+		return
+	}
+	// todo add logic to figure out best address to use
+	bestSIPAddr = sipAddrs[0]
+	w.Write([]byte(bestSIPAddr))
+}
+
 func StoreRegistration(w http.ResponseWriter, r *http.Request) {
 	domain := r.FormValue("domain")
 	//ip := r.FormValue("ip")
@@ -2618,6 +2716,30 @@ func StoreRegistration(w http.ResponseWriter, r *http.Request) {
 		handleInternalErr("StoreRegistration 3 Could not execute query", err, w)
 		return
 	}
+}
+func LookupSIPTrunkByDID(w http.ResponseWriter, r *http.Request) {
+	did := getQueryVariable(r, "did")
+	//number := getQueryVariable(r, "number")
+	//source := getQueryVariable(r, "source")
+	// Execute the query
+	row:= db.QueryRow(`SELECT 
+	workspaces.name,
+	workspaces.id,
+	workspaces.creator_id
+	FROM did_numbers
+	INNER JOIN workspaces ON workspaces.id = did_numbers.workspace_id
+	WHERE did_numbers.api_number =?`, did)
+	var data SIPTrunkInfo = SIPTrunkInfo{}
+	//var domain string
+	err := row.Scan(data.WorkspaceName,&data.WorkspaceId,&data.CreatorId)
+	if err != nil {
+		fmt.Printf("LookupSIPTrunkByDID - could not execute query..")
+		fmt.Println(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	data.Domain = data.WorkspaceName+".lineblocs.com"
+	json.NewEncoder(w).Encode(&data)
 }
 
 func CreateSIPReport(w http.ResponseWriter, r *http.Request) {
@@ -2768,6 +2890,7 @@ func startHTTPServer() {
 	r.HandleFunc("/user/getDIDAcceptOption", GetDIDAcceptOption).Methods("GET")
 	r.HandleFunc("/user/getDIDAssignedIP", GetDIDAssignedIP).Methods("GET")
 	r.HandleFunc("/user/getUserAssignedIP", GetUserAssignedIP).Methods("GET")
+	r.HandleFunc("/user/getTrunkAssignedIP", GetTrunkAssignedIP).Methods("GET")
 	r.HandleFunc("/user/addPSTNProviderTechPrefix", AddPSTNProviderTechPrefix).Methods("GET")
 	r.HandleFunc("/user/getCallerIdToUse", GetCallerIdToUse).Methods("GET")
 	r.HandleFunc("/user/getExtensionFlowInfo", GetExtensionFlowInfo).Methods("GET")
@@ -2775,8 +2898,11 @@ func startHTTPServer() {
 	r.HandleFunc("/user/getDIDDomain", GetDIDDomain).Methods("GET")
 	r.HandleFunc("/user/getCodeFlowInfo", GetCodeFlowInfo).Methods("GET")
 	r.HandleFunc("/user/incomingPSTNValidation", IncomingPSTNValidation).Methods("GET")
+	r.HandleFunc("/user/incomingTrunkValidation", IncomingTrunkValidation).Methods("GET")
+	r.HandleFunc("/user/processSIPTrunkCall", ProcessSIPTrunkCall).Methods("GET")
 	r.HandleFunc("/user/incomingMediaServerValidation", IncomingMediaServerValidation).Methods("GET")
 	r.HandleFunc("/user/storeRegistration", StoreRegistration).Methods("POST")
+	r.HandleFunc("/user/lookupSIPTrunkByDID", LookupSIPTrunkByDID).Methods("POST")
 
 	r.HandleFunc("/user/getSettings", GetSettings).Methods("GET")
 
