@@ -1019,6 +1019,7 @@ func toCents(dollars float64) int {
 }
 
 func healthz(w http.ResponseWriter, r *http.Request) {
+	fmt.Println("checking health...\r\n")
 	w.Header().Set("Content-Type", "text/plain")
 	// execute test query...
 	results, err := db.Query("SELECT k8s_pod_id FROM sip_routers")
@@ -2846,6 +2847,7 @@ func GetSettings(w http.ResponseWriter, r *http.Request) {
 func startHTTPServer() {
 	settings = &GlobalSettings{ValidateCallerId: false}
 	r := mux.NewRouter()
+	fmt.Println("starting HTTP server...")
 	// Routes consist of a path and a handler function.
 	r.HandleFunc("/healthz", healthz).Methods("GET")
 	r.HandleFunc("/call/createCall", CreateCall).Methods("POST")
@@ -2912,7 +2914,25 @@ func startHTTPServer() {
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
 
 	// Bind to a port and pass our router in
-	log.Fatal(http.ListenAndServe(":80", limitMiddleware(loggedRouter)))
+
+	routingHandler:=loggedRouter
+
+	if os.Getenv("USE_LIMIT_MIDDLEWARE") == "on" {
+		routingHandler= limitMiddleware(loggedRouter)
+	}
+	if os.Getenv("USE_TLS") == "on" {
+		certPath := os.Getenv("TLS_CERT_PATH")
+		keyPath := os.Getenv("TLS_KEY_PATH")
+
+
+		fmt.Printf("Starting HTTP server with TLS. cert=%s,  key=%s\r\n", certPath, keyPath)
+		log.Fatal( http.ListenAndServeTLS(":443", certPath,keyPath, routingHandler))
+		//log.Fatal( http.ListenAndServeTLS(":443", certPath,keyPath, nil))
+		fmt.Println("started server...")
+		return
+	}
+	fmt.Printf("Starting HTTP server without TLS\r\n")
+	log.Fatal(http.ListenAndServe(":80", routingHandler))
 }
 func checkIfCarrier(token string) bool {
 	return true
@@ -2970,6 +2990,7 @@ func limitMiddleware(next http.Handler) http.Handler {
 }
 
 func main() {
+	fmt.Println("starting API...")
 	var err error
 	servers, err := lineblocs.CreateMediaServers()
 
