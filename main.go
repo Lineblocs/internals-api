@@ -541,6 +541,40 @@ func getUserByDomain(domain string) (*WorkspaceCreatorFullInfo, error) {
 	return full, nil
 }
 
+func getUserByDID(did string) (*WorkspaceCreatorFullInfo, error) {
+	result:= db.QueryRow(`SELECT
+		workspaces.name
+		FROM did_numbers
+		INNER JOIN workspaces ON workspaces.id = did_numbers.workspace_id
+		WHERE did_numebrs.api_number = ?`, did)
+	var domain string
+	err := result.Scan( &domain )
+	if err != nil {
+		return nil, err
+	}
+
+	workspace, err := getWorkspaceByDomain(domain)
+	if err != nil {
+		return nil, err
+	}
+
+	// Execute the query
+	params, err := getWorkspaceParams(workspace.Id)
+	if err != nil {
+		return nil, err
+	}
+	full := &WorkspaceCreatorFullInfo{
+		Id:              workspace.CreatorId,
+		Workspace:       workspace,
+		WorkspaceParams: params,
+		WorkspaceName:   workspace.Name,
+		WorkspaceDomain: fmt.Sprintf("%s.lineblocs.com", workspace.Name),
+		WorkspaceId:     workspace.Id,
+		OutboundMacroId: workspace.OutboundMacroId}
+
+	return full, nil
+}
+
 func getUserByTrunkSourceIp(sourceIp string) (*WorkspaceCreatorFullInfo, error) {
 	result:= db.QueryRow(`SELECT
 		workspaces.name
@@ -1908,6 +1942,17 @@ func GetUserByDomain(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&info)
 
 }
+func GetUserByDID(w http.ResponseWriter, r *http.Request) {
+	did := getQueryVariable(r, "did")
+
+	info, err := getUserByDID(*did)
+	if err != nil {
+		handleInternalErr("GetUserByDID error occured", err, w)
+		return
+	}
+	json.NewEncoder(w).Encode(&info)
+}
+
 
 func GetUserByTrunkSourceIp(w http.ResponseWriter, r *http.Request) {
 	sourceIp:= getQueryVariable(r, "source_ip")
@@ -2999,6 +3044,8 @@ func startHTTPServer() {
 	r.HandleFunc("/user/verifyCaller", VerifyCaller).Methods("GET")
 	r.HandleFunc("/user/verifyCallerByDomain", VerifyCallerByDomain).Methods("GET")
 	r.HandleFunc("/user/getUserByDomain", GetUserByDomain).Methods("GET")
+	r.HandleFunc("/user/getUserByDID", GetUserByDID).Methods("GET")
+	r.HandleFunc("/user/getUserByTrunkSourceIp", GetUserByTrunkSourceIp).Methods("GET")
 	r.HandleFunc("/user/getWorkspaceMacros", GetWorkspaceMacros).Methods("GET")
 	r.HandleFunc("/user/getDIDNumberData", GetDIDNumberData).Methods("GET")
 	r.HandleFunc("/user/getPSTNProviderIP", GetPSTNProviderIP).Methods("GET")
