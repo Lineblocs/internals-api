@@ -394,8 +394,9 @@ media_servers.live_status
 FROM sip_routers 
 INNER JOIN sip_routers_media_servers ON sip_routers_media_servers.router_id = sip_routers.id
 INNER JOIN media_servers ON media_servers.id =  sip_routers_media_servers.server_id
-WHERE sip_routers.ip_address = '?';`, routerip)
+WHERE sip_routers.ip_address = ?`, routerip)
 	if err != nil {
+		fmt.Println("query error occurred..")
 		return nil, err
 	}
 	defer results.Close()
@@ -1249,7 +1250,7 @@ func CreateCall(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// perform a db.Query insert
-	stmt, err := db.Prepare("INSERT INTO calls ( `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `sip_call_id`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+	stmt, err := db.Prepare("INSERT INTO calls ( `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `sip_call_id`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`, `notes`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '' )")
 	if err != nil {
 		handleInternalErr("CreateCall Could not execute query..", err, w)
 		return
@@ -1905,22 +1906,23 @@ func GetUserAssignedIP(w http.ResponseWriter, r *http.Request) {
 	domain := getQueryVariable(r, "domain")
 	routerip := getQueryVariable(r, "routerip")
 	fmt.Printf("Finding server for domain " + *domain + "..\r\n")
+	fmt.Printf("Router IP is " + *routerip + "..\r\n")
 	//ru := getQueryVariable(r, "ru")
 	workspace, err := getWorkspaceByDomain(*domain)
 	if err != nil {
-		handleInternalErr("GetUserAssignedIP error", err, w)
+		handleInternalErr("GetUserAssignedIP error 1", err, w)
 		return
 	}
 
 	if err != nil {
-		handleInternalErr("GetUserAssignedIP error occured", err, w)
+		handleInternalErr("GetUserAssignedIP error occured 2", err, w)
 		return
 	}
 
 	server, err := getUserRoutedServer2(rtcOptimized, workspace, *routerip)
 
 	if err != nil {
-		handleInternalErr("GetUserAssignedIP error occured", err, w)
+		handleInternalErr("GetUserAssignedIP error occured 3", err, w)
 		return
 	}
 	if server == nil {
