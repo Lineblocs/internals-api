@@ -577,12 +577,15 @@ func getUserByDID(did string) (*WorkspaceCreatorFullInfo, error) {
 }
 
 func getUserByTrunkSourceIp(sourceIp string) (*WorkspaceCreatorFullInfo, error) {
+
+	// todo get ipv6
+	sourceIpv6 := sourceIp
 	result:= db.QueryRow(`SELECT
 		workspaces.name
 		FROM workspaces
 		INNER JOIN sip_trunks ON sip_trunks.workspace_id = workspaces.id
 		INNER JOIN sip_trunks_origination_endpoints ON sip_trunks_origination_endpoints.trunk_id = sip_trunks.id
-		WHERE sip_trunks_origination_endpoints.ipv4 = ?  OR sip_trunks_origination_endpoints.ipv6 = ?`, sourceIp)
+		WHERE sip_trunks_origination_endpoints.ipv4 = ?  OR sip_trunks_origination_endpoints.ipv6 = ?`, sourceIp, sourceIpv6)
 	var domain string
 	err := result.Scan( &domain )
 	if err != nil {
@@ -1057,12 +1060,14 @@ func getBestPSTNProvider(from, to *string) (*PSTNInfo, error) {
 		var rateDialPrefix string
 		for results1.Next() {
 			results1.Scan(&rateDialPrefix)
-			full := rateDialPrefix
+			fmt.Printf("checking rate dial prefix %s\r\n", rateDialPrefix)
+			full := rateDialPrefix + ".*"
 			valid, err := regexp.MatchString(full, *to)
 			if err != nil {
 				return nil, err
 			}
 			if valid {
+				fmt.Println("found matching route...")
 				fullLen := len(full)
 
  				if (longestMatch == nil || fullLen >= *longestMatch) {
@@ -2166,7 +2171,7 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 
 	info, err := getBestPSTNProvider(from, to)
 	if err != nil {
-		handleInternalErr("getpstnproviderip error 1", err, w)
+		handleInternalErr("getPSTNProviderIp error 1 ", err, w)
 		return
 	}
 
@@ -2432,6 +2437,36 @@ func ProcessRouterFlow(w http.ResponseWriter, r *http.Request) {
 	w.Write([]byte(host.IPAddr))
 }
 
+func ProcessSIPTrunkCall(w http.ResponseWriter, r *http.Request) {
+	did := getQueryVariable(r, "did")
+
+	// get trunk from 
+	results, err := db.Query(`SELECT 
+	sip_trunks_origination_endpoints.sip_uri
+	FROM did_numbers
+	INNER JOIN sip_trunks ON sip_trunks.id = did_numbers.trunk_id
+	INNER JOIN sip_trunks_origination_endpoints ON sip_trunks_origination_endpoints.trunk_id = sip_trunks.id
+	WHERE did_numbers.api_number = ?`, did)
+
+	
+	if err != nil {
+		handleInternalErr("ProcessSIPTrunkCall error 1 valid", err, w)
+		return
+	}
+	defer results.Close()
+
+
+	for results.Next() {
+		fmt.Printf("trying to route to user trunk server..\r\n");
+		var trunkSIPURI string
+		results.Scan( &trunkSIPURI )
+		fmt.Printf("found SIP trunk server %s\r\n", trunkSIPURI);
+		w.Write([]byte(trunkSIPURI));
+		return;
+	}
+	fmt.Println("No trunks to route to..")
+	w.WriteHeader(http.StatusInternalServerError)
+}
 
 
 func GetExtensionFlowInfo(w http.ResponseWriter, r *http.Request) {
@@ -2671,7 +2706,8 @@ func IncomingDIDValidation(w http.ResponseWriter, r *http.Request) {
 func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 	//did := getQueryVariable(r, "did")
 	//number := getQueryVariable(r, "number")
-	source := getQueryVariable(r, "source")
+	//source := getQueryVariable(r, "source")
+	fromdomain := getQueryVariable(r, "fromdomain")
 	//destDomain := getQueryVariable(r, "destdomain")
 	// Execute the query
 	/*
@@ -2682,6 +2718,13 @@ func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	*/
+	trunkip, err := lookupSIPAddress( *fromdomain );
+	if err != nil {
+		handleInternalErr("IncomingTrunkValidation error 4 valid", err, w)
+		return
+	}
+
+	fmt.Printf("from domain %s trunk IP is %s..\r\n", *fromdomain, *trunkip);
 
 	results, err := db.Query(`SELECT 
 	sip_trunks_origination_settings.recovery_sip_uri,
@@ -2711,7 +2754,7 @@ func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 		}
 		fmt.Printf("SIP routing URI = %s SIP recovery URI = %s\r\n", routingSIPURI, recoverySIPURI);
 		// TODO do some health checks here to see if SIP server is actually up..
-		ips, err := lookupSIPAddress( routingSIPURI );
+		ips, err := lookupSIPAddresses( routingSIPURI );
 		if err != nil {
 			fmt.Printf("failed to lookup SIP server %s\r\n", routingSIPURI)
 			continue
@@ -2719,7 +2762,8 @@ func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 		for _,ip := range *ips {
 			ipAddr := ip.String()
 			fmt.Printf("found IP = %s\r\n", ipAddr)
-			if ipAddr == *source {
+			fmt.Printf("comparing with source IP = %s\r\n", *trunkip)
+			if ipAddr == *trunkip {
 				w.Write([]byte(ipAddr));
 				return
 			}
@@ -2731,7 +2775,7 @@ func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 }
 
 
-func lookupSIPAddress( host string ) (*[]net.IP, error) {
+func lookupSIPAddresses( host string ) (*[]net.IP, error) {
 	ips, err := net.LookupIP(host)
 	if err != nil {
 		return nil,err
@@ -2740,6 +2784,16 @@ func lookupSIPAddress( host string ) (*[]net.IP, error) {
 		return nil, errors.New("No IP match found..")
 	}
 	return &ips, nil
+}
+
+// get first match
+func lookupSIPAddress( host string ) (*string, error) {
+	ips, err := lookupSIPAddresses(host)
+	if err != nil {
+		return nil,err
+	}
+	ip := (*ips)[0].String()
+	return &ip, nil
 }
 func checkSIPServerHealth( routingSIPURI string ) (bool, error) {
 	return true, nil
@@ -2765,6 +2819,7 @@ func IncomingMediaServerValidation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		full := ipAddr + ipRange
+		fmt.Printf("checking IP = %s", ipAddr)
 		match, err := checkCIDRMatch(*source, full)
 		if err != nil {
 			handleInternalErr("IncomingMediaServerValidation error 3", err, w)
@@ -3070,6 +3125,9 @@ func startHTTPServer() {
 	r.HandleFunc("/user/storeRegistration", StoreRegistration).Methods("POST")
 
 	r.HandleFunc("/user/getSettings", GetSettings).Methods("GET")
+
+	r.HandleFunc("/user/processSIPTrunkCall", ProcessSIPTrunkCall).Methods("GET")
+
 
 	// Send Admin email
 	r.HandleFunc("/admin/sendAdminEmail", SendAdminEmail).Methods("POST")
