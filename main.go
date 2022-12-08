@@ -547,7 +547,7 @@ func getUserByDID(did string) (*WorkspaceCreatorFullInfo, error) {
 		workspaces.name
 		FROM did_numbers
 		INNER JOIN workspaces ON workspaces.id = did_numbers.workspace_id
-		WHERE did_numebrs.api_number = ?`, did)
+		WHERE did_numbers.api_number = ?`, did)
 	var domain string
 	err := result.Scan( &domain )
 	if err != nil {
