@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"database/sql"
 	"encoding/json"
-		lineblocs "bitbucket.org/infinitet3ch/lineblocs-go-helpers"
-		"lineblocs.com/api/helpers"
+	lineblocs "github.com/Lineblocs/go-helpers"
+	"lineblocs.com/api/helpers"
 )
 var db *sql.DB
 

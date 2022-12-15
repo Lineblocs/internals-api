@@ -21,7 +21,7 @@ import (
 	"reflect"
 	"regexp"
 
-	lineblocs "bitbucket.org/infinitet3ch/lineblocs-go-helpers"
+	lineblocs "github.com/Lineblocs/go-helpers"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
