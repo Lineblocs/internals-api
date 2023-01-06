@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"lineblocs.com/api/admin"
 	"lineblocs.com/api/call"
 	"lineblocs.com/api/carrier"
 	"lineblocs.com/api/debit"
@@ -11,6 +12,7 @@ import (
 )
 
 type Handler struct {
+	adminStore     admin.Store
 	callStore      call.Store
 	carrierStore   carrier.Store
 	debitStore     debit.Store
@@ -20,8 +22,9 @@ type Handler struct {
 	userStore      user.Store
 }
 
-func NewHandler(cs call.Store, crs carrier.Store, ds debit.Store, fs fax.Store, ls logger.Store, rs recording.Store, us user.Store) *Handler {
+func NewHandler(as admin.Store, cs call.Store, crs carrier.Store, ds debit.Store, fs fax.Store, ls logger.Store, rs recording.Store, us user.Store) *Handler {
 	return &Handler{
+		adminStore:     as,
 		callStore:      cs,
 		carrierStore:   crs,
 		debitStore:     ds,

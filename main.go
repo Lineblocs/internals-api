@@ -3242,6 +3242,7 @@ func startServer() {
 	r := router.New()
 	fmt.Println("starting HTTP server...")
 
+	as := store.NewAdminStore(db)
 	cs := store.NewCallStore(db)
 	crs := store.NewCarrierStore(db)
 	ds := store.NewDebitStore(db)
@@ -3249,7 +3250,7 @@ func startServer() {
 	ls := store.NewLoggerStore(db)
 	rs := store.NewRecordingStore(db)
 	us := store.NewUserStore(db)
-	h := handler.NewHandler(cs, crs, ds, fs, ls, rs, us)
+	h := handler.NewHandler(as, cs, crs, ds, fs, ls, rs, us)
 	h.Register(r)
 
 	loggedRouter := handlers.LoggingHandler(os.Stdout, r)

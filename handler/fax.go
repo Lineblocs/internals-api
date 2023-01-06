@@ -33,8 +33,7 @@ func (h *Handler) CreateFax(c echo.Context) error {
 
 	workspace, err := h.callStore.GetWorkspaceFromDB(workspaceIdInt)
 	if err != nil {
-		fmt.Printf("could not get workspace..")
-		return c.NoContent(http.StatusNoContent)
+		return utils.HandleInternalErr("Could not get workspace..", err, c)
 	}
 
 	callId := c.FormValue("call_id")
@@ -77,7 +76,7 @@ func (h *Handler) CreateFax(c echo.Context) error {
 	}
 	newCount := (*count) + 1
 	if newCount > *limit {
-		fmt.Printf("not saving fax due to limit reached..")
+		fmt.Printf("Not saving fax due to limit reached..")
 		return c.NoContent(http.StatusNoContent)
 	}
 	go utils.UploadS3("faxes", apiId, src)

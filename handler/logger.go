@@ -12,10 +12,10 @@ func (h *Handler) CreateLog(c echo.Context) error {
 	var logReq model.Log
 
 	if err := c.Bind(&logReq); err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, utils.NewError(err))
+		return utils.HandleInternalErr("CreateLog 1 Could not decode JSON", err, c)
 	}
 	if err := c.Validate(&logReq); err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, utils.NewError(err))
+		return utils.HandleInternalErr("CreateLog 2 Could not decode JSON", err, c)
 	}
 
 	level := "info"
@@ -42,12 +42,12 @@ func (h *Handler) CreateLog(c echo.Context) error {
 
 	workspace, err := h.callStore.GetWorkspaceFromDB(log.WorkspaceId)
 	if err != nil {
-		return utils.HandleInternalErr("could not get workspace..", err, c)
+		return utils.HandleInternalErr("Could not get workspace..", err, c)
 	}
 
 	_, err = h.loggerStore.StartLogRoutine(workspace, log)
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, utils.NewError(err))
+		return utils.HandleInternalErr("CreateLog 2 log routine error", err, c)
 	}
 	return c.NoContent(http.StatusNoContent)
 }
@@ -58,7 +58,7 @@ func (h *Handler) CreateLogSimple(c echo.Context) error {
 	domain := c.FormValue("domain")
 	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, utils.NewError(err))
+		return utils.HandleInternalErr("Could not get workspace..", err, c)
 	}
 
 	if &level == nil {
@@ -83,7 +83,7 @@ func (h *Handler) CreateLogSimple(c echo.Context) error {
 
 	_, err = h.loggerStore.StartLogRoutine(workspace, log)
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, utils.NewError(err))
+		return utils.HandleInternalErr("CreateLog log routine error", err, c)
 	}
 	return c.NoContent(http.StatusNoContent)
 }
