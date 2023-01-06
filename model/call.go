@@ -17,3 +17,9 @@ type Call struct {
 	UpdatedAt    string `json:"updated_at"`
 	PlanSnapshot string `json:"plan_snapshot"`
 }
+
+type CallUpdate struct {
+	CallId   int    `json:"call_id"`
+	Status   string `json:"status"`
+	SourceIp string `json:"source_ip"`
+}

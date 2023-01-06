@@ -1,7 +1,17 @@
 package user
 
-import "lineblocs.com/api/model"
+import (
+	"database/sql"
+
+	"lineblocs.com/api/model"
+)
 
 type Store interface {
-	getUserFromDB(id int) (*model.User, error)
+	DoVerifyCaller(*model.Workspace, string) (bool, error)
+	GetWorkspaceParams(int) (*[]model.WorkspaceParam, error)
+	GetUserByDID(did string) (string, error)
+	GetUserByTrunkSourceIp(string) (string, error)
+	GetWorkspaceMacros(string) ([]model.MacroFunction, error)
+	GetDIDNumberData(string) (*model.WorkspaceDIDInfo, sql.NullString, error)
+	GetBYODIDNumberData(string) (*model.WorkspaceDIDInfo, sql.NullString, error)
 }

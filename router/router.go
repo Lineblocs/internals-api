@@ -6,6 +6,8 @@ import (
 	"github.com/labstack/gommon/log"
 )
 
+//Initialize Echo
+
 func New() *echo.Echo {
 	e := echo.New()
 	e.Logger.SetLevel(log.DEBUG)

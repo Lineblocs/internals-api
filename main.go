@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"math"
 	"net"
@@ -11,7 +12,6 @@ import (
 	"strings"
 	"sync"
 	"time"
-	"errors"
 
 	//"errors"
 	"database/sql"
@@ -33,7 +33,10 @@ import (
 	limiter "github.com/nadirhamid/golang-etcd-rate-limiter"
 	libphonenumber "github.com/ttacon/libphonenumber"
 	"go.etcd.io/etcd/clientv3"
+	"lineblocs.com/api/handler"
 	"lineblocs.com/api/helpers"
+	"lineblocs.com/api/router"
+	"lineblocs.com/api/store"
 )
 
 type Call struct {
@@ -125,7 +128,7 @@ type Recording struct {
 	WorkspaceId        int       `json:"workspace_id"`
 	APIId              string    `json:"api_id"`
 	Tags               *[]string `json:"tags"`
-	Trim bool      `json:"trim"`
+	Trim               bool      `json:"trim"`
 	TranscriptionReady bool      `json:"transcription_ready"`
 	TranscriptionText  string    `json:"transcription_text"`
 	StorageId          string    `json:"storage_id"`
@@ -203,19 +206,18 @@ type CallerIDInfo struct {
 }
 
 type RoutableProvider struct {
-	Rate float64 `json:"rate"`
-	DialPrefix string `json:"dial_prefix"`
-	Provider int `json:"provider"`
-	IPAddress int `json:"ip_address"`
+	Rate       float64 `json:"rate"`
+	DialPrefix string  `json:"dial_prefix"`
+	Provider   int     `json:"provider"`
+	IPAddress  int     `json:"ip_address"`
 }
 
 type SIPTrunkInfo struct {
-	Domain        string            `json:"domain"`
-	WorkspaceId     int               `json:"workspace_id"`
-	WorkspaceName   string            `json:"workspace_name"`
-	CreatorId       int               `json:"creator_id"`
+	Domain        string `json:"domain"`
+	WorkspaceId   int    `json:"workspace_id"`
+	WorkspaceName string `json:"workspace_name"`
+	CreatorId     int    `json:"creator_id"`
 }
-
 
 type ExtensionFlowInfo struct {
 	FlowId          int               `json:"flow_id"`
@@ -317,18 +319,18 @@ INNER JOIN workspaces_routing_flows ON workspaces_routing_flows.workspace_id = w
 WHERE workspaces_users.user_id= ?
 AND workspaces_routing_flows.dest_code= ?
 `, *userId, *destCode)
-	err := row.Scan(&info.FlowId,&info.FlowJSON)
+	err := row.Scan(&info.FlowId, &info.FlowJSON)
 
 	if err != sql.ErrNoRows { //lookup country flow
 		if err != nil {
 			return nil, err
 		}
-		err = json.Unmarshal( []byte(info.FlowJSON), &flowJson )
+		err = json.Unmarshal([]byte(info.FlowJSON), &flowJson)
 		if err != nil {
 			return nil, err
 		}
 
-		return helpers.NewFlow( info.FlowId, &flowJson	 ), nil
+		return helpers.NewFlow(info.FlowId, &flowJson), nil
 	}
 
 	// lookup by country
@@ -337,18 +339,18 @@ router_flows.flow_json
 FROM sip_countries
 INNER JOIN router_flows ON router_flows.id = sip_countries.flow_id
 WHERE sip_countries.country_code= ?`, *destCode)
-	err = row.Scan(&info.FlowId,&info.FlowJSON)
+	err = row.Scan(&info.FlowId, &info.FlowJSON)
 
 	if err != sql.ErrNoRows { //lookup country flow
 		if err != nil {
 			return nil, err
 		}
-		err = json.Unmarshal( []byte(info.FlowJSON), &flowJson )
+		err = json.Unmarshal([]byte(info.FlowJSON), &flowJson)
 		if err != nil {
 			return nil, err
 		}
 
-		return helpers.NewFlow( info.FlowId, &flowJson	 ), nil
+		return helpers.NewFlow(info.FlowId, &flowJson), nil
 	}
 
 	return nil, errors.New("no routing flow found...")
@@ -543,13 +545,13 @@ func getUserByDomain(domain string) (*WorkspaceCreatorFullInfo, error) {
 }
 
 func getUserByDID(did string) (*WorkspaceCreatorFullInfo, error) {
-	result:= db.QueryRow(`SELECT
+	result := db.QueryRow(`SELECT
 		workspaces.name
 		FROM did_numbers
 		INNER JOIN workspaces ON workspaces.id = did_numbers.workspace_id
 		WHERE did_numbers.api_number = ?`, did)
 	var domain string
-	err := result.Scan( &domain )
+	err := result.Scan(&domain)
 	if err != nil {
 		return nil, err
 	}
@@ -580,14 +582,14 @@ func getUserByTrunkSourceIp(sourceIp string) (*WorkspaceCreatorFullInfo, error) 
 
 	// todo get ipv6
 	sourceIpv6 := sourceIp
-	result:= db.QueryRow(`SELECT
+	result := db.QueryRow(`SELECT
 		workspaces.name
 		FROM workspaces
 		INNER JOIN sip_trunks ON sip_trunks.workspace_id = workspaces.id
 		INNER JOIN sip_trunks_origination_endpoints ON sip_trunks_origination_endpoints.trunk_id = sip_trunks.id
 		WHERE sip_trunks_origination_endpoints.ipv4 = ?  OR sip_trunks_origination_endpoints.ipv6 = ?`, sourceIp, sourceIpv6)
 	var domain string
-	err := result.Scan( &domain )
+	err := result.Scan(&domain)
 	if err != nil {
 		return nil, err
 	}
@@ -612,7 +614,6 @@ func getUserByTrunkSourceIp(sourceIp string) (*WorkspaceCreatorFullInfo, error) 
 
 	return full, nil
 }
-
 
 func getRecordingFromDB(id int) (*Recording, error) {
 	var apiId string
@@ -654,7 +655,7 @@ func getCallFromDB(id int) (*Call, error) {
 	return &call, nil
 }
 
-//todo move to microservice
+// todo move to microservice
 func getPlanRecordingLimit(workspace *Workspace) (int, error) {
 	if workspace.Plan == "pay-as-you-go" {
 		return 1024, nil
@@ -668,7 +669,7 @@ func getPlanRecordingLimit(workspace *Workspace) (int, error) {
 	return 0, nil
 }
 
-//todo move to microservice
+// todo move to microservice
 func getPlanFaxLimit(workspace *Workspace) (*int, error) {
 	var res *int
 	if workspace.Plan == "pay-as-you-go" {
@@ -1026,13 +1027,13 @@ func getBestPSTNProvider(from, to *string) (*PSTNInfo, error) {
 		return nil, err
 	}
 
-	var routableProviders  []*RoutableProvider
+	var routableProviders []*RoutableProvider
 	var lowestRate *float64 = nil
 	var lowestProviderId *int
 	var lowestDialPrefix *string
 	var longestMatch *int
 
-	routableProviders = make([]*RoutableProvider,0)
+	routableProviders = make([]*RoutableProvider, 0)
 
 	defer results.Close()
 	for results.Next() {
@@ -1070,12 +1071,12 @@ func getBestPSTNProvider(from, to *string) (*PSTNInfo, error) {
 				fmt.Println("found matching route...")
 				fullLen := len(full)
 
- 				if (longestMatch == nil || fullLen >= *longestMatch) {
+				if longestMatch == nil || fullLen >= *longestMatch {
 					provider := RoutableProvider{
-						Provider: id,
-						Rate: rate,
-						DialPrefix: dialPrefix }
-					routableProviders = append( routableProviders, &provider )
+						Provider:   id,
+						Rate:       rate,
+						DialPrefix: dialPrefix}
+					routableProviders = append(routableProviders, &provider)
 				}
 				if (longestMatch == nil || fullLen >= *longestMatch) && (lowestRate == nil || rate < *lowestRate) {
 					lowestProviderId = &id
@@ -1138,7 +1139,6 @@ func getBestPSTNProvider(from, to *string) (*PSTNInfo, error) {
 	}
 	return nil, errors.New("no available routes for LCR...")
 }
-
 
 func doVerifyCaller(workspaceId int, number string) (bool, error) {
 	var workspace *Workspace
@@ -1960,9 +1960,8 @@ func GetUserByDID(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&info)
 }
 
-
 func GetUserByTrunkSourceIp(w http.ResponseWriter, r *http.Request) {
-	sourceIp:= getQueryVariable(r, "source_ip")
+	sourceIp := getQueryVariable(r, "source_ip")
 
 	info, err := getUserByTrunkSourceIp(*sourceIp)
 	if err != nil {
@@ -2184,76 +2183,76 @@ func GetPSTNProviderIP(w http.ResponseWriter, r *http.Request) {
 	below, please ensure the default LCR logic is removed prior to that.
 	**/
 	/*
-	
-	NEW code
-	destCode, err := helpers.ParseCountryCode(*to)
 
-	if err != nil {
-		fmt.Println("Couldnt parse country code for destination number... error: " + err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	fmt.Println( "code is: " + destCode )
+		NEW code
+		destCode, err := helpers.ParseCountryCode(*to)
 
-	originCode, err := helpers.ParseCountryCode(*from)
-
-	if err != nil {
-		fmt.Println("Couldnt parse country code for origination number... error: " + err.Error())
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-
-	var flow *helpers.Flow
-	fmt.Println( "code is: " + originCode )
-
-	creator := strconv.Itoa(workspace.CreatorId)
-	flow,err =createRoutingFlow( from, to, &creator )
-	if err != nil {
-			handleInternalErr("ProcessRouterFlow error 1", err, w)
+		if err != nil {
+			fmt.Println("Couldnt parse country code for destination number... error: " + err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
 			return
-	}
+		}
+		fmt.Println( "code is: " + destCode )
 
-	data := make(map[string]string)
-	data["origin_code"] = originCode
-	data["dest_code"] = destCode
-	data["from"] = *from
-	data["to"] = *to
+		originCode, err := helpers.ParseCountryCode(*from)
 
-	providers, err := helpers.StartProcessingFlow( flow, flow.Cells[ 0 ], data, db )
+		if err != nil {
+			fmt.Println("Couldnt parse country code for origination number... error: " + err.Error())
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
 
-	if err != nil {
-		panic(err)
-	}
-	if len( providers ) == 0 {
-		fmt.Println("No providers available..")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	provider:=providers[0]
-	if len( provider.Hosts ) == 0 {
-		fmt.Println("No IPs to route to..")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
+		var flow *helpers.Flow
+		fmt.Println( "code is: " + originCode )
 
-	if len( providers ) == 0  {
-		fmt.Println("No providers available..")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	bestProvider:=provider
-	if len( bestProvider.Hosts)  == 0  {
-		fmt.Println("No hosts available..")
-		w.WriteHeader(http.StatusInternalServerError)
-		return
-	}
-	bestIpAddr:=provider.Hosts[ 0 ].IPAddr
-	var number string
-	number = bestProvider.Hosts[0].Prefix + *to
+		creator := strconv.Itoa(workspace.CreatorId)
+		flow,err =createRoutingFlow( from, to, &creator )
+		if err != nil {
+				handleInternalErr("ProcessRouterFlow error 1", err, w)
+				return
+		}
+
+		data := make(map[string]string)
+		data["origin_code"] = originCode
+		data["dest_code"] = destCode
+		data["from"] = *from
+		data["to"] = *to
+
+		providers, err := helpers.StartProcessingFlow( flow, flow.Cells[ 0 ], data, db )
+
+		if err != nil {
+			panic(err)
+		}
+		if len( providers ) == 0 {
+			fmt.Println("No providers available..")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		provider:=providers[0]
+		if len( provider.Hosts ) == 0 {
+			fmt.Println("No IPs to route to..")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+
+		if len( providers ) == 0  {
+			fmt.Println("No providers available..")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		bestProvider:=provider
+		if len( bestProvider.Hosts)  == 0  {
+			fmt.Println("No hosts available..")
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		bestIpAddr:=provider.Hosts[ 0 ].IPAddr
+		var number string
+		number = bestProvider.Hosts[0].Prefix + *to
 
 
-	info := &PSTNInfo{IPAddr: bestIpAddr, DID: number}
-	json.NewEncoder(w).Encode(info)
+		info := &PSTNInfo{IPAddr: bestIpAddr, DID: number}
+		json.NewEncoder(w).Encode(info)
 	*/
 }
 
@@ -2271,7 +2270,6 @@ func GetPSTNProviderIPForTrunk(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(&info)
 	return
 }
-
 
 func IPWhitelistLookup(w http.ResponseWriter, r *http.Request) {
 	source := getQueryVariable(r, "ip")
@@ -2387,7 +2385,7 @@ func AddPSTNProviderTechPrefix(w http.ResponseWriter, r *http.Request) {
 
 }
 func ProcessRouterFlow(w http.ResponseWriter, r *http.Request) {
-	var flow *helpers.Flow;
+	var flow *helpers.Flow
 	callto := getQueryVariable(r, "callto")
 	callfrom := getQueryVariable(r, "callfrom")
 	userId := getQueryVariable(r, "userid")
@@ -2397,18 +2395,18 @@ func ProcessRouterFlow(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println( "code is: " + destCode )
+	fmt.Println("code is: " + destCode)
 
 	originCode, err := helpers.ParseCountryCode(*callfrom)
 
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println( "code is: " + originCode )
-	flow,err =createRoutingFlow( callfrom, callto, userId )
+	fmt.Println("code is: " + originCode)
+	flow, err = createRoutingFlow(callfrom, callto, userId)
 	if err != nil {
-			handleInternalErr("ProcessRouterFlow error 1", err, w)
-			return
+		handleInternalErr("ProcessRouterFlow error 1", err, w)
+		return
 	}
 
 	data := make(map[string]string)
@@ -2417,30 +2415,30 @@ func ProcessRouterFlow(w http.ResponseWriter, r *http.Request) {
 	data["from"] = *callfrom
 	data["to"] = *callto
 
-	providers, err := helpers.StartProcessingFlow( flow, flow.Cells[ 0 ], data, db )
+	providers, err := helpers.StartProcessingFlow(flow, flow.Cells[0], data, db)
 
 	if err != nil {
 		panic(err)
 	}
-	if len( providers ) == 0 {
+	if len(providers) == 0 {
 		fmt.Println("No providers available..")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	provider:=providers[0]
-	if len( provider.Hosts ) == 0 {
+	provider := providers[0]
+	if len(provider.Hosts) == 0 {
 		fmt.Println("No IPs to route to..")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	host:=provider.Hosts[0]
+	host := provider.Hosts[0]
 	w.Write([]byte(host.IPAddr))
 }
 
 func ProcessSIPTrunkCall(w http.ResponseWriter, r *http.Request) {
 	did := getQueryVariable(r, "did")
 
-	// get trunk from 
+	// get trunk from
 	results, err := db.Query(`SELECT 
 	sip_trunks_origination_endpoints.sip_uri
 	FROM did_numbers
@@ -2448,26 +2446,23 @@ func ProcessSIPTrunkCall(w http.ResponseWriter, r *http.Request) {
 	INNER JOIN sip_trunks_origination_endpoints ON sip_trunks_origination_endpoints.trunk_id = sip_trunks.id
 	WHERE did_numbers.api_number = ?`, did)
 
-	
 	if err != nil {
 		handleInternalErr("ProcessSIPTrunkCall error 1 valid", err, w)
 		return
 	}
 	defer results.Close()
 
-
 	for results.Next() {
-		fmt.Printf("trying to route to user trunk server..\r\n");
+		fmt.Printf("trying to route to user trunk server..\r\n")
 		var trunkSIPURI string
-		results.Scan( &trunkSIPURI )
-		fmt.Printf("found SIP trunk server %s\r\n", trunkSIPURI);
-		w.Write([]byte(trunkSIPURI));
-		return;
+		results.Scan(&trunkSIPURI)
+		fmt.Printf("found SIP trunk server %s\r\n", trunkSIPURI)
+		w.Write([]byte(trunkSIPURI))
+		return
 	}
 	fmt.Println("No trunks to route to..")
 	w.WriteHeader(http.StatusInternalServerError)
 }
-
 
 func GetExtensionFlowInfo(w http.ResponseWriter, r *http.Request) {
 	extension := getQueryVariable(r, "extension")
@@ -2696,12 +2691,11 @@ func IncomingDIDValidation(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		w.Write([]byte("byo_carrier"));
+		w.Write([]byte("byo_carrier"))
 	}
 	handleInternalErr("IncomingDIDValidation error 3", errors.New("no DID match found..."), w)
 	//w.WriteHeader(http.StatusNoContent) // send the headers with a 204 response code.
 }
-
 
 func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 	//did := getQueryVariable(r, "did")
@@ -2711,20 +2705,20 @@ func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 	//destDomain := getQueryVariable(r, "destdomain")
 	// Execute the query
 	/*
-	row:= db.QueryRow(`SELECT did_numbers.trunk_id FROM did_numbers WHERE did_numbers.api_number = ? AND did_numbers.trunk_id IS NOT NULL`, did)
-	err := row.Scan(&trunkId)
-	if err != nil {
-		handleInternalErr("IncomingTrunkValidation error 1d", err, w)
-		return
-	}
+		row:= db.QueryRow(`SELECT did_numbers.trunk_id FROM did_numbers WHERE did_numbers.api_number = ? AND did_numbers.trunk_id IS NOT NULL`, did)
+		err := row.Scan(&trunkId)
+		if err != nil {
+			handleInternalErr("IncomingTrunkValidation error 1d", err, w)
+			return
+		}
 	*/
-	trunkip, err := lookupSIPAddress( *fromdomain );
+	trunkip, err := lookupSIPAddress(*fromdomain)
 	if err != nil {
 		handleInternalErr("IncomingTrunkValidation error 4 valid", err, w)
 		return
 	}
 
-	fmt.Printf("from domain %s trunk IP is %s..\r\n", *fromdomain, *trunkip);
+	fmt.Printf("from domain %s trunk IP is %s..\r\n", *fromdomain, *trunkip)
 
 	results, err := db.Query(`SELECT 
 	sip_trunks_origination_settings.recovery_sip_uri,
@@ -2733,16 +2727,14 @@ func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 	INNER JOIN sip_trunks ON sip_trunks.id = sip_trunks_origination_endpoints.trunk_id
 	INNER JOIN sip_trunks_origination_settings ON sip_trunks_origination_settings.trunk_id = sip_trunks.id`)
 
-	
 	if err != nil {
 		handleInternalErr("IncomingTrunkValidation error 1 valid", err, w)
 		return
 	}
 	defer results.Close()
 
-
 	for results.Next() {
-		fmt.Printf("trying to route to SIP server..\r\n");
+		fmt.Printf("trying to route to SIP server..\r\n")
 		var routingSIPURI string
 		var recoverySIPURI string
 		err := results.Scan(
@@ -2752,19 +2744,19 @@ func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 			handleInternalErr("IncomingTrunkValidation error 1 valid", err, w)
 			return
 		}
-		fmt.Printf("SIP routing URI = %s SIP recovery URI = %s\r\n", routingSIPURI, recoverySIPURI);
+		fmt.Printf("SIP routing URI = %s SIP recovery URI = %s\r\n", routingSIPURI, recoverySIPURI)
 		// TODO do some health checks here to see if SIP server is actually up..
-		ips, err := lookupSIPAddresses( routingSIPURI );
+		ips, err := lookupSIPAddresses(routingSIPURI)
 		if err != nil {
 			fmt.Printf("failed to lookup SIP server %s\r\n", routingSIPURI)
 			continue
 		}
-		for _,ip := range *ips {
+		for _, ip := range *ips {
 			ipAddr := ip.String()
 			fmt.Printf("found IP = %s\r\n", ipAddr)
 			fmt.Printf("comparing with source IP = %s\r\n", *trunkip)
 			if ipAddr == *trunkip {
-				w.Write([]byte(ipAddr));
+				w.Write([]byte(ipAddr))
 				return
 			}
 		}
@@ -2774,11 +2766,10 @@ func IncomingTrunkValidation(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusInternalServerError) // send the headers with a 204 response code.
 }
 
-
-func lookupSIPAddresses( host string ) (*[]net.IP, error) {
+func lookupSIPAddresses(host string) (*[]net.IP, error) {
 	ips, err := net.LookupIP(host)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	if len(ips) == 0 {
 		return nil, errors.New("No IP match found..")
@@ -2787,15 +2778,15 @@ func lookupSIPAddresses( host string ) (*[]net.IP, error) {
 }
 
 // get first match
-func lookupSIPAddress( host string ) (*string, error) {
+func lookupSIPAddress(host string) (*string, error) {
 	ips, err := lookupSIPAddresses(host)
 	if err != nil {
-		return nil,err
+		return nil, err
 	}
 	ip := (*ips)[0].String()
 	return &ip, nil
 }
-func checkSIPServerHealth( routingSIPURI string ) (bool, error) {
+func checkSIPServerHealth(routingSIPURI string) (bool, error) {
 	return true, nil
 }
 
@@ -2889,17 +2880,17 @@ func LookupSIPTrunkByDID(w http.ResponseWriter, r *http.Request) {
 	var sipRoutingUri string
 	var sipRecoveryUri string
 	for results.Next() {
-		err := results.Scan(&sipRoutingUri, &sipRecoveryUri);
+		err := results.Scan(&sipRoutingUri, &sipRecoveryUri)
 		if err != nil {
 			handleInternalErr("LookupSIPTrunkByDID error 2", err, w)
 			return
 		}
 
-		fmt.Printf("SIP routing URI = %s SIP recovery URI = %s\r\n", sipRoutingUri, sipRecoveryUri);
+		fmt.Printf("SIP routing URI = %s SIP recovery URI = %s\r\n", sipRoutingUri, sipRecoveryUri)
 		// TODO do some health checks here to see if SIP server is actually up..
-		isOnline, err := checkSIPServerHealth( sipRoutingUri );
+		isOnline, err := checkSIPServerHealth(sipRoutingUri)
 		if err != nil {
-			fmt.Printf("failed to verify health of SIP server %s\r\n", sipRoutingUri);
+			fmt.Printf("failed to verify health of SIP server %s\r\n", sipRoutingUri)
 			continue
 		}
 		if isOnline {
@@ -2907,14 +2898,14 @@ func LookupSIPTrunkByDID(w http.ResponseWriter, r *http.Request) {
 			w.Write([]byte(sipRoutingUri))
 			return
 		}
-		fmt.Printf("routing server %s is offline, checking next server...\r\n", sipRoutingUri);
+		fmt.Printf("routing server %s is offline, checking next server...\r\n", sipRoutingUri)
 	}
 
 	// no SIP servers were online try to route to recovery URI
-	isOnline, err := checkSIPServerHealth( sipRecoveryUri );
-	fmt.Printf("no SIP servers were online. routing to recovery URI\r\n");
+	isOnline, err := checkSIPServerHealth(sipRecoveryUri)
+	fmt.Printf("no SIP servers were online. routing to recovery URI\r\n")
 	if isOnline {
-		w.Write([]byte(sipRecoveryUri));
+		w.Write([]byte(sipRecoveryUri))
 		return
 	}
 
@@ -2966,7 +2957,6 @@ func CreateSIPReport(w http.ResponseWriter, r *http.Request) {
 	callid := r.FormValue("callid")
 	status := r.FormValue("status")
 
-
 	stmt, err := db.Prepare("UPDATE `calls` SET sip_status = ? WHERE sip_call_id = ?")
 	if err != nil {
 		fmt.Printf("CreateSIPReport 2 Could not execute query..")
@@ -2992,7 +2982,7 @@ func CreateSIPReport(w http.ResponseWriter, r *http.Request) {
 
 func GetBestRTPProxy(w http.ResponseWriter, r *http.Request) {
 	//routerip := getQueryVariable(r, "routerip")
-	results,err := db.Query(`SELECT rtpproxy_sock, set_id, cpu_pct, cpu_used FROM rtpproxy_sockets`)
+	results, err := db.Query(`SELECT rtpproxy_sock, set_id, cpu_pct, cpu_used FROM rtpproxy_sockets`)
 	// Execute the query
 	if err != nil {
 		handleInternalErr("GetBestRTPProxy error 1", err, w)
@@ -3011,9 +3001,9 @@ func GetBestRTPProxy(w http.ResponseWriter, r *http.Request) {
 			handleInternalErr("GetBestRTPProxy error 2", err, w)
 			return
 		}
-		if lowestCPU == nil || cpuPct < *lowestCPU{
+		if lowestCPU == nil || cpuPct < *lowestCPU {
 			lowestCPU = &cpuPct
- 			socketAddrResult =rtpSock
+			socketAddrResult = rtpSock
 		}
 	}
 	w.Write([]byte(socketAddrResult))
@@ -3095,8 +3085,6 @@ func startHTTPServer() {
 
 	r.HandleFunc("/carrier/processRouterFlow", ProcessRouterFlow).Methods("GET")
 
-
-
 	// user functions
 	r.HandleFunc("/user/verifyCaller", VerifyCaller).Methods("GET")
 	r.HandleFunc("/user/verifyCallerByDomain", VerifyCallerByDomain).Methods("GET")
@@ -3128,7 +3116,6 @@ func startHTTPServer() {
 
 	r.HandleFunc("/user/processSIPTrunkCall", ProcessSIPTrunkCall).Methods("GET")
 
-
 	// Send Admin email
 	r.HandleFunc("/admin/sendAdminEmail", SendAdminEmail).Methods("POST")
 	r.HandleFunc("/getBestRTPProxy", GetBestRTPProxy).Methods("GET")
@@ -3136,18 +3123,17 @@ func startHTTPServer() {
 
 	// Bind to a port and pass our router in
 
-	routingHandler:=loggedRouter
+	routingHandler := loggedRouter
 
 	if os.Getenv("USE_LIMIT_MIDDLEWARE") == "on" {
-		routingHandler= limitMiddleware(loggedRouter)
+		routingHandler = limitMiddleware(loggedRouter)
 	}
 	if os.Getenv("USE_TLS") == "on" {
 		certPath := os.Getenv("TLS_CERT_PATH")
 		keyPath := os.Getenv("TLS_KEY_PATH")
 
-
 		fmt.Printf("Starting HTTP server with TLS. cert=%s,  key=%s\r\n", certPath, keyPath)
-		log.Fatal( http.ListenAndServeTLS(":443", certPath,keyPath, routingHandler))
+		log.Fatal(http.ListenAndServeTLS(":443", certPath, keyPath, routingHandler))
 		//log.Fatal( http.ListenAndServeTLS(":443", certPath,keyPath, nil))
 		fmt.Println("started server...")
 		return
@@ -3156,15 +3142,15 @@ func startHTTPServer() {
 
 	httpPort := readEnv("HTTP_PORT", "80")
 	fmt.Printf("HTTP port %s\r\n", httpPort)
-	log.Fatal(http.ListenAndServe(":" + httpPort, routingHandler))
+	log.Fatal(http.ListenAndServe(":"+httpPort, routingHandler))
 }
 
 func readEnv(key, fallback string) string {
-    value := os.Getenv(key)
-    if len(value) == 0 {
-        return fallback
-    }
-    return value
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return fallback
+	}
+	return value
 }
 
 func checkIfCarrier(token string) bool {
@@ -3243,8 +3229,51 @@ func main() {
 	wg.Add(1)
 
 	go func() {
-		startHTTPServer()
+		// startHTTPServer()
+		startServer()
 		wg.Done()
 	}()
 	wg.Wait()
+
+}
+
+func startServer() {
+	settings = &GlobalSettings{ValidateCallerId: false}
+	r := router.New()
+	fmt.Println("starting HTTP server...")
+
+	cs := store.NewCallStore(db)
+	crs := store.NewCarrierStore(db)
+	ds := store.NewDebitStore(db)
+	fs := store.NewFaxStore(db)
+	ls := store.NewLoggerStore(db)
+	rs := store.NewRecordingStore(db)
+	us := store.NewUserStore(db)
+	h := handler.NewHandler(cs, crs, ds, fs, ls, rs, us)
+	h.Register(r)
+
+	loggedRouter := handlers.LoggingHandler(os.Stdout, r)
+
+	// Bind to a port and pass our router in
+
+	routingHandler := loggedRouter
+
+	if os.Getenv("USE_LIMIT_MIDDLEWARE") == "on" {
+		routingHandler = limitMiddleware(loggedRouter)
+	}
+	if os.Getenv("USE_TLS") == "on" {
+		certPath := os.Getenv("TLS_CERT_PATH")
+		keyPath := os.Getenv("TLS_KEY_PATH")
+
+		fmt.Printf("Starting HTTP server with TLS. cert=%s,  key=%s\r\n", certPath, keyPath)
+		log.Fatal(http.ListenAndServeTLS(":443", certPath, keyPath, routingHandler))
+		//log.Fatal( http.ListenAndServeTLS(":443", certPath,keyPath, nil))
+		fmt.Println("started server...")
+		return
+	}
+	fmt.Printf("Starting HTTP server without TLS\r\n")
+
+	httpPort := readEnv("HTTP_PORT", "80")
+	fmt.Printf("HTTP port %s\r\n", httpPort)
+	log.Fatal(http.ListenAndServe(":"+httpPort, routingHandler))
 }
