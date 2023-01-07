@@ -2,16 +2,25 @@ package handler
 
 import (
 	"crypto/subtle"
+	"fmt"
+	"net/http"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"github.com/mrwaggel/golimiter"
+	"lineblocs.com/api/utils"
 )
 
 /*
 Register Routers here
 Use Basic Auth Middleware with Group
 */
+
 func (h *Handler) Register(r *echo.Echo) {
+
+	r.Any("", limitHandler)
+
 	group := r.Group("/", middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
 		// Be careful to use constant time comparison to prevent timing attacks
 		if subtle.ConstantTimeCompare([]byte(username), []byte("joe")) == 1 &&
@@ -82,4 +91,45 @@ func (h *Handler) Register(r *echo.Echo) {
 	group.POST("/admin/sendAdminEmail", h.SendAdminEmail)
 	group.GET("/getBestRTPProxy", h.GetBestRTPProxy)
 
+}
+
+func limitHandler(c echo.Context) error {
+	var addr string
+	requestedAddr := c.Param("addr")
+	if &requestedAddr != nil {
+		addr = requestedAddr
+	} else {
+		addr = c.RealIP()
+	}
+
+	carrier := c.Request().Header.Get("X-Lineblocs-Carrier-Auth")
+	isCarrier := false
+
+	if carrier != "" {
+		isCarrier = utils.CheckIfCarrier(carrier)
+	}
+
+	// limit for users
+
+	var limit int = 60
+	if isCarrier {
+		limit = 3600
+	}
+
+	var indexLimiter = golimiter.New(limit, time.Minute)
+
+	// Check if the given IP is rate limited
+	if indexLimiter.IsLimited(addr) {
+		return c.String(http.StatusTooManyRequests, fmt.Sprintf("Rate limit exhausted from %s", addr))
+	}
+	// Add a request to the count for the Ip
+	indexLimiter.Increment(addr)
+	totalRequestPastMinute := indexLimiter.Count(addr)
+	totalRemaining := limit - totalRequestPastMinute
+	return c.String(http.StatusOK, fmt.Sprintf(""+
+		"Your IP %s is not rate limited!\n"+
+		"You made %d requests in the last minute.\n"+
+		"You are allowed to make %d more request.\n"+
+		"Maximum request you can make per minute is %d.",
+		addr, totalRequestPastMinute, totalRemaining, limit))
 }

@@ -6,6 +6,7 @@ import (
 	"mime/multipart"
 	"net"
 	"net/http"
+	"os"
 	"regexp"
 	"strings"
 	"time"
@@ -198,6 +199,18 @@ func LookupSIPAddress(host string) (*string, error) {
 
 func CheckSIPServerHealth(routingSIPURI string) (bool, error) {
 	return true, nil
+}
+
+func ReadEnv(key, fallback string) string {
+	value := os.Getenv(key)
+	if len(value) == 0 {
+		return fallback
+	}
+	return value
+}
+
+func CheckIfCarrier(token string) bool {
+	return true
 }
 
 func HandleInternalErr(msg string, err error, c echo.Context) error {
