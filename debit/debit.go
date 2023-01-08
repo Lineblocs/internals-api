@@ -2,10 +2,13 @@ package debit
 
 import (
 	"lineblocs.com/api/model"
-	"lineblocs.com/api/utils"
 )
 
+/*
+Interface of Debit Store.
+Implementation of Debit Store is located /store/debit
+*/
 type Store interface {
-	CreateDebit(*utils.CallRate, *model.Debit) error
+	CreateDebit(*model.CallRate, *model.Debit) error
 	CreateAPIUsageDebit(*model.Workspace, *model.DebitAPI) error
 }

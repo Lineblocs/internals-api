@@ -11,6 +11,11 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Input: file, user_id, workspace_id, call_id, name
+Todo : Create fax and store to db, also upload file to AWS s3
+Output: If success return Fax model with fax id in header else return err
+*/
 func (h *Handler) CreateFax(c echo.Context) error {
 	var fax *model.Fax
 	file, err := c.FormFile("file")
@@ -70,6 +75,7 @@ func (h *Handler) CreateFax(c echo.Context) error {
 		return utils.HandleInternalErr("CreateFax error occured", err, c)
 	}
 
+	// Get fax count limit and check current count is over the limit
 	limit, err := utils.GetPlanFaxLimit(workspace)
 	if err != nil {
 		return utils.HandleInternalErr("CreateFax error occured", err, c)
@@ -79,6 +85,8 @@ func (h *Handler) CreateFax(c echo.Context) error {
 		fmt.Printf("Not saving fax due to limit reached..")
 		return c.NoContent(http.StatusNoContent)
 	}
+
+	// Upload fax file to AWS s3
 	go utils.UploadS3("faxes", apiId, src)
 
 	c.Response().Writer.Header().Set("X-Fax-ID", strconv.FormatInt(faxId, 10))

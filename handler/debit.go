@@ -8,6 +8,11 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Input: Debit model
+Todo : Create new user_debit and store to db
+Output: If success return NoContent else return err
+*/
 func (h *Handler) CreateDebit(c echo.Context) error {
 	var debit model.Debit
 
@@ -22,6 +27,8 @@ func (h *Handler) CreateDebit(c echo.Context) error {
 	if err != nil {
 		return utils.HandleInternalErr("Could not get workspace..", err, c)
 	}
+
+	// Get Call Rate depends number and type
 	rate := utils.LookupBestCallRate(debit.Number, debit.Type)
 	if rate == nil {
 		return c.NoContent(http.StatusNotFound)
@@ -35,6 +42,11 @@ func (h *Handler) CreateDebit(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: DebitAPI model
+Todo : Calculate cents based on debit type and create user_debit
+Output: If success return NoContent else return err
+*/
 func (h *Handler) CreateAPIUsageDebit(c echo.Context) error {
 	var debitApi model.DebitAPI
 

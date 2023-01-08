@@ -12,6 +12,10 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Implementation of Call Store
+*/
+
 type CallStore struct {
 	db *sql.DB
 }
@@ -22,6 +26,12 @@ func NewCallStore(db *sql.DB) *CallStore {
 	}
 }
 
+/*
+Input: Call model
+Todo : Create new call and store to db
+Output: First Value: callId, Second Value:error
+If success return (callid, nil) else return (nil, err)
+*/
 func (cs *CallStore) CreateCall(call *model.Call) (string, error) {
 	now := time.Now()
 	call.StartedAt = now.Format("MM/DD/YYYY")
@@ -52,8 +62,13 @@ func (cs *CallStore) CreateCall(call *model.Call) (string, error) {
 	return strconv.FormatInt(callId, 10), err
 }
 
+/*
+Input: CallUpdate model
+Todo : Update existing call with matching id
+Output: If success return nil else return err
+*/
 func (cs *CallStore) UpdateCall(update *model.CallUpdate) error {
-	// perform a db.Query insert
+	// Perform a db.Query insert
 	stmt, err := cs.db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ?, `updated_at` = ? WHERE `api_id` = ?")
 	if err != nil {
 		fmt.Printf("UpdateCall 2 Could not execute query..")
@@ -70,15 +85,19 @@ func (cs *CallStore) UpdateCall(update *model.CallUpdate) error {
 	return nil
 }
 
+/*
+Input: Call model
+Todo : Check first call and send email
+*/
 func (cs *CallStore) CheckIsMakingOutboundCallFirstTime(call model.Call) {
 	var id string
 	row := cs.db.QueryRow("SELECT id FROM `calls` WHERE `workspace_id` = ? AND `from` LIKE '?%s' AND `direction = 'outbound'", call.WorkspaceId, call.From, call.Direction)
 	err := row.Scan(&id)
 	if err != sql.ErrNoRows {
-		// all ok
+		// All ok
 		return
 	}
-	//send notification
+	//Send notification
 	user, err := cs.GetUserFromDB(call.UserId)
 	if err != nil {
 		panic(err)
@@ -87,6 +106,12 @@ func (cs *CallStore) CheckIsMakingOutboundCallFirstTime(call model.Call) {
 	sendEmail(user, "First call to destination country", body)
 }
 
+/*
+Input: id
+Todo : Fetch a call with call_id
+Output: First Value: Call model,Second Value: error
+If success return Call model else return err
+*/
 func (cs *CallStore) GetCallFromDB(id int) (*model.Call, error) {
 	row := cs.db.QueryRow("SELECT `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) FROM calls WHERE id = ?", id)
 	call := model.Call{}
@@ -110,6 +135,11 @@ func (cs *CallStore) GetCallFromDB(id int) (*model.Call, error) {
 	return &call, nil
 }
 
+/*
+Input: callid, apiid
+Todo : Set sip_call_id field with matching id
+Output: If success return nil else return err
+*/
 func (cs *CallStore) SetSIPCallID(callid string, apiid string) error {
 	stmt, err := cs.db.Prepare("UPDATE calls SET sip_call_id = ? WHERE id = ?")
 	if err != nil {
@@ -124,6 +154,11 @@ func (cs *CallStore) SetSIPCallID(callid string, apiid string) error {
 	return nil
 }
 
+/*
+Input: ip, apiid
+Todo : Update provider_id of call table with matching ip address
+Output: If success return nil else return err
+*/
 func (cs *CallStore) SetProviderByIP(ip string, apiid string) error {
 	results, err := cs.db.Query(`SELECT sip_providers_hosts.provider_id FROM sip_providers_hosts WHERE sip_providers_hosts.ip_address = ?`, ip)
 	if err != nil {
@@ -147,6 +182,12 @@ func (cs *CallStore) SetProviderByIP(ip string, apiid string) error {
 	return nil
 }
 
+/*
+Input: Conference model
+Todo : Create new conference and store to db
+Output: First Value: ConferenceId, Second Value: error
+If success return (conferenceId, nil) else return (-1, err)
+*/
 func (cs *CallStore) CreateConference(conference *model.Conference) (string, error) {
 	var id int
 	var name string
@@ -178,6 +219,12 @@ func (cs *CallStore) CreateConference(conference *model.Conference) (string, err
 func sendEmail(user *model.User, subject string, body string) {
 }
 
+/*
+Input: id
+Todo : Create new conference and store to db
+Output: First Value: ConferenceId, Second Value: error
+If success return (conferenceId, nil) else return (-1, err)
+*/
 func (cs *CallStore) GetWorkspaceFromDB(id int) (*model.Workspace, error) {
 	var workspaceId int
 	var name string
@@ -199,6 +246,12 @@ func (cs *CallStore) GetWorkspaceFromDB(id int) (*model.Workspace, error) {
 	return &model.Workspace{Id: workspaceId, Name: name, CreatorId: creatorId, OutboundMacroId: int(outboundMacroId.Int64), Plan: plan}, nil
 }
 
+/*
+Input: domain
+Todo : Get Workspace with matching domain
+Output: First Value: Workspace model, Second Value: error
+If success return (Workspace model, nil) else return (nil, err)
+*/
 func (cs *CallStore) GetWorkspaceByDomain(domain string) (*model.Workspace, error) {
 	var workspaceId int
 	var name string
@@ -216,6 +269,12 @@ func (cs *CallStore) GetWorkspaceByDomain(domain string) (*model.Workspace, erro
 	return &model.Workspace{Id: workspaceId, CreatorId: creatorId, Name: name, BYOEnabled: byo, IPWhitelistDisabled: ipWhitelist}, nil
 }
 
+/*
+Input: id
+Todo : Get User with matching id
+Output: First Value: User model, Second Value: error
+If success return (User model, nil) else return (nil, err)
+*/
 func (cs *CallStore) GetUserFromDB(id int) (*model.User, error) {
 	var userId int
 	var username string
@@ -229,7 +288,7 @@ func (cs *CallStore) GetUserFromDB(id int) (*model.User, error) {
 	if err == sql.ErrNoRows {
 		return nil, err
 	}
-	if err != nil { //another error
+	if err != nil { // Another error
 		return nil, err
 	}
 

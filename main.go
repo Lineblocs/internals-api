@@ -15,36 +15,31 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/mrwaggel/golimiter"
 	"lineblocs.com/api/handler"
+	"lineblocs.com/api/model"
 	"lineblocs.com/api/router"
 	"lineblocs.com/api/store"
 	"lineblocs.com/api/utils"
 )
 
-type GlobalSettings struct {
-	ValidateCallerId bool
-}
-
-type ServerData struct {
-	mu      sync.RWMutex
-	servers []*lineblocs.MediaServer
-}
-
 var db *sql.DB
-var settings *GlobalSettings
-var data *ServerData
+var data *model.ServerData
 
 func main() {
 	fmt.Println("starting API...")
+
+	//load media_server list from db and create media server
 	var err error
 	servers, err := lineblocs.CreateMediaServers()
 
-	data = &ServerData{
-		mu:      sync.RWMutex{},
-		servers: servers}
+	data = &model.ServerData{
+		Mutex:   sync.RWMutex{},
+		Servers: servers}
 
 	if err != nil {
 		panic(err)
 	}
+
+	//Create DB Connection with MySQL
 	db, err = lineblocs.CreateDBConn()
 	if err != nil {
 		panic(err)
@@ -54,6 +49,7 @@ func main() {
 	wg.Add(1)
 
 	go func() {
+		//Start Internals-API Backend server
 		startServer()
 		wg.Done()
 	}()
@@ -61,15 +57,21 @@ func main() {
 
 }
 
+// Start Internals-API Backend server
+// Configure Handler, limit middleware, TLS
 func startServer() {
-	settings = &GlobalSettings{ValidateCallerId: false}
+	utils.SetSetting(model.GlobalSettings{ValidateCallerId: false})
+
+	// Start Server with Echo
 	r := router.New()
 	fmt.Println("starting HTTP server...")
 
+	// Configure Limit Handler if USE_LIMIT_MIDDLEWARE is "on"
 	if os.Getenv("USE_LIMIT_MIDDLEWARE") == "on" {
 		r.Any("", limitHandler)
 	}
 
+	// Configure Handler with Global DB
 	as := store.NewAdminStore(db)
 	cs := store.NewCallStore(db)
 	crs := store.NewCarrierStore(db)
@@ -79,8 +81,11 @@ func startServer() {
 	rs := store.NewRecordingStore(db)
 	us := store.NewUserStore(db)
 	h := handler.NewHandler(as, cs, crs, ds, fs, ls, rs, us)
+
+	// Register Handler for Echo context
 	h.Register(r)
 
+	// Start with 443 port if TLS is ON
 	fmt.Printf("Starting HTTP server without TLS\r\n")
 	if os.Getenv("USE_TLS") == "on" {
 		certPath := os.Getenv("TLS_CERT_PATH")
@@ -88,15 +93,18 @@ func startServer() {
 
 		fmt.Printf("Starting HTTP server with TLS. cert=%s,  key=%s\r\n", certPath, keyPath)
 		r.Logger.Fatal(r.StartTLS(":443", certPath, keyPath))
-		fmt.Println("started server...")
+		fmt.Println("Started server...")
 		return
 	}
 
+	// Start with 80 port if TLS is OFF
 	httpPort := utils.ReadEnv("HTTP_PORT", "80")
 	fmt.Printf("HTTP port %s\r\n", httpPort)
 	r.Logger.Fatal(r.Start(":" + httpPort))
+	fmt.Println("Started server...")
 }
 
+// Configure Limit Handler for Echo context
 func limitHandler(c echo.Context) error {
 	var addr string
 	requestedAddr := c.Param("addr")

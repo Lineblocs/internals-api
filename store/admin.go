@@ -1,6 +1,12 @@
 package store
 
-import "database/sql"
+import (
+	"database/sql"
+)
+
+/*
+Implementation of Admin Store
+*/
 
 type AdminStore struct {
 	db *sql.DB
@@ -12,6 +18,26 @@ func NewAdminStore(db *sql.DB) *AdminStore {
 	}
 }
 
+/*
+Todo: Check SIP Routers is Healthy
+Output: If excute query success return nil else return err
+*/
+func (as *AdminStore) Healthz() error {
+	// Execute the query...
+	results, err := as.db.Query("SELECT k8s_pod_id FROM sip_routers")
+	if err != nil {
+		return err
+	}
+	defer results.Close()
+	return nil
+}
+
+/*
+Input: EmailInfo model
+Todo : Send Email to Lineblocs Contact
+Output: First value: rtpSock, Second value: err
+If success return (rtpSock,nil) else return (nil, err)
+*/
 func (as *AdminStore) GetBestRTPProxy() ([]byte, error) {
 	results, err := as.db.Query(`SELECT rtpproxy_sock, set_id, cpu_pct, cpu_used FROM rtpproxy_sockets`)
 	// Execute the query

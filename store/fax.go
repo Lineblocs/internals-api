@@ -7,6 +7,10 @@ import (
 	"lineblocs.com/api/model"
 )
 
+/*
+Implementation of Fax Store
+*/
+
 type FaxStore struct {
 	db *sql.DB
 }
@@ -17,6 +21,12 @@ func NewFaxStore(db *sql.DB) *FaxStore {
 	}
 }
 
+/*
+Input: Fax model, name, size, apiId, plan
+Todo : Create fax and store to db,
+Output: First Value: LastInsertId, Second Value: error
+If success return (id, nil) else return (nil, err)
+*/
 func (fs *FaxStore) CreateFax(fax *model.Fax, name string, size int64, apiId string, plan string) (int64, error) {
 	now := time.Now()
 
@@ -34,6 +44,12 @@ func (fs *FaxStore) CreateFax(fax *model.Fax, name string, size int64, apiId str
 	return faxId, err
 }
 
+/*
+Input: id
+Todo : Get FaxCount with matching workspace id
+Output: First Value: count, Second Value: error
+If success return (count, nil) else return (nil, err)
+*/
 func (fs *FaxStore) GetFaxCount(id int) (*int, error) {
 	var count int
 	row := fs.db.QueryRow(`SELECT COUNT(*) FROM faxes WHERE workspace_id=?`, id)

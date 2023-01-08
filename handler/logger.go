@@ -8,6 +8,11 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Input: Log model
+Todo : Create log model and store to db, send log email
+Output: If success return NoContent else return err
+*/
 func (h *Handler) CreateLog(c echo.Context) error {
 	var logReq model.Log
 
@@ -52,6 +57,11 @@ func (h *Handler) CreateLog(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: type, level, domain
+Todo : Create log model and store to db, send log email
+Output: If success return NoContent else return err
+*/
 func (h *Handler) CreateLogSimple(c echo.Context) error {
 	logType := c.FormValue("type")
 	level := c.FormValue("level")

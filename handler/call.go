@@ -9,6 +9,11 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Input: Call model
+Todo : Create new call and store to db
+Output: If success return created Call model with callid in header else return err
+*/
 func (h *Handler) CreateCall(c echo.Context) error {
 	var call model.Call
 
@@ -22,7 +27,7 @@ func (h *Handler) CreateCall(c echo.Context) error {
 	call.APIId = utils.CreateAPIID("call")
 
 	if call.Direction == "outbound" {
-		//check if this is the first time we are making a call to this destination
+		// Check if this is the first time we are making a call to this destination
 		go h.callStore.CheckIsMakingOutboundCallFirstTime(call)
 	}
 
@@ -35,6 +40,11 @@ func (h *Handler) CreateCall(c echo.Context) error {
 	return c.JSON(http.StatusOK, &call)
 }
 
+/*
+Input: CallUpdate model
+Todo : Update existing call with matching id
+Output: If success return NoContent else return err
+*/
 func (h *Handler) UpdateCall(c echo.Context) error {
 	var update model.CallUpdate
 
@@ -45,6 +55,7 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 		return utils.HandleInternalErr("UpdateCall 2 Could not decode JSON", err, c)
 	}
 
+	// Only update if status is "ended"
 	if update.Status == "ended" {
 		err := h.callStore.UpdateCall(&update)
 		if err != nil {
@@ -55,12 +66,19 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: id
+Todo : Fetch a call with call_id
+Output: If success return Call model else return err
+*/
 func (h *Handler) FetchCall(c echo.Context) error {
 	id := c.Param("id")
 	id_int, err := strconv.Atoi(id)
 	if err != nil {
 		return utils.HandleInternalErr("FetchCall error occured", err, c)
 	}
+
+	// Get call data from db with id
 	call, err := h.callStore.GetCallFromDB(id_int)
 	if err != nil {
 		return utils.HandleInternalErr("FetchCall error occured", err, c)
@@ -68,6 +86,11 @@ func (h *Handler) FetchCall(c echo.Context) error {
 	return c.JSON(http.StatusOK, &call)
 }
 
+/*
+Input: callid, apiid
+Todo : Set sip_call_id field with matching id
+Output: If success return NoContent else return err
+*/
 func (h *Handler) SetSIPCallID(c echo.Context) error {
 	callid := c.FormValue("callid")
 	apiid := c.FormValue("apiid")
@@ -79,6 +102,11 @@ func (h *Handler) SetSIPCallID(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: ip, apiid
+Todo : Update provider_id of call table with matching ip address
+Output: If success return NoContent else return err
+*/
 func (h *Handler) SetProviderByIP(c echo.Context) error {
 	ip := c.FormValue("ip")
 	apiid := c.FormValue("apiid")
@@ -89,6 +117,11 @@ func (h *Handler) SetProviderByIP(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: Conference model
+Todo : Create new conference and store to db
+Output: If success return created Conference model with conferenceId in header else return err
+*/
 func (h *Handler) CreateConference(c echo.Context) error {
 	var conference model.Conference
 

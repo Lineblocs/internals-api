@@ -10,6 +10,10 @@ import (
 	"lineblocs.com/api/helpers"
 )
 
+/*
+Implementation of Carrier Store
+*/
+
 type CarrierStore struct {
 	db *sql.DB
 }
@@ -20,6 +24,11 @@ func NewCarrierStore(db *sql.DB) *CarrierStore {
 	}
 }
 
+/*
+Input: callid, status
+Todo : Update sip_status of calls with matching sip_call_id
+Output: If success return nil else return err
+*/
 func (crs *CarrierStore) CreateSIPReport(callid string, status string) error {
 	stmt, err := crs.db.Prepare("UPDATE `calls` SET sip_status = ? WHERE sip_call_id = ?")
 	if err != nil {
@@ -39,6 +48,12 @@ func (crs *CarrierStore) CreateSIPReport(callid string, status string) error {
 	return err
 }
 
+/*
+Input: originCode, destCode, userid
+Todo : Create and Start Router Flow
+Output: First value: Flow model, Second Value: error
+If success return (Flow model, nil) else (nil, err)
+*/
 func (crs *CarrierStore) CreateRoutingFlow(originCode, destCode, userId *string) (*helpers.Flow, error) {
 	var info helpers.FlowInfo
 	var flowJson helpers.FlowVars
@@ -91,6 +106,12 @@ WHERE sip_countries.country_code= ?`, *destCode)
 	return nil, errors.New("no routing flow found...")
 }
 
+/*
+Input: Flow model, data map
+Todo : Start Processing Flow
+Output: First value: RoutablePSTNProvider model, Second Value: error
+If success return (RoutablePSTNProvider model, nil) else (nil, err)
+*/
 func (crs *CarrierStore) StartProcessingFlow(flow *helpers.Flow, data map[string]string) ([]*helpers.RoutablePSTNProvider, error) {
 	providers, err := helpers.StartProcessingFlow(flow, flow.Cells[0], data, crs.db)
 	return providers, err

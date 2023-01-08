@@ -11,6 +11,11 @@ import (
 	"lineblocs.com/api/user"
 )
 
+/*
+Handler Setting for all services.
+You can add new service here.
+*/
+
 type Handler struct {
 	adminStore     admin.Store
 	callStore      call.Store

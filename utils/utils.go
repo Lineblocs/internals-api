@@ -20,17 +20,15 @@ import (
 	"lineblocs.com/api/model"
 )
 
-type CallRate struct {
-	CallRate float64
-}
+var settings *model.GlobalSettings
 
 func CreateAPIID(prefix string) string {
 	id := guuid.New()
 	return prefix + "-" + id.String()
 }
 
-func LookupBestCallRate(number string, typeRate string) *CallRate {
-	return &CallRate{CallRate: 9.99}
+func LookupBestCallRate(number string, typeRate string) *model.CallRate {
+	return &model.CallRate{CallRate: 9.99}
 }
 
 func ToCents(dollars float64) int {
@@ -217,4 +215,12 @@ func HandleInternalErr(msg string, err error, c echo.Context) error {
 	fmt.Printf(msg)
 	fmt.Println(err)
 	return c.JSON(http.StatusInternalServerError, NewError(err))
+}
+
+func SetSetting(gs model.GlobalSettings) {
+	settings = &gs
+}
+
+func GetSetting() *model.GlobalSettings {
+	return settings
 }

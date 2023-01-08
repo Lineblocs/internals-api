@@ -14,6 +14,10 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Implementation of User Store
+*/
+
 type UserStore struct {
 	db *sql.DB
 }
@@ -24,7 +28,17 @@ func NewUserStore(db *sql.DB) *UserStore {
 	}
 }
 
+/*
+Input: Workspace model, number
+Todo : Check number is valid with workspace and number?
+Output: First Value: valid boolean Second Value: error
+If success return (valid, nil) else (false, err)
+*/
 func (us *UserStore) DoVerifyCaller(workspace *model.Workspace, number string) (bool, error) {
+	if !utils.GetSetting().ValidateCallerId {
+		return true, nil
+	}
+
 	num, err := libphonenumber.Parse(number, "US")
 	if err != nil {
 		return false, err
@@ -41,6 +55,12 @@ func (us *UserStore) DoVerifyCaller(workspace *model.Workspace, number string) (
 	return false, nil
 }
 
+/*
+Input: workspace_id
+Todo : Get WorkspaceParam with matching workspace_id
+Output: First Value: WorkspacePram model Second Value: error
+If success return (valid, nil) else (false, err)
+*/
 func (us *UserStore) GetWorkspaceParams(workspaceId int) (*[]model.WorkspaceParam, error) {
 	// Execute the query
 	results, err := us.db.Query("SELECT `key`, `value` FROM workspace_params WHERE `workspace_id` = ?", workspaceId)
@@ -66,6 +86,12 @@ func (us *UserStore) GetWorkspaceParams(workspaceId int) (*[]model.WorkspacePara
 	return &params, nil
 }
 
+/*
+Input: did
+Todo : Get Workspace name from did_numbers with matching did
+Output: First Value: domain Second Value: error
+return (domain, err)
+*/
 func (us *UserStore) GetUserByDID(did string) (string, error) {
 	result := us.db.QueryRow(`SELECT
 	workspaces.name
@@ -77,6 +103,12 @@ func (us *UserStore) GetUserByDID(did string) (string, error) {
 	return domain, err
 }
 
+/*
+Input: sourceIp
+Todo : Get Workspace name from workspaces with matching sourceIp
+Output: First Value: domain Second Value: error
+return (domain, err)
+*/
 func (us *UserStore) GetUserByTrunkSourceIp(sourceIp string) (string, error) {
 	// todo get ipv6
 	sourceIpv6 := sourceIp
@@ -91,9 +123,15 @@ func (us *UserStore) GetUserByTrunkSourceIp(sourceIp string) (string, error) {
 	return domain, err
 }
 
-func (us *UserStore) GetWorkspaceMacros(workspace string) ([]model.MacroFunction, error) {
+/*
+Input: workspace_id
+Todo : Get macro_function with matching workspace_id
+Output: First Value: MacroFunction model Second Value: error
+return (MacroFunction model, err)
+*/
+func (us *UserStore) GetWorkspaceMacros(workspaceId string) ([]model.MacroFunction, error) {
 	// Execute the query
-	results, err := us.db.Query("SELECT title, code, compiled_code FROM macro_functions WHERE `workspace_id` = ?", workspace)
+	results, err := us.db.Query("SELECT title, code, compiled_code FROM macro_functions WHERE `workspace_id` = ?", workspaceId)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +151,12 @@ func (us *UserStore) GetWorkspaceMacros(workspace string) ([]model.MacroFunction
 	return values, err
 }
 
+/*
+Input: number
+Todo : Get WorkspaceDIDinfo with matching number
+Output: First Value: WorkspaceDIDInfo model, Second Value: flowJson(sql.NullString), Third Value: error
+return (WorkspaceDIDInfo model, flowJson, err)
+*/
 func (us *UserStore) GetDIDNumberData(number string) (*model.WorkspaceDIDInfo, sql.NullString, error) {
 	var info model.WorkspaceDIDInfo
 	var flowJson sql.NullString
@@ -153,6 +197,12 @@ func (us *UserStore) GetDIDNumberData(number string) (*model.WorkspaceDIDInfo, s
 	return &info, flowJson, err
 }
 
+/*
+Input: number
+Todo : Get WorkspaceDIDinfo with matching byo_did_number
+Output: First Value: WorkspaceDIDInfo model, Second Value: flowJson(sql.NullString), Third Value: error
+return (WorkspaceDIDInfo model, flowJson, err)
+*/
 func (us *UserStore) GetBYODIDNumberData(number string) (*model.WorkspaceDIDInfo, sql.NullString, error) {
 	var info model.WorkspaceDIDInfo
 	var flowJson sql.NullString
@@ -194,6 +244,12 @@ func (us *UserStore) GetBYODIDNumberData(number string) (*model.WorkspaceDIDInfo
 	return &info, flowJson, err
 }
 
+/*
+Input: from, to, workspace_id
+Todo : Get PSTNInfo with matching from, to, workspace_id
+Output: First Value: PSTNInfo model, Second Value: error
+If success return (PSTNInfo model, nil) else return (nil, err)
+*/
 func (us *UserStore) GetBYOPSTNProvider(from, to string, workspaceId int) (*model.PSTNInfo, error) {
 	fmt.Println("Checking BYO..")
 	results, err := us.db.Query(`SELECT byo_carriers.name, byo_carriers.ip_address, byo_carriers_routes.prefix, byo_carriers_routes.prepend, byo_carriers_routes.match
@@ -235,6 +291,12 @@ func (us *UserStore) GetBYOPSTNProvider(from, to string, workspaceId int) (*mode
 	return nil, err
 }
 
+/*
+Input: from, to
+Todo : Get PSTNInfo with matching from, to
+Output: First Value: PSTNInfo model, Second Value: error
+If success return (PSTNInfo model, nil) else return (nil, err)
+*/
 func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, error) {
 	// do LCR based on dial prefixes
 
@@ -312,9 +374,9 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 		var number string
 		number = *lowestDialPrefix + to
 
-		// lookup hosts
+		// Lookup hosts
 		fmt.Printf("Looking up hosts..\r\n")
-		// do LCR based on dial prefixes
+		// Do LCR based on dial prefixes
 		results1, err := us.db.Query(`SELECT sip_providers_hosts.id, sip_providers_hosts.ip_address, sip_providers_hosts.name, sip_providers_hosts.priority_prefixes
 	FROM sip_providers_hosts
 	WHERE sip_providers_hosts.provider_id = ?
@@ -324,7 +386,7 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 		}
 		defer results1.Close()
 		// TODO check which host is best for routing
-		// add area code checking
+		// Add area code checking
 		var info *model.PSTNInfo
 		var bestProviderId *int
 		var bestIpAddr *string
@@ -341,7 +403,7 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 				bestProviderId = &id
 				bestIpAddr = &ipAddr
 			}
-			// take priority
+			// Take priority
 			if len(prefixArr) != 0 {
 				for _, prefix := range prefixArr {
 					valid, err := regexp.MatchString(prefix, to)
@@ -358,9 +420,15 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 		info = &model.PSTNInfo{IPAddr: *bestIpAddr, DID: number}
 		return info, nil
 	}
-	return nil, errors.New("no available routes for LCR...")
+	return nil, errors.New("No available routes for LCR...")
 }
 
+/*
+Input: source, Workspace model
+Todo : Check source ip from ip_whitelist with matching source and workspace_id
+Output: First Value: match boolean, Second Value: error
+If success return (true, nil) else return (false, err)
+*/
 func (us *UserStore) IPWhitelistLookup(source string, workspace *model.Workspace) (bool, error) {
 	results, err := us.db.Query("SELECT ip, `range` FROM ip_whitelist WHERE `workspace_id` = ?", workspace.Id)
 	if err != nil {
@@ -390,6 +458,12 @@ func (us *UserStore) IPWhitelistLookup(source string, workspace *model.Workspace
 	return false, nil
 }
 
+/*
+Input: did
+Todo : Get did_action with matching did number
+Output: First Value: did_action, Second Value: error
+If success return (did_action, nil) else return (nil, err)
+*/
 func (us *UserStore) GetDIDAcceptOption(did string) ([]byte, error) {
 	row := us.db.QueryRow(`SELECT did_action FROM did_numbers WHERE did_numbers.api_number = ?`, did)
 	var action string
@@ -410,6 +484,12 @@ func (us *UserStore) GetDIDAcceptOption(did string) ([]byte, error) {
 	return nil, err
 }
 
+/*
+Input: rtcOptimized, Workspace model, routerip
+Todo : Get UserAssignedIP
+Output: First Value: MediaServer model, Second Value: error
+If success return (MediaServer model, nil) else return (nil, err)
+*/
 func (us *UserStore) GetUserRoutedServer2(rtcOptimized bool, workspace *model.Workspace, routerip string) (*lineblocs.MediaServer, error) {
 	servers, err := createMediaServersForRouter(routerip)
 
@@ -432,6 +512,12 @@ func (us *UserStore) GetUserRoutedServer2(rtcOptimized bool, workspace *model.Wo
 
 }
 
+/*
+Input: routerip
+Todo : Get MediaServer list with matching routerip
+Output: First Value: MediaServer model Slice, Second Value: error
+If success return (MediaServer model slice, nil) else return (nil, err)
+*/
 func createMediaServersForRouter(routerip string) ([]*lineblocs.MediaServer, error) {
 	var servers []*lineblocs.MediaServer
 	db, err := lineblocs.CreateDBConn()
@@ -468,6 +554,12 @@ func createMediaServersForRouter(routerip string) ([]*lineblocs.MediaServer, err
 	return servers, nil
 }
 
+/*
+Input: Workspace model, extension
+Todo : Get CallerId with mathcing workspace and extension
+Output: First Value: callerId, Second Value: error
+return (callerId, err)
+*/
 func (us *UserStore) GetCallerIdToUse(workspace *model.Workspace, extension string) (string, error) {
 	var callerId string
 	fmt.Printf("Looking up caller ID in domain %s, ID %d, extension %s\r\n", workspace.Name, workspace.Id, extension)
@@ -477,6 +569,12 @@ func (us *UserStore) GetCallerIdToUse(workspace *model.Workspace, extension stri
 	return callerId, err
 }
 
+/*
+Input: extension, workspace_id
+Todo : Get ExtensionFlowInfo with matching workspace and extension
+Output: First Value: ExtensionFlowInfo model, Second Value: error
+If success return (ExtensionFlowInfo model, nil) else return (nil, err)
+*/
 func (us *UserStore) GetExtensionFlowInfo(workspaceId string, extension string) (*model.ExtensionFlowInfo, error) {
 	var info model.ExtensionFlowInfo
 	var trialStartedTime time.Time
@@ -507,6 +605,12 @@ func (us *UserStore) GetExtensionFlowInfo(workspaceId string, extension string) 
 	return &info, err
 }
 
+/*
+Input: workspace_id, flow_id
+Todo : Get ExtensionFlowInfo with matching flow_id and workspace_id
+Output: First Value: ExtensionFlowInfo model, Second Value: error
+If success return (ExtensionFlowInfo model, nil) else return (nil, err)
+*/
 func (us *UserStore) GetFlowInfo(workspaceId string, flowId string) (*model.ExtensionFlowInfo, error) {
 	var info model.ExtensionFlowInfo
 	var trialStartedTime time.Time
@@ -536,6 +640,12 @@ func (us *UserStore) GetFlowInfo(workspaceId string, flowId string) (*model.Exte
 	return &info, err
 }
 
+/*
+Input: workspace_id, code
+Todo : Get CodeFlowInfo with matching code and workspace_id
+Output: First Value: CodeFlowInfo model, Second Value: error
+If success return (CodeFlowInfo model, nil) else return (nil, err)
+*/
 func (us *UserStore) GetCodeFlowInfo(workspaceId string, code string) (*model.CodeFlowInfo, error) {
 	var info model.CodeFlowInfo
 	var trialStartedTime time.Time
@@ -582,6 +692,12 @@ func (us *UserStore) GetCodeFlowInfo(workspaceId string, code string) (*model.Co
 	return &info, nil
 }
 
+/*
+Input: did
+Todo : Get DidNumberInfo with matching did number
+Output: First Value: DidNumberInfo model, Second Value: error
+return (DidNumberInfo, err)
+*/
 func (us *UserStore) IncomingDIDValidation(did string) (*model.DidNumberInfo, error) {
 	var info model.DidNumberInfo
 	// Execute the query
@@ -593,6 +709,12 @@ func (us *UserStore) IncomingDIDValidation(did string) (*model.DidNumberInfo, er
 	return &info, err
 }
 
+/*
+Input: did, sourceIp
+Todo : Check sourceIp is matched with sip_providers_whitelist_ips
+Output: First Value: match boolean, Second Value: error
+If successfully matched return (true, nil), not matched return (false, nil), error return (nil, err)
+*/
 func (us *UserStore) CheckPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 	results, err := us.db.Query(`SELECT 
 	sip_providers_whitelist_ips.ip_address, 
@@ -624,6 +746,12 @@ func (us *UserStore) CheckPSTNIPWhitelist(did string, sourceIp string) (bool, er
 	return false, nil
 }
 
+/*
+Input: number, didWorkspaceId
+Todo : Validate number by checking number is in blocked_numbers
+Output: First Value: match boolean, Second Value: error
+If successfully matched return (true, nil), not matched return (false, nil), error return (nil, err)
+*/
 func (us *UserStore) FinishValidation(number string, didWorkspaceId string) (bool, error) {
 	num, err := libphonenumber.Parse(number, "US")
 	if err != nil {
@@ -642,6 +770,12 @@ func (us *UserStore) FinishValidation(number string, didWorkspaceId string) (boo
 	return false, nil
 }
 
+/*
+Input: did
+Todo : Get DidNumberInfo with matching did number
+Output: First Value: DidNumberInfo model, Second Value: error
+return (DidNumberInfo model, err)
+*/
 func (us *UserStore) IncomingBYODIDValidation(did string) (*model.DidNumberInfo, error) {
 	var info model.DidNumberInfo
 
@@ -651,6 +785,12 @@ func (us *UserStore) IncomingBYODIDValidation(did string) (*model.DidNumberInfo,
 	return &info, err
 }
 
+/*
+Input: did, sourceIp
+Todo : Check sourceIp is matched with byo_did_numbers
+Output: First Value: match boolean, Second Value: error
+If successfully matched return (true, nil), not matched return (false, nil), error return (nil, err)
+*/
 func (us *UserStore) CheckBYOPSTNIPWhitelist(did string, sourceIp string) (bool, error) {
 	results, err := us.db.Query(`SELECT 
 	byo_carriers_ips.ip,
@@ -684,6 +824,12 @@ func (us *UserStore) CheckBYOPSTNIPWhitelist(did string, sourceIp string) (bool,
 	return false, nil
 }
 
+/*
+Input: trunkip
+Todo : Looking up SIP Server and find matched one with trunkip
+Output: First Value: SIP IP address, Second Value: error
+If success return (ip, nil) else return (nil, err)
+*/
 func (us *UserStore) IncomingTrunkValidation(trunkip string) ([]byte, error) {
 	results, err := us.db.Query(`SELECT 
 	sip_trunks_origination_settings.recovery_sip_uri,
@@ -726,6 +872,12 @@ func (us *UserStore) IncomingTrunkValidation(trunkip string) ([]byte, error) {
 	return nil, nil
 }
 
+/*
+Input: trunkip
+Todo : Looking up SIP Server and find matched one with did number
+Output: First Value: SIP IP address, Second Value: error
+If success return (ip, nil) else return (nil, err)
+*/
 func (us *UserStore) LookupSIPTrunkByDID(did string) ([]byte, error) {
 	results, err := us.db.Query(`SELECT
 		sip_trunks_origination_endpoints.sip_uri,
@@ -770,6 +922,12 @@ func (us *UserStore) LookupSIPTrunkByDID(did string) ([]byte, error) {
 	return nil, nil
 }
 
+/*
+Input: source
+Todo : Looking up MediaServer and find matched one with source
+Output: First Value: match boolean, Second Value: error
+If successfully matched return (true, nil), not matched return (false, nil), errors return (nil, err)
+*/
 func (us *UserStore) IncomingMediaServerValidation(source string) (bool, error) {
 	results, err := us.db.Query(`SELECT media_servers.ip_address, media_servers.ip_address_range FROM media_servers`)
 	// Execute the query
@@ -797,6 +955,11 @@ func (us *UserStore) IncomingMediaServerValidation(source string) (bool, error) 
 	return false, nil
 }
 
+/*
+Input: user, expires, Workspace model
+Todo : Update extensions with domain, user, workspace
+Output: If success return nil else return err
+*/
 func (us *UserStore) StoreRegistration(user string, expires int, workspace *model.Workspace) error {
 	now := time.Now()
 	stmt, err := us.db.Prepare("UPDATE extensions SET `last_registered` = ?, `register_expires`  = ? WHERE `username` = ? AND `workspace_id` = ?")
@@ -811,6 +974,11 @@ func (us *UserStore) StoreRegistration(user string, expires int, workspace *mode
 	return nil
 }
 
+/*
+Input: _
+Todo : Get Settings
+Output: return (Settings model, err)
+*/
 func (us *UserStore) GetSettings() (*model.Settings, error) {
 	results, err := us.db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls` FROM api_credentials")
 	defer results.Close()
@@ -843,6 +1011,12 @@ func (us *UserStore) GetSettings() (*model.Settings, error) {
 	return nil, nil
 }
 
+/*
+Input: did
+Todo : Get SIP URI with matching did number
+Output: First Value: SIP Uri, Second Value: error
+If success return (SIP Uri, nil) else return (nil, err)
+*/
 func (us *UserStore) ProcessSIPTrunkCall(did string) ([]byte, error) {
 	// get trunk from
 	results, err := us.db.Query(`SELECT 

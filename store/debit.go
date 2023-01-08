@@ -10,6 +10,10 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Implementation of Debit Store
+*/
+
 type DebitStore struct {
 	db *sql.DB
 }
@@ -20,7 +24,12 @@ func NewDebitStore(db *sql.DB) *DebitStore {
 	}
 }
 
-func (ds *DebitStore) CreateDebit(rate *utils.CallRate, debit *model.Debit) error {
+/*
+Input: CallRate model, Debit Model
+Todo : Create new user_debit and store to db
+Output: If success return nil else return err
+*/
+func (ds *DebitStore) CreateDebit(rate *model.CallRate, debit *model.Debit) error {
 	minutes := math.Floor(debit.Seconds / 60)
 	dollars := minutes * rate.CallRate
 	cents := utils.ToCents(dollars)
@@ -37,7 +46,13 @@ func (ds *DebitStore) CreateDebit(rate *utils.CallRate, debit *model.Debit) erro
 	return nil
 }
 
+/*
+Input: Workspace model, DebitAPI model
+Todo : Calculate cents based on debit type and create user_debit
+Output: If success return nil else return err
+*/
 func (ds *DebitStore) CreateAPIUsageDebit(workspace *model.Workspace, debitApi *model.DebitAPI) error {
+	// Check DebitType and calcaulte cents individually
 	if debitApi.Type == "TTS" {
 		dollars := utils.CalculateTTSCosts(debitApi.Params.Length)
 		cents := utils.ToCents(dollars)

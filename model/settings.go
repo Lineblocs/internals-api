@@ -1,5 +1,11 @@
 package model
 
+import (
+	"sync"
+
+	lineblocs "github.com/Lineblocs/go-helpers"
+)
+
 type Settings struct {
 	AwsAccessKeyId           string `json:"aws_access_key_id"`
 	AwsSecretAccessKey       string `json:"aws_secret_access_key"`
@@ -15,4 +21,13 @@ type Settings struct {
 	SmtpPassword             string `json:"smtp_password"`
 	SmtpTls                  string `json:"smtp_tls"`
 	GoogleServiceAccountJson string `json:"google_service_account_json"`
+}
+
+type GlobalSettings struct {
+	ValidateCallerId bool
+}
+
+type ServerData struct {
+	Mutex   sync.RWMutex
+	Servers []*lineblocs.MediaServer
 }

@@ -12,10 +12,23 @@ import (
 	"lineblocs.com/api/utils"
 )
 
-func (h *Handler) healthz(c echo.Context) error {
-	return c.JSON(http.StatusOK, map[string]interface{}{"result": "ok"})
+/*
+Todo: Check SIP Routers is Healthy
+Output: if success return "OK" else return "Healthz error"
+*/
+func (h *Handler) Healthz(c echo.Context) error {
+	err := h.adminStore.Healthz()
+	if err != nil {
+		return utils.HandleInternalErr("Healthz error", err, c)
+	}
+	return c.String(http.StatusOK, "OK\n")
 }
 
+/*
+Input: EmailInfo model
+Todo : Send Email to Lineblocs Contact
+Output: If success return NoContent else return err
+*/
 func (h *Handler) SendAdminEmail(c echo.Context) error {
 	var emailInfo model.EmailInfo
 
@@ -54,6 +67,11 @@ func (h *Handler) SendAdminEmail(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input:
+Todo : Choose Best one from rtpproxy_sockets
+Output: If success return rtpproxy_sock else return "GetBestRTPProxy error"
+*/
 func (h *Handler) GetBestRTPProxy(c echo.Context) error {
 	result, err := h.adminStore.GetBestRTPProxy()
 	if err != nil {

@@ -9,11 +9,12 @@ import (
 
 /*
 Register Routers here
-Use Basic Auth Middleware with Group
+Matching API end points and Handler function
 */
 
 func (h *Handler) Register(r *echo.Echo) {
 
+	// Set BasicAuth Middleware
 	group := r.Group("/", middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
 		// Be careful to use constant time comparison to prevent timing attacks
 		if subtle.ConstantTimeCompare([]byte(username), []byte("joe")) == 1 &&
@@ -23,7 +24,7 @@ func (h *Handler) Register(r *echo.Echo) {
 		return false, nil
 	}))
 
-	//Call Related Routing
+	// Call Related Routing
 	group.POST("/call/createCall", h.CreateCall)
 	group.POST("/call/updateCall", h.UpdateCall)
 	group.GET("/call/fetchCall", h.FetchCall)
@@ -31,27 +32,27 @@ func (h *Handler) Register(r *echo.Echo) {
 	group.POST("/call/setProviderByIP", h.SetProviderByIP)
 	group.POST("/conference/createConference", h.CreateConference)
 
-	//Debit Related Routing
+	// Debit Related Routing
 	group.POST("/debit/createDebit", h.CreateDebit)
 	group.POST("/debit/createAPIUsageDebit", h.CreateAPIUsageDebit)
 
-	//Debugger Log Related Routing
+	// Debugger Log Related Routing
 	group.POST("/debugger/createLog", h.CreateLog)
 
-	//Fax Related Routing
+	// Fax Related Routing
 	group.POST("/fax/createFax", h.CreateFax)
 
-	//Recording Related Routing
+	// Recording Related Routing
 	group.POST("/recording/createRecording", h.CreateRecording)
 	group.POST("/recording/updateRecording", h.UpdateRecording)
 	group.POST("/recording/updateRecordingTranscription", h.UpdateRecordingTranscription)
 	group.GET("/recording/getRecording", h.GetRecording)
 
-	//Carrier Related Routing
+	// Carrier Related Routing
 	group.POST("/carrier/createSIPReport", h.CreateSIPReport)
 	group.POST("/carrier/processRouterFlow", h.ProcessRouterFlow)
 
-	//User Related Routing
+	// User Related Routing
 	group.GET("/user/verifyCaller", h.VerifyCaller)
 	group.GET("/user/verifyCallerByDomain", h.VerifyCallerByDomain)
 	group.GET("/user/getUserByDomain", h.GetUserByDomain)

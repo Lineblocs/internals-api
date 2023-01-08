@@ -9,6 +9,10 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Implementation of Recording Store
+*/
+
 type RecordingStore struct {
 	db *sql.DB
 }
@@ -19,10 +23,16 @@ func NewRecordingStore(db *sql.DB) *RecordingStore {
 	}
 }
 
+/*
+Input: Workspace moedl, Recording model
+Todo : Create Recording model and store it to db
+Output: First Value: LastInsertId, Second Value: error
+If success return (id, nil) else return (nil, err)
+*/
 func (rs *RecordingStore) CreateRecording(workspace *model.Workspace, recording *model.Recording) (int64, error) {
 	now := time.Now()
 
-	// perform a db.Query insert
+	// Perform a db.Query insert
 	stmt, err := rs.db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `plan_snapshot`, `storage_id`, `storage_server_ip`, `trim`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return -1, err
@@ -50,6 +60,8 @@ func (rs *RecordingStore) CreateRecording(workspace *model.Workspace, recording 
 	if err != nil {
 		return recId, err
 	}
+
+	// Adding tags to recording_tags table
 	if recording.Tags != nil {
 		for _, v := range *recording.Tags {
 			fmt.Printf("adding tag to recording %s\r\n", v)
@@ -70,6 +82,12 @@ func (rs *RecordingStore) CreateRecording(workspace *model.Workspace, recording 
 	return recId, nil
 }
 
+/*
+Input: id
+Todo : Get Recording with matching id
+Output: First Value: Recording model, Second Value: error
+If success return (Recording model, nil) else (nil, err)
+*/
 func (rs *RecordingStore) GetRecordingFromDB(id int) (*model.Recording, error) {
 	var apiId string
 	var ready int
@@ -87,6 +105,12 @@ func (rs *RecordingStore) GetRecordingFromDB(id int) (*model.Recording, error) {
 	return &model.Recording{APIId: apiId, Id: id, Size: size}, nil
 }
 
+/*
+Input: id
+Todo : Get sum of size for recording with matching workspace_id
+Output: First Value: size, Second Value: error
+If success return (size, nil) else (nil, err)
+*/
 func (rs *RecordingStore) GetRecordingSpace(id int) (int, error) {
 	var bytes int
 	row := rs.db.QueryRow(`SELECT SUM(size) FROM recordings WHERE workspace_id=?`, id)
@@ -101,6 +125,11 @@ func (rs *RecordingStore) GetRecordingSpace(id int) (int, error) {
 	return bytes, nil
 }
 
+/*
+Input: apiId, status, size, recordingId
+Todo : Update recordings with matching id
+Output: If success return nil else return err
+*/
 func (rs *RecordingStore) UpdateRecording(apiId string, status string, size int64, recordingId int) error {
 	now := time.Now()
 	uri := utils.CreateS3URL("recordings", apiId)
@@ -116,6 +145,11 @@ func (rs *RecordingStore) UpdateRecording(apiId string, status string, size int6
 	return nil
 }
 
+/*
+Input: RecordingTranscription model
+Todo : Update recording transcription_ready and transcription_text with matching id
+Output: If success return nil else return err
+*/
 func (rs *RecordingStore) UpdateRecordingTranscription(update *model.RecordingTranscription) error {
 	stmt, err := rs.db.Prepare("UPDATE recordings SET `transcription_ready` = ?, `transcription_text` = ? WHERE `id` = ?")
 	_, err = stmt.Exec("1", update.Text, update.RecordingId)

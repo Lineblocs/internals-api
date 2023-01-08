@@ -14,6 +14,10 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Implementation of Logger Store
+*/
+
 type LoggerStore struct {
 	db *sql.DB
 }
@@ -24,6 +28,12 @@ func NewLoggerStore(db *sql.DB) *LoggerStore {
 	}
 }
 
+/*
+Input: Log model
+Todo : Create log model and store to db, send log email
+Output: First Value: LastInsertId, Second Value: error
+If success return (logId, nil) else return (nil, err)
+*/
 func (ls *LoggerStore) StartLogRoutine(workspace *model.Workspace, log *model.LogRoutine) (*string, error) {
 	var user *lineblocs.User
 
@@ -61,6 +71,11 @@ func (ls *LoggerStore) StartLogRoutine(workspace *model.Workspace, log *model.Lo
 	return &logIdStr, err
 }
 
+/*
+Input: LogRoutine model, User model, Workspace model
+Todo : Send Log email.
+Output: If success return nil else return err
+*/
 func sendLogRoutineEmail(log *model.LogRoutine, user *lineblocs.User, workspace *model.Workspace) error {
 	mg := mailgun.NewMailgun(os.Getenv("MAILGUN_DOMAIN"), os.Getenv("MAILGUN_API_KEY"))
 	m := mg.NewMessage(

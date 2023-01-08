@@ -23,3 +23,7 @@ type CallUpdate struct {
 	Status   string `json:"status"`
 	SourceIp string `json:"source_ip"`
 }
+
+type CallRate struct {
+	CallRate float64
+}

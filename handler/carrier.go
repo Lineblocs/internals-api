@@ -9,6 +9,11 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Input: callid, status
+Todo : Update sip_status of calls with matching sip_call_id
+Output: If success return NoContent else return err
+*/
 func (h *Handler) CreateSIPReport(c echo.Context) error {
 	callid := c.FormValue("callid")
 	status := c.FormValue("status")
@@ -20,6 +25,11 @@ func (h *Handler) CreateSIPReport(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: callto, callfrom, userid
+Todo : Create and Start Router Flow
+Output: If success return host Ipaddress else return err
+*/
 func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 	var flow *helpers.Flow
 	callto := c.Param("callto")
@@ -39,6 +49,8 @@ func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 		panic(err)
 	}
 	fmt.Println("code is: " + originCode)
+
+	// Lookup flow or country flow
 	flow, err = h.carrierStore.CreateRoutingFlow(&callfrom, &callto, &userId)
 	if err != nil {
 		return utils.HandleInternalErr("ProcessRouterFlow error 1", err, c)
@@ -50,6 +62,7 @@ func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 	data["from"] = callfrom
 	data["to"] = callto
 
+	// Start processing flow with helpers
 	providers, err := h.carrierStore.StartProcessingFlow(flow, data)
 
 	if err != nil {

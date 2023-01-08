@@ -10,21 +10,26 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Input: Recording model
+Todo : Create Recording model and store it to db
+Output: If success return Recording model with recording id in header else return err
+*/
 func (h *Handler) CreateRecording(c echo.Context) error {
 	var recording model.Recording
 
 	if err := c.Bind(&recording); err != nil {
-		return utils.HandleInternalErr("CreateCall Could not decode JSON", err, c)
+		return utils.HandleInternalErr("CreateRecording Could not decode JSON", err, c)
 	}
 	if err := c.Validate(&recording); err != nil {
-		return utils.HandleInternalErr("CreateCall Could not decode JSON", err, c)
+		return utils.HandleInternalErr("CreateRecording Could not decode JSON", err, c)
 	}
 
 	recording.APIId = utils.CreateAPIID("rec")
 
 	workspace, err := h.callStore.GetWorkspaceFromDB(recording.WorkspaceId)
 	if err != nil {
-		return utils.HandleInternalErr("could not get workspace..", err, c)
+		return utils.HandleInternalErr("Could not get workspace..", err, c)
 	}
 
 	recId, err := h.recordingStore.CreateRecording(workspace, &recording)
@@ -35,6 +40,11 @@ func (h *Handler) CreateRecording(c echo.Context) error {
 	return c.JSON(http.StatusOK, &recording)
 }
 
+/*
+Input: file, status, recording_id
+Todo : Update recordings with matching id and upload file to AWS s3
+Output: If success return NoContent in header else return err
+*/
 func (h *Handler) UpdateRecording(c echo.Context) error {
 	file, err := c.FormFile("file")
 	status := c.FormValue("status")
@@ -42,12 +52,12 @@ func (h *Handler) UpdateRecording(c echo.Context) error {
 	recordingIdInt, err := strconv.Atoi(recordingId)
 	record, err := h.recordingStore.GetRecordingFromDB(recordingIdInt)
 	if err != nil {
-		return utils.HandleInternalErr("could not get recording..", err, c)
+		return utils.HandleInternalErr("Could not get recording..", err, c)
 	}
 
 	workspace, err := h.callStore.GetWorkspaceFromDB(record.WorkspaceId)
 	if err != nil {
-		return utils.HandleInternalErr("could not get workspace..", err, c)
+		return utils.HandleInternalErr("Could not get workspace..", err, c)
 	}
 
 	src, err := file.Open()
@@ -63,7 +73,7 @@ func (h *Handler) UpdateRecording(c echo.Context) error {
 	defer dst.Close()
 	size, err := h.recordingStore.GetRecordingSpace(workspace.Id)
 	if err != nil {
-		return utils.HandleInternalErr("could not get recording space..", err, c)
+		return utils.HandleInternalErr("Could not get recording space..", err, c)
 	}
 	apiId := utils.CreateAPIID("rec")
 	err = h.recordingStore.UpdateRecording(apiId, status, file.Size, recordingIdInt)
@@ -71,16 +81,23 @@ func (h *Handler) UpdateRecording(c echo.Context) error {
 		return utils.HandleInternalErr("UpdateRecording error occured", err, c)
 	}
 
-	//will not save
+	// Will not save if space is over the limit
 	limit, err := utils.GetPlanRecordingLimit(workspace)
 	newSpace := size + int(file.Size)
 	if newSpace > limit {
-		return utils.HandleInternalErr("not saving recording due to space limit reached..", err, c)
+		return utils.HandleInternalErr("Not saving recording due to space limit reached..", err, c)
 	}
+
+	// Upload recording file to AWS s3
 	go utils.UploadS3("recordings", apiId, src)
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: RecordingTranscription model
+Todo : Update recording transcription_ready and transcription_text with matching id
+Output: If success return NoContent else return err
+*/
 func (h *Handler) UpdateRecordingTranscription(c echo.Context) error {
 	var update model.RecordingTranscription
 	if err := c.Bind(&update); err != nil {
@@ -93,6 +110,11 @@ func (h *Handler) UpdateRecordingTranscription(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: id
+Todo : Get recording data with matching id
+Output: If success return Recording model else return err
+*/
 func (h *Handler) GetRecording(c echo.Context) error {
 	id := c.Param("id")
 	id_int, err := strconv.Atoi(id)

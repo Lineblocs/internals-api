@@ -12,6 +12,11 @@ import (
 	"lineblocs.com/api/utils"
 )
 
+/*
+Input: workspace_id, number
+Todo : Check number is valid with domain?
+Output: If success return VerifyNumber model else return err
+*/
 func (h *Handler) VerifyCaller(c echo.Context) error {
 	workspaceId := c.Param("workspace_id")
 	workspaceIdInt, err := strconv.Atoi(workspaceId)
@@ -36,6 +41,11 @@ func (h *Handler) VerifyCaller(c echo.Context) error {
 	return c.JSON(http.StatusOK, &result)
 }
 
+/*
+Input: domain, number
+Todo : Check number is valid with domain?
+Output: If success return NoContent else return err
+*/
 func (h *Handler) VerifyCallerByDomain(c echo.Context) error {
 	domain := c.Param("domain")
 	number := c.Param("number")
@@ -54,6 +64,11 @@ func (h *Handler) VerifyCallerByDomain(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: domain
+Todo : Get WorkspaceCreator with matching domain and workspace
+Output: If success return WorkspaceCreatorFullInfo model else return err
+*/
 func (h *Handler) GetUserByDomain(c echo.Context) error {
 	domain := c.Param("domain")
 
@@ -81,6 +96,11 @@ func (h *Handler) GetUserByDomain(c echo.Context) error {
 	return c.JSON(http.StatusOK, &full)
 }
 
+/*
+Input: did
+Todo : Get WorkspaceCreator with matching DID
+Output: If success return WorkspaceCreatorFullInfo model else return err
+*/
 func (h *Handler) GetUserByDID(c echo.Context) error {
 	did := c.Param("did")
 
@@ -111,6 +131,11 @@ func (h *Handler) GetUserByDID(c echo.Context) error {
 	return c.JSON(http.StatusOK, &full)
 }
 
+/*
+Input: source_ip
+Todo : Get WorkspaceCreator with matching source ip
+Output: If success return WorkspaceCreatorFullInfo model else return err
+*/
 func (h *Handler) GetUserByTrunkSourceIp(c echo.Context) error {
 	sourceIp := c.Param("source_ip")
 
@@ -141,6 +166,11 @@ func (h *Handler) GetUserByTrunkSourceIp(c echo.Context) error {
 	return c.JSON(http.StatusOK, &full)
 }
 
+/*
+Input: workspace
+Todo : Get macro_functions with matching workspace_id
+Output: If success return MacroFunction model else return err
+*/
 func (h *Handler) GetWorkspaceMacros(c echo.Context) error {
 	workspace := c.Param("workspace")
 	values, err := h.userStore.GetWorkspaceMacros(workspace)
@@ -151,6 +181,11 @@ func (h *Handler) GetWorkspaceMacros(c echo.Context) error {
 	return c.JSON(http.StatusOK, &values)
 }
 
+/*
+Input: number
+Todo : Get WorkspaceDidInfo with matching number (Check both DIDNumber and BYODIDNumber)
+Output: If success return WorkspaceDidInfo model else return err
+*/
 func (h *Handler) GetDIDNumberData(c echo.Context) error {
 	number := c.Param("number")
 	info, flowJson, err := h.userStore.GetDIDNumberData(number)
@@ -183,17 +218,23 @@ func (h *Handler) GetDIDNumberData(c echo.Context) error {
 	return c.JSON(http.StatusOK, &info)
 }
 
+/*
+Input: from, to, domain
+Todo : Get PSTNInfo with matching from, to, domain params
+Output: If success return PSTNInfo model else return err
+*/
 func (h *Handler) GetPSTNProviderIP(c echo.Context) error {
 	fmt.Printf("received PSTN request..\r\n")
 	from := c.Param("from")
 	to := c.Param("to")
 	domain := c.Param("domain")
-	//ru := getQueryVariable(r, "ru")
+	//ru := c.Param("ru")
 	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
 	if err != nil {
 		return utils.HandleInternalErr("GetPSTNProviderIP error", err, c)
 	}
 
+	// If BYOEnabled GetBYOPSTNProvider else BestPSTNProvider
 	if workspace.BYOEnabled {
 		info, err := h.userStore.GetBYOPSTNProvider(from, to, workspace.Id)
 		if err != nil {
@@ -210,6 +251,11 @@ func (h *Handler) GetPSTNProviderIP(c echo.Context) error {
 	return c.JSON(http.StatusOK, &info)
 }
 
+/*
+Input: from, to
+Todo : Get PSTNInfo with matching from, to params
+Output: If success return PSTNInfo model else return err
+*/
 func (h *Handler) GetPSTNProviderIPForTrunk(c echo.Context) error {
 	fmt.Printf("received PSTN request for trunk..\r\n")
 	from := c.Param("from")
@@ -223,6 +269,11 @@ func (h *Handler) GetPSTNProviderIPForTrunk(c echo.Context) error {
 	return c.JSON(http.StatusOK, &info)
 }
 
+/*
+Input: ip, domain
+Todo : Check ip_whitelist with matching domain and ip
+Output: If matched return StatusNoContent, not matched return StatusNotFound, error return err
+*/
 func (h *Handler) IPWhitelistLookup(c echo.Context) error {
 	source := c.Param("ip")
 	domain := c.Param("domain")
@@ -240,6 +291,11 @@ func (h *Handler) IPWhitelistLookup(c echo.Context) error {
 	return c.NoContent(http.StatusNotFound)
 }
 
+/*
+Input: did
+Todo : Get did_action from did_numbers or byo_did_numbers with matching did
+Output: If success return did_action else return err
+*/
 func (h *Handler) GetDIDAcceptOption(c echo.Context) error {
 	did := c.Param("did")
 	result, err := h.userStore.GetDIDAcceptOption(did)
@@ -249,6 +305,11 @@ func (h *Handler) GetDIDAcceptOption(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
+/*
+Input:
+Todo : Get DIDAssignedIP
+Output: If success return PrivateIpAddress else return err
+*/
 func (h *Handler) GetDIDAssignedIP(c echo.Context) error {
 	server, err := utils.GetDIDRoutedServer2(false)
 	if err != nil {
@@ -260,6 +321,11 @@ func (h *Handler) GetDIDAssignedIP(c echo.Context) error {
 	return c.JSON(http.StatusOK, []byte(server.PrivateIpAddress))
 }
 
+/*
+Input: rtcOptimized, domain, routerip
+Todo : Get UserAssignedIP
+Output: If success return PrivateIpAddress else return err
+*/
 func (h *Handler) GetUserAssignedIP(c echo.Context) error {
 	fmt.Printf("Get assigned IP called..\r\n")
 	opt := c.Param("rtcOptimized")
@@ -297,6 +363,11 @@ func (h *Handler) GetUserAssignedIP(c echo.Context) error {
 	return c.JSON(http.StatusOK, []byte(server.PrivateIpAddress))
 }
 
+/*
+Input: rtcOptimized, domain, routerip
+Todo : Get TrunkAssignedIP
+Output: If success return PrivateIpAddress else return err
+*/
 func (h *Handler) GetTrunkAssignedIP(c echo.Context) error {
 	server, err := utils.GetDIDRoutedServer2(false)
 	if err != nil {
@@ -313,6 +384,12 @@ func (h *Handler) AddPSTNProviderTechPrefix(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: domain, extension
+Todo : Get CallerId with mathcing domain and extension
+Output: If successfuly find callerid return CallerIDInfo model
+else return StatusNotFound(it doesn't occur error) or err(it occurs error)
+*/
 func (h *Handler) GetCallerIdToUse(c echo.Context) error {
 	domain := c.Param("domain")
 	extension := c.Param("extension")
@@ -329,6 +406,11 @@ func (h *Handler) GetCallerIdToUse(c echo.Context) error {
 	return c.JSON(http.StatusOK, &info)
 }
 
+/*
+Input: extension, workspace_id
+Todo : Get ExtensionFlowInfo with matching workspace and extension
+Output: If success return ExtensionFlowInfo model else return StatusNoFound or err
+*/
 func (h *Handler) GetExtensionFlowInfo(c echo.Context) error {
 	extension := c.Param("extension")
 	workspaceId := c.Param("workspace")
@@ -338,9 +420,19 @@ func (h *Handler) GetExtensionFlowInfo(c echo.Context) error {
 	if err == sql.ErrNoRows {
 		return c.NoContent(http.StatusNotFound)
 	}
+
+	if err != nil {
+		return utils.HandleInternalErr("GetExtensionFlowInfo error", err, c)
+	}
+
 	return c.JSON(http.StatusOK, &info)
 }
 
+/*
+Input: flow_id, workspace_id
+Todo : Get ExtensionFlowInfo with matching flow_id and workspace_id
+Output: If success return ExtensionFlowInfo model else return StatusNoFound or err
+*/
 func (h *Handler) GetFlowInfo(c echo.Context) error {
 	flowId := c.Param("flow_id")
 	workspaceId := c.Param("workspace")
@@ -350,6 +442,11 @@ func (h *Handler) GetFlowInfo(c echo.Context) error {
 	if err == sql.ErrNoRows {
 		return c.NoContent(http.StatusNotFound)
 	}
+
+	if err != nil {
+		return utils.HandleInternalErr("GetFlowInfo error", err, c)
+	}
+
 	return c.JSON(http.StatusOK, &info)
 }
 
@@ -358,6 +455,11 @@ func (h *Handler) GetDIDDomain(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: code, workspace_id
+Todo : Get CodeFlowInfo with matching code and workspace_id
+Output: If success return CodeFlowInfo model else return err
+*/
 func (h *Handler) GetCodeFlowInfo(c echo.Context) error {
 	code := c.Param("code")
 	workspaceId := c.Param("workspace")
@@ -370,11 +472,12 @@ func (h *Handler) GetCodeFlowInfo(c echo.Context) error {
 	return c.JSON(http.StatusOK, &info)
 }
 
+/*
+Input: did, number, source
+Todo : Check for all types of call routing scenarios(1.PSTN DID call, 2.Hosted SIP trunk call, 3.BYOC trunk call )
+Output: If success return network_managed or byo_carrier else return err
+*/
 func (h *Handler) IncomingDIDValidation(c echo.Context) error {
-	// check for all types of call routing scenarios
-	// 1. PSTN DID call
-	// 2. Hosted SIP trunk call
-	// 3. BYOC trunk call
 	did := c.Param("did")
 	number := c.Param("number")
 	source := c.Param("source")
@@ -430,6 +533,11 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 	return utils.HandleInternalErr("IncomingDIDValidation error 3", errors.New("no DID match found..."), c)
 }
 
+/*
+Input: fromdomain
+Todo : Looking up SIP Server and find matched one
+Output: If success return SIP Ipaddress else return err
+*/
 func (h *Handler) IncomingTrunkValidation(c echo.Context) error {
 	//did := c.Param("did")
 	//number := c.Param("number")
@@ -455,6 +563,11 @@ func (h *Handler) IncomingTrunkValidation(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
+/*
+Input: fromdomain
+Todo : Looking up SIP Server and find matched one
+Output: If success return SIP Ipaddress else return err
+*/
 func (h *Handler) LookupSIPTrunkByDID(c echo.Context) error {
 	did := c.Param("did")
 
@@ -470,6 +583,11 @@ func (h *Handler) LookupSIPTrunkByDID(c echo.Context) error {
 	return c.JSON(http.StatusOK, result)
 }
 
+/*
+Input: source
+Todo : Looking up MediaServer and find matched one
+Output: If success return StatusNoContent else return err
+*/
 func (h *Handler) IncomingMediaServerValidation(c echo.Context) error {
 	//number:= c.Param("number")
 	source := c.Param("source")
@@ -487,6 +605,11 @@ func (h *Handler) IncomingMediaServerValidation(c echo.Context) error {
 	return utils.HandleInternalErr("No media server found..", err, c)
 }
 
+/*
+Input: domain, user
+Todo : Update extensions with domain, user, workspace
+Output: If success return StatusNoContent else return err
+*/
 func (h *Handler) StoreRegistration(c echo.Context) error {
 	domain := c.FormValue("domain")
 	//ip := rc.FormValue("ip")
@@ -512,6 +635,11 @@ func (h *Handler) StoreRegistration(c echo.Context) error {
 	return c.NoContent(http.StatusNoContent)
 }
 
+/*
+Input: domain, user
+Todo : Get settings
+Output: If success return Settings model else return err
+*/
 func (h *Handler) GetSettings(c echo.Context) error {
 	settings, err := h.userStore.GetSettings()
 	if err == sql.ErrNoRows {
@@ -524,6 +652,11 @@ func (h *Handler) GetSettings(c echo.Context) error {
 	return c.JSON(http.StatusOK, &settings)
 }
 
+/*
+Input: did
+Todo : Get SIP URI with matching did number
+Output: If success return sip uri else return err
+*/
 func (h *Handler) ProcessSIPTrunkCall(c echo.Context) error {
 	did := c.Param("did")
 
