@@ -3,6 +3,7 @@ package utils
 import (
 	"errors"
 	"fmt"
+	"io"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -15,12 +16,18 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	"github.com/aws/aws-sdk-go/service/sts"
+	logrustash "github.com/bshuster-repo/logrus-logstash-hook"
 	guuid "github.com/google/uuid"
+	logrus_cloudwatchlogs "github.com/kdar/logrus-cloudwatchlogs"
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
+	easy "github.com/t-tomalak/logrus-easy-formatter"
 	"lineblocs.com/api/model"
 )
 
 var settings *model.GlobalSettings
+var log = logrus.New()
 
 func CreateAPIID(prefix string) string {
 	id := guuid.New()
@@ -212,8 +219,8 @@ func CheckIfCarrier(token string) bool {
 }
 
 func HandleInternalErr(msg string, err error, c echo.Context) error {
-	fmt.Printf(msg)
-	fmt.Println(err)
+	Log(logrus.FatalLevel, msg)
+	Log(logrus.FatalLevel, err.Error())
 	return c.JSON(http.StatusInternalServerError, NewError(err))
 }
 
@@ -223,4 +230,71 @@ func SetSetting(gs model.GlobalSettings) {
 
 func GetSetting() *model.GlobalSettings {
 	return settings
+}
+
+// Configure Logrus
+func InitLogrus() {
+	log = &logrus.Logger{
+		Out:   os.Stderr,
+		Level: logrus.DebugLevel,
+		Formatter: &easy.Formatter{
+			TimestampFormat: "2006-01-02 15:04:05",
+			LogFormat:       "%lvl%: %time% - %msg%\n",
+		},
+	}
+
+	if os.Getenv("USE_LOG_TYPE") == "file" { // If logging type is file
+		log.Out = os.Stdout
+		file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err == nil {
+			log.Out = file
+		} else {
+			log.Info("Failed to log to file, using default stderr")
+		}
+	} else if os.Getenv("USE_LOG_TYPE") == "cloud watch" { // If you want to use AWS Cloud Watch
+		group := os.Getenv("AWS_CLOUDWATCHLOGS_GROUP_NAME")
+		stream := os.Getenv("AWS_CLOUDWATCHLOGS_STREAM_NAME")
+
+		// logs.us-east-1.amazonaws.com
+		// Define the session - using SharedConfigState which forces file or env creds
+		sess, err := session.NewSessionWithOptions(session.Options{
+			SharedConfigState: session.SharedConfigEnable,
+			Config:            aws.Config{Region: aws.String("us-east-1")},
+		})
+		if err != nil {
+			panic("Not going to be able to write to cloud watch if you cant create a session")
+		}
+
+		// Determine if we are authorized to access AWS with the credentials provided. This does not mean you have access to the
+		// services required however.
+		_, err = sts.New(sess).GetCallerIdentity(&sts.GetCallerIdentityInput{})
+		if err != nil {
+			panic("Couldn't Validate our aws credentials")
+		}
+
+		hook, err := logrus_cloudwatchlogs.NewHook(group, stream, sess)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		log.Hooks.Add(hook)
+		log.Out = io.Discard
+		log.Formatter = logrus_cloudwatchlogs.NewProdFormatter()
+	} else if os.Getenv("USE_LOG_TYPE") == "logstash" { // If you want to use Logstash
+		conn, err := net.Dial("tcp", "logstash.mycompany.net:8911")
+		if err != nil {
+			log.Fatal(err)
+		}
+		hook := logrustash.New(conn, logrustash.DefaultFormatter(logrus.Fields{"type": "myappName"}))
+
+		log.Hooks.Add(hook)
+		ctx := log.WithFields(logrus.Fields{
+			"method": "main",
+		})
+		ctx.Info("Hello World!")
+	}
+}
+
+func Log(level logrus.Level, message string) {
+	log.Log(level, message)
 }

@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -281,7 +282,7 @@ func (cs *CallStore) GetUserFromDB(id int) (*model.User, error) {
 	var fname string
 	var lname string
 	var email string
-	fmt.Printf("looking up user %d\r\n", id)
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("looking up user %d\r\n", id))
 	row := cs.db.QueryRow(`SELECT id, username, first_name, last_name, email FROM users WHERE id=?`, id)
 
 	err := row.Scan(&userId, &username, &fname, &lname, &email)

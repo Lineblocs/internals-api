@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -14,6 +15,8 @@ Todo : Create new user_debit and store to db
 Output: If success return NoContent else return err
 */
 func (h *Handler) CreateDebit(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CreateDebit is called...")
+
 	var debit model.Debit
 
 	if err := c.Bind(&debit); err != nil {
@@ -48,6 +51,8 @@ Todo : Calculate cents based on debit type and create user_debit
 Output: If success return NoContent else return err
 */
 func (h *Handler) CreateAPIUsageDebit(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CreateAPIUsageDebit is called...\r\n")
+
 	var debitApi model.DebitAPI
 
 	if err := c.Bind(&debitApi); err != nil {

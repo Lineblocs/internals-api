@@ -4,10 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"strconv"
 
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/helpers"
+	"lineblocs.com/api/utils"
 )
 
 /*
@@ -32,16 +33,14 @@ Output: If success return nil else return err
 func (crs *CarrierStore) CreateSIPReport(callid string, status string) error {
 	stmt, err := crs.db.Prepare("UPDATE `calls` SET sip_status = ? WHERE sip_call_id = ?")
 	if err != nil {
-		fmt.Printf("CreateSIPReport 2 Could not execute query..")
-		fmt.Println(err)
+		utils.Log(logrus.ErrorLevel, "CreateSIPReport 2 Could not execute query..")
 		return err
 	}
 	defer stmt.Close()
 
 	statusAsInt, err := strconv.Atoi(status)
 	if err != nil {
-		fmt.Printf("CreateSIPReport 3 error in convert..")
-		fmt.Println(err)
+		utils.Log(logrus.ErrorLevel, "CreateSIPReport 3 error in convert...")
 		return err
 	}
 	_, err = stmt.Exec(statusAsInt, callid)

@@ -1,0 +1,4 @@
+time="2023-01-09T22:32:39+02:00" level=info msg="Starting API..."
+time="2023-01-09T22:32:39+02:00" level=panic msg="Error 1045 (28000): Access denied for user ''@'localhost' (using password: NO)"
+time="2023-01-10T01:19:29+02:00" level=info msg="Starting API..."
+time="2023-01-10T01:19:29+02:00" level=panic msg="dial tcp :3306: connect: connection refused"

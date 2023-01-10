@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -18,6 +19,8 @@ Todo : Check number is valid with domain?
 Output: If success return VerifyNumber model else return err
 */
 func (h *Handler) VerifyCaller(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "VerifyCaller is called...")
+
 	workspaceId := c.Param("workspace_id")
 	workspaceIdInt, err := strconv.Atoi(workspaceId)
 	if err != nil {
@@ -47,6 +50,8 @@ Todo : Check number is valid with domain?
 Output: If success return NoContent else return err
 */
 func (h *Handler) VerifyCallerByDomain(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "VerifyCallerByDomain is called...")
+
 	domain := c.Param("domain")
 	number := c.Param("number")
 
@@ -70,6 +75,8 @@ Todo : Get WorkspaceCreator with matching domain and workspace
 Output: If success return WorkspaceCreatorFullInfo model else return err
 */
 func (h *Handler) GetUserByDomain(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetUserByDomain is called...")
+
 	domain := c.Param("domain")
 
 	// info, err := h.userStore.GetUserByDomain(domain)
@@ -102,6 +109,8 @@ Todo : Get WorkspaceCreator with matching DID
 Output: If success return WorkspaceCreatorFullInfo model else return err
 */
 func (h *Handler) GetUserByDID(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetUserByDID is called...")
+
 	did := c.Param("did")
 
 	domain, err := h.userStore.GetUserByDID(did)
@@ -137,6 +146,8 @@ Todo : Get WorkspaceCreator with matching source ip
 Output: If success return WorkspaceCreatorFullInfo model else return err
 */
 func (h *Handler) GetUserByTrunkSourceIp(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetUserByTrunkSourceIp is called...")
+
 	sourceIp := c.Param("source_ip")
 
 	domain, err := h.userStore.GetUserByTrunkSourceIp(sourceIp)
@@ -172,6 +183,8 @@ Todo : Get macro_functions with matching workspace_id
 Output: If success return MacroFunction model else return err
 */
 func (h *Handler) GetWorkspaceMacros(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetWorkspaceMacros is called...")
+
 	workspace := c.Param("workspace")
 	values, err := h.userStore.GetWorkspaceMacros(workspace)
 
@@ -187,6 +200,8 @@ Todo : Get WorkspaceDidInfo with matching number (Check both DIDNumber and BYODI
 Output: If success return WorkspaceDidInfo model else return err
 */
 func (h *Handler) GetDIDNumberData(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetDIDNumberData is called...")
+
 	number := c.Param("number")
 	info, flowJson, err := h.userStore.GetDIDNumberData(number)
 	if err != nil && err != sql.ErrNoRows {
@@ -211,7 +226,7 @@ func (h *Handler) GetDIDNumberData(c echo.Context) error {
 
 	params, err := h.userStore.GetWorkspaceParams(info.WorkspaceId)
 	if err != nil {
-		return utils.HandleInternalErr("GetDIDNumberData 1 error", err, c)
+		return utils.HandleInternalErr("GetDIDNumberData error", err, c)
 	}
 
 	info.WorkspaceParams = params
@@ -224,7 +239,8 @@ Todo : Get PSTNInfo with matching from, to, domain params
 Output: If success return PSTNInfo model else return err
 */
 func (h *Handler) GetPSTNProviderIP(c echo.Context) error {
-	fmt.Printf("received PSTN request..\r\n")
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Received PSTN request..\r\n"))
+
 	from := c.Param("from")
 	to := c.Param("to")
 	domain := c.Param("domain")
@@ -257,13 +273,13 @@ Todo : Get PSTNInfo with matching from, to params
 Output: If success return PSTNInfo model else return err
 */
 func (h *Handler) GetPSTNProviderIPForTrunk(c echo.Context) error {
-	fmt.Printf("received PSTN request for trunk..\r\n")
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Received PSTN request for trunk..\r\n"))
 	from := c.Param("from")
 	to := c.Param("to")
 
 	info, err := h.userStore.GetBestPSTNProvider(from, to)
 	if err != nil {
-		return utils.HandleInternalErr("getpstnprovideripfortrunk error 1", err, c)
+		return utils.HandleInternalErr("GetPSTNProviderIPForTrunk error", err, c)
 	}
 
 	return c.JSON(http.StatusOK, &info)
@@ -275,6 +291,8 @@ Todo : Check ip_whitelist with matching domain and ip
 Output: If matched return StatusNoContent, not matched return StatusNotFound, error return err
 */
 func (h *Handler) IPWhitelistLookup(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "IPWhitelistLookup is called...")
+
 	source := c.Param("ip")
 	domain := c.Param("domain")
 	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
@@ -297,6 +315,8 @@ Todo : Get did_action from did_numbers or byo_did_numbers with matching did
 Output: If success return did_action else return err
 */
 func (h *Handler) GetDIDAcceptOption(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetDIDAcceptOption is called...")
+
 	did := c.Param("did")
 	result, err := h.userStore.GetDIDAcceptOption(did)
 	if err != nil {
@@ -311,6 +331,8 @@ Todo : Get DIDAssignedIP
 Output: If success return PrivateIpAddress else return err
 */
 func (h *Handler) GetDIDAssignedIP(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetDIDAssignedIP is called...")
+
 	server, err := utils.GetDIDRoutedServer2(false)
 	if err != nil {
 		return utils.HandleInternalErr("GetUserAssignedIP error occured", err, c)
@@ -327,7 +349,8 @@ Todo : Get UserAssignedIP
 Output: If success return PrivateIpAddress else return err
 */
 func (h *Handler) GetUserAssignedIP(c echo.Context) error {
-	fmt.Printf("Get assigned IP called..\r\n")
+	utils.Log(logrus.InfoLevel, "Get assigned IP called..\r\n")
+
 	opt := c.Param("rtcOptimized")
 	var err error
 	var rtcOptimized bool
@@ -343,8 +366,8 @@ func (h *Handler) GetUserAssignedIP(c echo.Context) error {
 
 	domain := c.Param("domain")
 	routerip := c.Param("routerip")
-	fmt.Printf("Finding server for domain " + domain + "..\r\n")
-	fmt.Printf("Router IP is " + routerip + "..\r\n")
+	utils.Log(logrus.InfoLevel, "Finding server for domain "+domain+"..\r\n")
+	utils.Log(logrus.InfoLevel, "Router IP is "+routerip+"..\r\n")
 	//ru := c.Param("ru")
 	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
 	if err != nil {
@@ -359,7 +382,7 @@ func (h *Handler) GetUserAssignedIP(c echo.Context) error {
 	if server == nil {
 		return utils.HandleInternalErr("GetUserAssignedIP could not get server", err, c)
 	}
-	fmt.Printf("Found server " + server.PrivateIpAddress + "..\r\n")
+	utils.Log(logrus.InfoLevel, "Found server "+server.PrivateIpAddress+"..\r\n")
 	return c.JSON(http.StatusOK, []byte(server.PrivateIpAddress))
 }
 
@@ -369,6 +392,8 @@ Todo : Get TrunkAssignedIP
 Output: If success return PrivateIpAddress else return err
 */
 func (h *Handler) GetTrunkAssignedIP(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetTrunkAssignedIP is called...")
+
 	server, err := utils.GetDIDRoutedServer2(false)
 	if err != nil {
 		return utils.HandleInternalErr("GetUserAssignedIP error occured", err, c)
@@ -391,6 +416,8 @@ Output: If successfuly find callerid return CallerIDInfo model
 else return StatusNotFound(it doesn't occur error) or err(it occurs error)
 */
 func (h *Handler) GetCallerIdToUse(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetCallerIdToUse is called...")
+
 	domain := c.Param("domain")
 	extension := c.Param("extension")
 	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
@@ -412,6 +439,8 @@ Todo : Get ExtensionFlowInfo with matching workspace and extension
 Output: If success return ExtensionFlowInfo model else return StatusNoFound or err
 */
 func (h *Handler) GetExtensionFlowInfo(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetExtensionFlowInfo is called...")
+
 	extension := c.Param("extension")
 	workspaceId := c.Param("workspace")
 
@@ -434,6 +463,8 @@ Todo : Get ExtensionFlowInfo with matching flow_id and workspace_id
 Output: If success return ExtensionFlowInfo model else return StatusNoFound or err
 */
 func (h *Handler) GetFlowInfo(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetFlowInfo is called...")
+
 	flowId := c.Param("flow_id")
 	workspaceId := c.Param("workspace")
 
@@ -461,6 +492,8 @@ Todo : Get CodeFlowInfo with matching code and workspace_id
 Output: If success return CodeFlowInfo model else return err
 */
 func (h *Handler) GetCodeFlowInfo(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetCodeFlowInfo is called...")
+
 	code := c.Param("code")
 	workspaceId := c.Param("workspace")
 
@@ -478,6 +511,8 @@ Todo : Check for all types of call routing scenarios(1.PSTN DID call, 2.Hosted S
 Output: If success return network_managed or byo_carrier else return err
 */
 func (h *Handler) IncomingDIDValidation(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "IncomingDIDValidation is called...")
+
 	did := c.Param("did")
 	number := c.Param("number")
 	source := c.Param("source")
@@ -498,7 +533,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 		if !match {
 			return utils.HandleInternalErr("IncomingDIDValidation no match found 1", err, c)
 		}
-		fmt.Printf("Matched incoming DID..")
+		utils.Log(logrus.InfoLevel, "Matched incoming DID..")
 		valid, err := h.userStore.FinishValidation(number, info.DidWorkspaceId)
 		if err != nil {
 			return utils.HandleInternalErr("IncomingDIDValidation error 2 valid", err, c)
@@ -509,7 +544,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 		return c.JSON(http.StatusOK, []byte("network_managed"))
 	}
 
-	fmt.Println("looking up BYO DIDs now...")
+	utils.Log(logrus.InfoLevel, "Looking up BYO DIDs now...")
 	byoInfo, err := h.userStore.IncomingBYODIDValidation(did)
 	if err == nil {
 		match, err := h.userStore.CheckBYOPSTNIPWhitelist(did, source)
@@ -530,7 +565,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 
 		return c.JSON(http.StatusOK, []byte("byo_carrier"))
 	}
-	return utils.HandleInternalErr("IncomingDIDValidation error 3", errors.New("no DID match found..."), c)
+	return utils.HandleInternalErr("IncomingDIDValidation error 3", errors.New("No DID match found..."), c)
 }
 
 /*
@@ -539,6 +574,8 @@ Todo : Looking up SIP Server and find matched one
 Output: If success return SIP Ipaddress else return err
 */
 func (h *Handler) IncomingTrunkValidation(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "IncomingTrunkValidation is called...")
+
 	//did := c.Param("did")
 	//number := c.Param("number")
 	//source := c.Param("source")
@@ -550,7 +587,7 @@ func (h *Handler) IncomingTrunkValidation(c echo.Context) error {
 		return utils.HandleInternalErr("IncomingTrunkValidation error 4 valid", err, c)
 	}
 
-	fmt.Printf("from domain %s trunk IP is %s..\r\n", fromdomain, *trunkip)
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("From domain %s trunk IP is %s..\r\n", fromdomain, *trunkip))
 
 	result, err := h.userStore.IncomingTrunkValidation(*trunkip)
 	if err != nil {
@@ -558,7 +595,7 @@ func (h *Handler) IncomingTrunkValidation(c echo.Context) error {
 	}
 
 	if result == nil {
-		return utils.HandleInternalErr("checked all SIP trunks no matches were found... error.", err, c)
+		return utils.HandleInternalErr("Checked all SIP trunks no matches were found... error.", err, c)
 	}
 	return c.JSON(http.StatusOK, result)
 }
@@ -569,6 +606,8 @@ Todo : Looking up SIP Server and find matched one
 Output: If success return SIP Ipaddress else return err
 */
 func (h *Handler) LookupSIPTrunkByDID(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "LookupSIPTrunkByDID is called...")
+
 	did := c.Param("did")
 
 	result, err := h.userStore.LookupSIPTrunkByDID(did)
@@ -589,6 +628,8 @@ Todo : Looking up MediaServer and find matched one
 Output: If success return StatusNoContent else return err
 */
 func (h *Handler) IncomingMediaServerValidation(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "IncomingMediaServerValidation is called...")
+
 	//number:= c.Param("number")
 	source := c.Param("source")
 	//did := c.Param("did")
@@ -611,6 +652,8 @@ Todo : Update extensions with domain, user, workspace
 Output: If success return StatusNoContent else return err
 */
 func (h *Handler) StoreRegistration(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "StoreRegistration is called...")
+
 	domain := c.FormValue("domain")
 	//ip := rc.FormValue("ip")
 	user := c.FormValue("user")
@@ -621,7 +664,7 @@ func (h *Handler) StoreRegistration(c echo.Context) error {
 	expires, err = strconv.Atoi(c.FormValue("expires"))
 
 	if err != nil {
-		fmt.Printf("could not get expiry.. not setting online\r\n")
+		utils.Log(logrus.InfoLevel, "Could not get expiry.. not setting online\r\n")
 		return c.NoContent(http.StatusNoContent)
 	}
 	if err != nil {
@@ -641,6 +684,8 @@ Todo : Get settings
 Output: If success return Settings model else return err
 */
 func (h *Handler) GetSettings(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetSettings")
+
 	settings, err := h.userStore.GetSettings()
 	if err == sql.ErrNoRows {
 		// no records setup were setup, just return empty
@@ -658,11 +703,13 @@ Todo : Get SIP URI with matching did number
 Output: If success return sip uri else return err
 */
 func (h *Handler) ProcessSIPTrunkCall(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "ProcessSIPTrunkCall is called")
+
 	did := c.Param("did")
 
 	result, err := h.userStore.ProcessSIPTrunkCall(did)
 	if err != nil {
-		return utils.HandleInternalErr("ProcessSIPTrunkCall error 1 valid", err, c)
+		return utils.HandleInternalErr("ProcessSIPTrunkCall error valid", err, c)
 	}
 
 	if result != nil {

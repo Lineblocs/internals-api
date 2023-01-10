@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -14,6 +15,7 @@ Todo : Create log model and store to db, send log email
 Output: If success return NoContent else return err
 */
 func (h *Handler) CreateLog(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CreateLog is called...")
 	var logReq model.Log
 
 	if err := c.Bind(&logReq); err != nil {
@@ -63,6 +65,8 @@ Todo : Create log model and store to db, send log email
 Output: If success return NoContent else return err
 */
 func (h *Handler) CreateLogSimple(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CreateLogSimple is called...")
+
 	logType := c.FormValue("type")
 	level := c.FormValue("level")
 	domain := c.FormValue("domain")

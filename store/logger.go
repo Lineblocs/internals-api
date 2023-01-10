@@ -3,13 +3,13 @@ package store
 import (
 	"context"
 	"database/sql"
-	"fmt"
 	"os"
 	"strconv"
 	"time"
 
 	lineblocs "github.com/Lineblocs/go-helpers"
 	"github.com/mailgun/mailgun-go/v4"
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -39,7 +39,7 @@ func (ls *LoggerStore) StartLogRoutine(workspace *model.Workspace, log *model.Lo
 
 	user, err := lineblocs.GetUserFromDB(log.UserId)
 	if err != nil {
-		fmt.Printf("could not get user..")
+		utils.Log(logrus.ErrorLevel, "Could not get user..")
 		return nil, err
 	}
 
@@ -48,20 +48,20 @@ func (ls *LoggerStore) StartLogRoutine(workspace *model.Workspace, log *model.Lo
 	stmt, err := ls.db.Prepare("INSERT INTO debugger_logs (`from`, `to`, `title`, `report`, `workspace_id`, `level`, `api_id`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )")
 
 	if err != nil {
-		fmt.Printf("could not prepare query..")
+		utils.Log(logrus.ErrorLevel, "Could not prepare query..")
 		return nil, err
 	}
 
 	defer stmt.Close()
 	res, err := stmt.Exec(log.From, log.To, log.Title, log.Report, workspace.Id, log.Level, apiId, now, now)
 	if err != nil {
-		fmt.Printf("could not execute query..")
+		utils.Log(logrus.ErrorLevel, "Could not execute query..")
 		return nil, err
 	}
 
 	logId, err := res.LastInsertId()
 	if err != nil {
-		fmt.Printf("could not get insert id..")
+		utils.Log(logrus.ErrorLevel, "Could not get insert id..")
 		return nil, err
 	}
 	logIdStr := strconv.FormatInt(logId, 10)

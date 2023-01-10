@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -64,7 +65,7 @@ func (rs *RecordingStore) CreateRecording(workspace *model.Workspace, recording 
 	// Adding tags to recording_tags table
 	if recording.Tags != nil {
 		for _, v := range *recording.Tags {
-			fmt.Printf("adding tag to recording %s\r\n", v)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("Adding tag to recording %s\r\n", v))
 			stmt, err := rs.db.Prepare("INSERT INTO recording_tags (`recording_id`, `tag`, `created_at`, `updated_at`) VALUES (?, ?, ?, ?)")
 			if err != nil {
 				return recId, err

@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -16,6 +17,8 @@ Todo : Create Recording model and store it to db
 Output: If success return Recording model with recording id in header else return err
 */
 func (h *Handler) CreateRecording(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CreateRecording is called...")
+
 	var recording model.Recording
 
 	if err := c.Bind(&recording); err != nil {
@@ -46,6 +49,8 @@ Todo : Update recordings with matching id and upload file to AWS s3
 Output: If success return NoContent in header else return err
 */
 func (h *Handler) UpdateRecording(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "UpdateRecording is called...")
+
 	file, err := c.FormFile("file")
 	status := c.FormValue("status")
 	recordingId := c.FormValue("recording_id")
@@ -99,6 +104,8 @@ Todo : Update recording transcription_ready and transcription_text with matching
 Output: If success return NoContent else return err
 */
 func (h *Handler) UpdateRecordingTranscription(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "UpdateRecordingTranscription is called...")
+
 	var update model.RecordingTranscription
 	if err := c.Bind(&update); err != nil {
 		return utils.HandleInternalErr("UpdateRecordingTranscription error", err, c)
@@ -116,6 +123,8 @@ Todo : Get recording data with matching id
 Output: If success return Recording model else return err
 */
 func (h *Handler) GetRecording(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "GetRecording is called...")
+
 	id := c.Param("id")
 	id_int, err := strconv.Atoi(id)
 	if err != nil {

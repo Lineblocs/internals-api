@@ -9,6 +9,7 @@ import (
 	"time"
 
 	lineblocs "github.com/Lineblocs/go-helpers"
+	"github.com/sirupsen/logrus"
 	"github.com/ttacon/libphonenumber"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
@@ -1032,10 +1033,10 @@ func (us *UserStore) ProcessSIPTrunkCall(did string) ([]byte, error) {
 	defer results.Close()
 
 	for results.Next() {
-		fmt.Printf("trying to route to user trunk server..\r\n")
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("Trying to route to user trunk server..\r\n"))
 		var trunkSIPURI string
 		results.Scan(&trunkSIPURI)
-		fmt.Printf("found SIP trunk server %s\r\n", trunkSIPURI)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("Found SIP trunk server %s\r\n", trunkSIPURI))
 		return []byte(trunkSIPURI), nil
 	}
 	return nil, nil

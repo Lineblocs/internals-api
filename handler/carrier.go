@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/helpers"
 	"lineblocs.com/api/utils"
 )
@@ -15,6 +16,8 @@ Todo : Update sip_status of calls with matching sip_call_id
 Output: If success return NoContent else return err
 */
 func (h *Handler) CreateSIPReport(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CreateSIPReport is called...")
+
 	callid := c.FormValue("callid")
 	status := c.FormValue("status")
 
@@ -31,6 +34,8 @@ Todo : Create and Start Router Flow
 Output: If success return host Ipaddress else return err
 */
 func (h *Handler) ProcessRouterFlow(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "ProcessRouterFlow is called...")
+
 	var flow *helpers.Flow
 	callto := c.Param("callto")
 	callfrom := c.Param("callfrom")
@@ -39,16 +44,19 @@ func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 	destCode, err := helpers.ParseCountryCode(callto)
 
 	if err != nil {
+		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
 	}
-	fmt.Println("code is: " + destCode)
+	utils.Log(logrus.InfoLevel, fmt.Sprintln("Dest Code is: "+destCode))
 
 	originCode, err := helpers.ParseCountryCode(callfrom)
 
 	if err != nil {
+		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
 	}
-	fmt.Println("code is: " + originCode)
+
+	utils.Log(logrus.InfoLevel, fmt.Sprintln("Source Code is: "+destCode))
 
 	// Lookup flow or country flow
 	flow, err = h.carrierStore.CreateRoutingFlow(&callfrom, &callto, &userId)
@@ -66,6 +74,7 @@ func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 	providers, err := h.carrierStore.StartProcessingFlow(flow, data)
 
 	if err != nil {
+		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
 	}
 	if len(providers) == 0 {

@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -15,6 +16,8 @@ Todo : Create new call and store to db
 Output: If success return created Call model with callid in header else return err
 */
 func (h *Handler) CreateCall(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CreateCall is called...")
+
 	var call model.Call
 
 	if err := c.Bind(&call); err != nil {
@@ -46,6 +49,8 @@ Todo : Update existing call with matching id
 Output: If success return NoContent else return err
 */
 func (h *Handler) UpdateCall(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "UpdateCall is called...")
+
 	var update model.CallUpdate
 
 	if err := c.Bind(&update); err != nil {
@@ -72,6 +77,8 @@ Todo : Fetch a call with call_id
 Output: If success return Call model else return err
 */
 func (h *Handler) FetchCall(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "FetchCall is called...")
+
 	id := c.Param("id")
 	id_int, err := strconv.Atoi(id)
 	if err != nil {
@@ -92,6 +99,8 @@ Todo : Set sip_call_id field with matching id
 Output: If success return NoContent else return err
 */
 func (h *Handler) SetSIPCallID(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "SetSIPCallId is called...")
+
 	callid := c.FormValue("callid")
 	apiid := c.FormValue("apiid")
 
@@ -108,6 +117,8 @@ Todo : Update provider_id of call table with matching ip address
 Output: If success return NoContent else return err
 */
 func (h *Handler) SetProviderByIP(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "SetProviderByIP is called...")
+
 	ip := c.FormValue("ip")
 	apiid := c.FormValue("apiid")
 	err := h.callStore.SetProviderByIP(ip, apiid)
@@ -123,6 +134,8 @@ Todo : Create new conference and store to db
 Output: If success return created Conference model with conferenceId in header else return err
 */
 func (h *Handler) CreateConference(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CreateConference is called...")
+
 	var conference model.Conference
 
 	if err := c.Bind(&conference); err != nil {

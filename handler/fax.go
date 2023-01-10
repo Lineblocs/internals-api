@@ -7,6 +7,7 @@ import (
 	"strconv"
 
 	"github.com/labstack/echo/v4"
+	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -17,6 +18,8 @@ Todo : Create fax and store to db, also upload file to AWS s3
 Output: If success return Fax model with fax id in header else return err
 */
 func (h *Handler) CreateFax(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CreateFax is called...")
+
 	var fax *model.Fax
 	file, err := c.FormFile("file")
 
@@ -82,7 +85,7 @@ func (h *Handler) CreateFax(c echo.Context) error {
 	}
 	newCount := (*count) + 1
 	if newCount > *limit {
-		fmt.Printf("Not saving fax due to limit reached..")
+		utils.Log(logrus.WarnLevel, fmt.Sprintf("Not saving fax due to limit reached.."))
 		return c.NoContent(http.StatusNoContent)
 	}
 
