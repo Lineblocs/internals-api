@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"crypto"
 	"errors"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -28,6 +30,7 @@ import (
 
 var settings *model.GlobalSettings
 var log = logrus.New()
+var microserviceName string
 
 func CreateAPIID(prefix string) string {
 	id := guuid.New()
@@ -238,7 +241,7 @@ func InitLogrus() {
 		Out:   os.Stderr,
 		Level: logrus.DebugLevel,
 		Formatter: &easy.Formatter{
-			TimestampFormat: "2006-01-02 15:04:05",
+			TimestampFormat: "2023-01-01 15:00:00",
 			LogFormat:       "%lvl%: %time% - %msg%\n",
 		},
 	}
@@ -295,6 +298,30 @@ func InitLogrus() {
 	}
 }
 
+/*
+Input: level, message
+Todo: Log message with level(Info, Warning, Error, Panic)
+Output:
+*/
 func Log(level logrus.Level, message string) {
-	log.Log(level, message)
+	log.Log(level, "("+microserviceName+") "+message)
+}
+
+/*
+Store microservice name locally
+*/
+func SetMicroservice(username string) {
+	microserviceName = username
+}
+
+/*
+Hash function
+*/
+func Hash(objs ...interface{}) []byte {
+	digester := crypto.MD5.New()
+	for _, ob := range objs {
+		fmt.Fprint(digester, reflect.TypeOf(ob))
+		fmt.Fprint(digester, ob)
+	}
+	return digester.Sum(nil)
 }

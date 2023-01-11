@@ -21,6 +21,7 @@ type Settings struct {
 	SmtpPassword             string `json:"smtp_password"`
 	SmtpTls                  string `json:"smtp_tls"`
 	GoogleServiceAccountJson string `json:"google_service_account_json"`
+	MicroserviceApiKey       string `json:"microservice_api_key"`
 }
 
 type GlobalSettings struct {

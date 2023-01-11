@@ -1,10 +1,9 @@
 package handler
 
 import (
-	"crypto/subtle"
-
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
+	"lineblocs.com/api/utils"
 )
 
 /*
@@ -16,9 +15,8 @@ func (h *Handler) Register(r *echo.Echo) {
 
 	// Set BasicAuth Middleware
 	group := r.Group("/", middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
-		// Be careful to use constant time comparison to prevent timing attacks
-		if subtle.ConstantTimeCompare([]byte(username), []byte("joe")) == 1 &&
-			subtle.ConstantTimeCompare([]byte(password), []byte("secret")) == 1 {
+		if h.userStore.ValidateAccess(username, password) {
+			utils.SetMicroservice(username)
 			return true, nil
 		}
 		return false, nil

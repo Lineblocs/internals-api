@@ -1,6 +1,7 @@
 package store
 
 import (
+	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -27,6 +28,28 @@ func NewUserStore(db *sql.DB) *UserStore {
 	return &UserStore{
 		db: db,
 	}
+}
+
+func (us *UserStore) ValidateAccess(username string, password string) bool {
+	results, err := us.db.Query("SELECT `service_name, api_key` FROM microservice_api_keys WHERE service_name=" + username)
+	defer results.Close()
+	if err != nil {
+		return false
+	}
+
+	var serviceName string
+	var apiKey string
+	for results.Next() {
+
+		err := results.Scan(&serviceName, &apiKey)
+		if err != nil {
+			return false
+		}
+		if subtle.ConstantTimeCompare([]byte(password), []byte(utils.Hash(serviceName, apiKey))) == 1 {
+			return true
+		}
+	}
+	return false
 }
 
 /*
@@ -981,7 +1004,7 @@ Todo : Get Settings
 Output: return (Settings model, err)
 */
 func (us *UserStore) GetSettings() (*model.Settings, error) {
-	results, err := us.db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls` FROM api_credentials")
+	results, err := us.db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls`, `microservice_api_key` FROM api_credentials")
 	defer results.Close()
 	if err != nil {
 		return nil, err
@@ -1003,7 +1026,8 @@ func (us *UserStore) GetSettings() (*model.Settings, error) {
 			&settings.SmtpPort,
 			&settings.SmtpUser,
 			&settings.SmtpPassword,
-			&settings.SmtpTls)
+			&settings.SmtpTls,
+			&settings.MicroserviceApiKey)
 		if err != nil {
 			return nil, err
 		}
