@@ -1,7 +1,6 @@
 package store
 
 import (
-	"crypto/subtle"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -12,6 +11,7 @@ import (
 	lineblocs "github.com/Lineblocs/go-helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/ttacon/libphonenumber"
+	"golang.org/x/crypto/bcrypt"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
@@ -30,22 +30,28 @@ func NewUserStore(db *sql.DB) *UserStore {
 	}
 }
 
-func (us *UserStore) ValidateAccess(username string, password string) bool {
-	results, err := us.db.Query("SELECT `service_name, api_key` FROM microservice_api_keys WHERE service_name=" + username)
+func (us *UserStore) ValidateAccess(service_name string, api_key string) bool {
+	results, err := us.db.Query("SELECT `service_name, token` FROM microservice_api_keys WHERE service_name=" + service_name)
 	defer results.Close()
 	if err != nil {
 		return false
 	}
 
 	var serviceName string
-	var apiKey string
+	var token []byte
 	for results.Next() {
 
-		err := results.Scan(&serviceName, &apiKey)
+		err := results.Scan(&serviceName, &token)
 		if err != nil {
 			return false
 		}
-		if subtle.ConstantTimeCompare([]byte(password), []byte(utils.Hash(serviceName, apiKey))) == 1 {
+
+		hashedApiKey, err := bcrypt.GenerateFromPassword([]byte(api_key), bcrypt.DefaultCost)
+		if err != nil {
+			return false
+		}
+		err = bcrypt.CompareHashAndPassword(hashedApiKey, token)
+		if err == nil {
 			return true
 		}
 	}

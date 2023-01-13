@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"crypto"
 	"errors"
 	"fmt"
 	"io"
@@ -9,7 +8,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -313,16 +311,4 @@ Store microservice name locally
 */
 func SetMicroservice(username string) {
 	microserviceName = username
-}
-
-/*
-Hash function
-*/
-func Hash(objs ...interface{}) []byte {
-	digester := crypto.MD5.New()
-	for _, ob := range objs {
-		fmt.Fprint(digester, reflect.TypeOf(ob))
-		fmt.Fprint(digester, ob)
-	}
-	return digester.Sum(nil)
 }
