@@ -626,7 +626,7 @@ func (us *UserStore) GetExtensionFlowInfo(workspaceId string, extension string) 
 		return nil, err
 	}
 	info.FreeTrialStatus = utils.CheckFreeTrialStatus(info.Plan, trialStartedTime)
-	return &info, err
+	return &info, nil
 }
 
 /*
@@ -651,6 +651,7 @@ func (us *UserStore) GetFlowInfo(workspaceId string, flowId string) (*model.Exte
 		workspaces.api_secret,
 		users.free_trial_started
 		FROM workspaces
+		INNER JOIN extensions ON extensions.workspace_id = workspaces.id
 		INNER JOIN flows ON flows.id = extensions.flow_id
 		INNER JOIN users ON users.id = workspaces.creator_id
 		WHERE flows.public_id = ?

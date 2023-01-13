@@ -25,7 +25,7 @@ func (h *Handler) CreateSIPReport(c echo.Context) error {
 	if err != nil {
 		return utils.HandleInternalErr("CreateSIPReport error", err, c)
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.NoContent(http.StatusOK)
 }
 
 /*
@@ -37,14 +37,13 @@ func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "ProcessRouterFlow is called...")
 
 	var flow *helpers.Flow
-	callto := c.Param("callto")
-	callfrom := c.Param("callfrom")
-	userId := c.Param("userid")
+	callto := c.QueryParam("callto")
+	callfrom := c.QueryParam("callfrom")
+	userId := c.QueryParam("userid")
 
 	destCode, err := helpers.ParseCountryCode(callto)
 
 	if err != nil {
-		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
 	}
 	utils.Log(logrus.InfoLevel, fmt.Sprintln("Dest Code is: "+destCode))
@@ -52,7 +51,6 @@ func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 	originCode, err := helpers.ParseCountryCode(callfrom)
 
 	if err != nil {
-		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
 	}
 
@@ -74,7 +72,6 @@ func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 	providers, err := h.carrierStore.StartProcessingFlow(flow, data)
 
 	if err != nil {
-		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
 	}
 	if len(providers) == 0 {

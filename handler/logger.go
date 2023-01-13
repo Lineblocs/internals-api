@@ -56,7 +56,7 @@ func (h *Handler) CreateLog(c echo.Context) error {
 	if err != nil {
 		return utils.HandleInternalErr("CreateLog 2 log routine error", err, c)
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.NoContent(http.StatusOK)
 }
 
 /*
@@ -99,5 +99,5 @@ func (h *Handler) CreateLogSimple(c echo.Context) error {
 	if err != nil {
 		return utils.HandleInternalErr("CreateLog log routine error", err, c)
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.NoContent(http.StatusOK)
 }

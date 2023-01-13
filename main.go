@@ -87,6 +87,7 @@ func startServer() {
 	h := handler.NewHandler(as, cs, crs, ds, fs, ls, rs, us)
 
 	// Register Handler for Echo context
+	fmt.Println(h)
 	h.Register(r)
 
 	// Start with 443 port if TLS is ON
@@ -102,7 +103,7 @@ func startServer() {
 	}
 
 	// Start with 80 port if TLS is OFF
-	httpPort := utils.ReadEnv("HTTP_PORT", "80")
+	httpPort := utils.ReadEnv("HTTP_PORT", "8001")
 	utils.Log(logrus.InfoLevel, fmt.Sprintf("HTTP port %s\r\n", httpPort))
 	r.Logger.Fatal(r.Start(":" + httpPort))
 	utils.Log(logrus.InfoLevel, "Started server...")
@@ -111,7 +112,7 @@ func startServer() {
 // Configure Limit Handler for Echo context
 func limitHandler(c echo.Context) error {
 	var addr string
-	requestedAddr := c.Param("addr")
+	requestedAddr := c.QueryParam("addr")
 	if &requestedAddr != nil {
 		addr = requestedAddr
 	} else {

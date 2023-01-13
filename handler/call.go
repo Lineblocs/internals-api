@@ -79,7 +79,7 @@ Output: If success return Call model else return err
 func (h *Handler) FetchCall(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "FetchCall is called...")
 
-	id := c.Param("id")
+	id := c.QueryParam("id")
 	id_int, err := strconv.Atoi(id)
 	if err != nil {
 		return utils.HandleInternalErr("FetchCall error occured", err, c)
@@ -108,7 +108,7 @@ func (h *Handler) SetSIPCallID(c echo.Context) error {
 	if err != nil {
 		return utils.HandleInternalErr("SetSIPCallID could not execute query..", err, c)
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.NoContent(http.StatusOK)
 }
 
 /*
@@ -125,7 +125,7 @@ func (h *Handler) SetProviderByIP(c echo.Context) error {
 	if err != nil {
 		return utils.HandleInternalErr("SetProviderByID could not execute query..", err, c)
 	}
-	return c.NoContent(http.StatusNoContent)
+	return c.NoContent(http.StatusOK)
 }
 
 /*
@@ -148,7 +148,7 @@ func (h *Handler) CreateConference(c echo.Context) error {
 	conferenceId, err := h.callStore.CreateConference(&conference)
 
 	if err != nil {
-		return c.JSON(http.StatusUnprocessableEntity, utils.NewError(err))
+		return utils.HandleInternalErr("CreateConference error occured", err, c)
 	}
 
 	c.Response().Writer.Header().Set("X-Conference-ID", conferenceId)

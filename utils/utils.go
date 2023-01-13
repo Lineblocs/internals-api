@@ -224,7 +224,7 @@ func CheckIfCarrier(token string) bool {
 func HandleInternalErr(msg string, err error, c echo.Context) error {
 	Log(logrus.FatalLevel, msg)
 	Log(logrus.FatalLevel, err.Error())
-	return c.JSON(http.StatusInternalServerError, NewError(err))
+	return c.JSON(http.StatusInternalServerError, err.Error())
 }
 
 func SetSetting(gs model.GlobalSettings) {
@@ -304,7 +304,8 @@ Todo: Log message with level(Info, Warning, Error, Panic)
 Output:
 */
 func Log(level logrus.Level, message string) {
-	log.Log(level, "("+microserviceName+") "+message)
+	// log.Log(level, "("+microserviceName+") "+message)
+	log.Log(level, message)
 }
 
 /*

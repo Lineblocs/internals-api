@@ -27,6 +27,11 @@ func (h *Handler) CreateFax(c echo.Context) error {
 		return utils.HandleInternalErr("CreateFax error occured", err, c)
 	}
 
+	workspace, err := h.callStore.GetWorkspaceFromDB(fax.WorkspaceId)
+	if err != nil {
+		return utils.HandleInternalErr("Could not get workspace..", err, c)
+	}
+
 	userId := c.FormValue("user_id")
 	userIdInt, err := strconv.Atoi(userId)
 	if err != nil {
@@ -37,11 +42,6 @@ func (h *Handler) CreateFax(c echo.Context) error {
 	workspaceIdInt, err := strconv.Atoi(workspaceId)
 	if err != nil {
 		return utils.HandleInternalErr("CreateFax error occured workspace ID", err, c)
-	}
-
-	workspace, err := h.callStore.GetWorkspaceFromDB(workspaceIdInt)
-	if err != nil {
-		return utils.HandleInternalErr("Could not get workspace..", err, c)
 	}
 
 	callId := c.FormValue("call_id")

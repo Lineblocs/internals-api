@@ -38,7 +38,7 @@ type ExtensionFlowInfo struct {
 	APIToken        string            `json:"api_token"`
 	APISecret       string            `json:"api_secret"`
 	WorkspaceParams *[]WorkspaceParam `json:"workspace_params"`
-	FreeTrialStatus string            `json:"free_trial_status"`
+	FreeTrialStatus string            `json:"workspace_params"`
 }
 
 type CodeFlowInfo struct {

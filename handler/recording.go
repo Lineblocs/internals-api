@@ -62,7 +62,8 @@ func (h *Handler) UpdateRecording(c echo.Context) error {
 
 	workspace, err := h.callStore.GetWorkspaceFromDB(record.WorkspaceId)
 	if err != nil {
-		return utils.HandleInternalErr("Could not get workspace..", err, c)
+		// return utils.HandleInternalErr("Could not get workspace..", err, c)
+		return c.String(http.StatusOK, "Could not get workspace..")
 	}
 
 	src, err := file.Open()
@@ -125,7 +126,7 @@ Output: If success return Recording model else return err
 func (h *Handler) GetRecording(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "GetRecording is called...")
 
-	id := c.Param("id")
+	id := c.QueryParam("id")
 	id_int, err := strconv.Atoi(id)
 	if err != nil {
 		return utils.HandleInternalErr("GetRecording error occured", err, c)

@@ -58,7 +58,7 @@ func (ds *DebitStore) CreateAPIUsageDebit(workspace *model.Workspace, debitApi *
 		cents := utils.ToCents(dollars)
 		source := fmt.Sprintf("API usage - %s", debitApi.Type)
 		now := time.Now()
-		stmt, err := ds.db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ? )")
+		stmt, err := ds.db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ? )")
 		if err != nil {
 			return err
 		}
@@ -72,7 +72,7 @@ func (ds *DebitStore) CreateAPIUsageDebit(workspace *model.Workspace, debitApi *
 		cents := utils.ToCents(dollars)
 		source := fmt.Sprintf("API usage - %s", debitApi.Type)
 		now := time.Now()
-		stmt, err := ds.db.Prepare("INSERT INTO users_debits (`user_id, `cents`, `source`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ? )")
+		stmt, err := ds.db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`, `plan_snapshot`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ? )")
 		if err != nil {
 			return err
 		}

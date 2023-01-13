@@ -81,5 +81,5 @@ func (h *Handler) GetBestRTPProxy(c echo.Context) error {
 	if err != nil {
 		return utils.HandleInternalErr("GetBestRTPProxy error", err, c)
 	}
-	return c.JSON(http.StatusOK, &result)
+	return c.JSONBlob(http.StatusOK, result)
 }
