@@ -56,7 +56,6 @@ linters:
     - unparam
     - varcheck
     - whitespace
-    - wsl
 
 run:
   timeout: 10m

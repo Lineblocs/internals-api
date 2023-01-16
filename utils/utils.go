@@ -19,6 +19,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/sts"
 	logrustash "github.com/bshuster-repo/logrus-logstash-hook"
 	guuid "github.com/google/uuid"
+	"github.com/joho/godotenv"
 	logrus_cloudwatchlogs "github.com/kdar/logrus-cloudwatchlogs"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
@@ -234,27 +235,36 @@ func GetSetting() *model.GlobalSettings {
 }
 
 // Configure Logrus
-func InitLogrus() {
-	log = &logrus.Logger{
-		Out:   os.Stderr,
-		Level: logrus.DebugLevel,
-		Formatter: &easy.Formatter{
-			TimestampFormat: "2023-01-01 15:00:00",
-			LogFormat:       "%lvl%: %time% - %msg%\n",
-		},
-	}
-
-	if os.Getenv("USE_LOG_TYPE") == "file" { // If logging type is file
-		log.Out = os.Stdout
+func InitLogrus(logType string) {
+	fmt.Println(logType)
+	switch logType {
+	case "console":
+		log = &logrus.Logger{
+			Out:   os.Stderr,
+			Level: logrus.DebugLevel,
+			Formatter: &easy.Formatter{
+				TimestampFormat: "2023-01-01 15:00:00",
+				LogFormat:       "%lvl%: %time% - %msg%\n",
+			},
+		}
+	case "file":
+		log = &logrus.Logger{
+			Out:   os.Stdout,
+			Level: logrus.DebugLevel,
+			Formatter: &easy.Formatter{
+				TimestampFormat: "2023-01-01 15:00:00",
+				LogFormat:       "%lvl%: %time% - %msg%\n",
+			},
+		}
 		file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err == nil {
 			log.Out = file
 		} else {
 			log.Info("Failed to log to file, using default stderr")
 		}
-	} else if os.Getenv("USE_LOG_TYPE") == "cloud watch" { // If you want to use AWS Cloud Watch
-		group := os.Getenv("AWS_CLOUDWATCHLOGS_GROUP_NAME")
-		stream := os.Getenv("AWS_CLOUDWATCHLOGS_STREAM_NAME")
+	case "cloudwatch":
+		group := Config("AWS_CLOUDWATCHLOGS_GROUP_NAME")
+		stream := Config("AWS_CLOUDWATCHLOGS_STREAM_NAME")
 
 		// logs.us-east-1.amazonaws.com
 		// Define the session - using SharedConfigState which forces file or env creds
@@ -281,7 +291,7 @@ func InitLogrus() {
 		log.Hooks.Add(hook)
 		log.Out = io.Discard
 		log.Formatter = logrus_cloudwatchlogs.NewProdFormatter()
-	} else if os.Getenv("USE_LOG_TYPE") == "logstash" { // If you want to use Logstash
+	case "logstash":
 		conn, err := net.Dial("tcp", "logstash.mycompany.net:8911")
 		if err != nil {
 			log.Fatal(err)
@@ -289,10 +299,9 @@ func InitLogrus() {
 		hook := logrustash.New(conn, logrustash.DefaultFormatter(logrus.Fields{"type": "myappName"}))
 
 		log.Hooks.Add(hook)
-		ctx := log.WithFields(logrus.Fields{
+		log.WithFields(logrus.Fields{
 			"method": "main",
 		})
-		ctx.Info("Hello World!")
 	}
 }
 
@@ -302,8 +311,15 @@ Todo: Log message with level(Info, Warning, Error, Panic)
 Output:
 */
 func Log(level logrus.Level, message string) {
-	// log.Log(level, "("+microserviceName+") "+message)
-	log.Log(level, message)
+	logEnv := Config("LOG_DESTINATIONS")
+	fmt.Println("LogEnv:", logEnv)
+	logTypes := strings.Split(logEnv, ",")
+	for _, logType := range logTypes {
+		fmt.Println("LogType:", logType)
+		InitLogrus(logType)
+		// log.Log(level, "("+microserviceName+") "+message)
+		log.Log(level, message)
+	}
 }
 
 /*
@@ -311,4 +327,16 @@ Store microservice name locally
 */
 func SetMicroservice(username string) {
 	microserviceName = username
+}
+
+/*
+Config func to get env value from key ---
+*/
+func Config(key string) string {
+	// load .env file
+	err := godotenv.Load(".env")
+	if err != nil {
+		fmt.Print("Error loading .env file")
+	}
+	return os.Getenv(key)
 }

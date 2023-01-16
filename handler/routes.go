@@ -1,8 +1,6 @@
 package handler
 
 import (
-	"os"
-
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 	"lineblocs.com/api/utils"
@@ -14,7 +12,7 @@ Matching API end points and Handler function
 */
 
 func (h *Handler) Register(r *echo.Echo) {
-	if os.Getenv("USE_AUTH_MIDDLEWARE") == "on" {
+	if utils.Config("USE_AUTH_MIDDLEWARE") == "on" {
 		// Set BasicAuth Middleware
 		r.Use(middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
 			if h.userStore.ValidateAccess(username, password) {

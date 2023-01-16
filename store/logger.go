@@ -3,7 +3,6 @@ package store
 import (
 	"context"
 	"database/sql"
-	"os"
 	"strconv"
 	"time"
 
@@ -77,7 +76,7 @@ Todo : Send Log email.
 Output: If success return nil else return err
 */
 func sendLogRoutineEmail(log *model.LogRoutine, user *lineblocs.User, workspace *model.Workspace) error {
-	mg := mailgun.NewMailgun(os.Getenv("MAILGUN_DOMAIN"), os.Getenv("MAILGUN_API_KEY"))
+	mg := mailgun.NewMailgun(utils.Config("MAILGUN_DOMAIN"), utils.Config("MAILGUN_API_KEY"))
 	m := mg.NewMessage(
 		"Lineblocs <monitor@lineblocs.com>",
 		"Debug Monitor",

@@ -8,6 +8,7 @@ require (
 	github.com/bshuster-repo/logrus-logstash-hook v1.1.0
 	github.com/go-sql-driver/mysql v1.7.0
 	github.com/google/uuid v1.3.0
+	github.com/joho/godotenv v1.4.0
 	github.com/kdar/logrus-cloudwatchlogs v0.0.0-20200414190340-facbc54742f0
 	github.com/labstack/echo/v4 v4.10.0
 	github.com/labstack/gommon v0.4.0

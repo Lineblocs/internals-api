@@ -2,7 +2,6 @@ package main
 
 import (
 	"net/http"
-	"os"
 	"sync"
 	"time"
 
@@ -26,8 +25,6 @@ var db *sql.DB
 var data *model.ServerData
 
 func main() {
-	utils.InitLogrus()
-
 	utils.Log(logrus.InfoLevel, "Starting API...")
 
 	// Load media_server list from db and create media server
@@ -71,7 +68,7 @@ func startServer() {
 	r := router.New()
 	utils.Log(logrus.InfoLevel, "Starting HTTP server...")
 	// Configure Limit Handler if USE_LIMIT_MIDDLEWARE is "on"
-	if os.Getenv("USE_LIMIT_MIDDLEWARE") == "on" {
+	if utils.Config("USE_LIMIT_MIDDLEWARE") == "on" {
 		r.Any("", limitHandler)
 	}
 
@@ -87,14 +84,13 @@ func startServer() {
 	h := handler.NewHandler(as, cs, crs, ds, fs, ls, rs, us)
 
 	// Register Handler for Echo context
-	fmt.Println(h)
 	h.Register(r)
 
 	// Start with 443 port if TLS is ON
 	utils.Log(logrus.InfoLevel, "Starting HTTP server without TLS\r\n")
-	if os.Getenv("USE_TLS") == "on" {
-		certPath := os.Getenv("TLS_CERT_PATH")
-		keyPath := os.Getenv("TLS_KEY_PATH")
+	if utils.Config("USE_TLS") == "on" {
+		certPath := utils.Config("TLS_CERT_PATH")
+		keyPath := utils.Config("TLS_KEY_PATH")
 
 		utils.Log(logrus.InfoLevel, fmt.Sprintf("Starting HTTP server with TLS. cert=%s,  key=%s\r\n", certPath, keyPath))
 		r.Logger.Fatal(r.StartTLS(":443", certPath, keyPath))
@@ -113,7 +109,7 @@ func startServer() {
 func limitHandler(c echo.Context) error {
 	var addr string
 	requestedAddr := c.QueryParam("addr")
-	if &requestedAddr != nil {
+	if requestedAddr == "" {
 		addr = requestedAddr
 	} else {
 		addr = c.RealIP()

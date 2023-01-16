@@ -3,7 +3,6 @@ package handler
 import (
 	"context"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/labstack/echo/v4"
@@ -42,7 +41,7 @@ func (h *Handler) SendAdminEmail(c echo.Context) error {
 		return utils.HandleInternalErr("SendAdminEmail Could not decode JSON", err, c)
 	}
 
-	mg := mailgun.NewMailgun(os.Getenv("MAILGUN_DOMAIN"), os.Getenv("MAILGUN_API_KEY"))
+	mg := mailgun.NewMailgun(utils.Config("MAILGUN_DOMAIN"), utils.Config("MAILGUN_API_KEY"))
 	m := mg.NewMessage(
 		"Lineblocs <monitor@lineblocs.com>",
 		"Admin Error",
