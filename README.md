@@ -52,9 +52,14 @@ apiKey = PMAK-63c11b3766698c5953a3333b-bc04bedd1b5fb17cba12cae7c1de9018ec
 
 ## Debugging
 
-Debugging issues by tracking logs
+### Configure HTTP and HTTPS PORT
+API uses default 80 port for HTTP and 443 for HTTPS
+You Configure ports with HTTP_PORT and HTTPS_PORT environment variable.
+export HTTP_PORT=80
+export HTTPS_PORT=443
 
 ### Configure log channels
+Debugging issues by tracking logs
 
 There are 4 log channels including console, file, cloudwatch, logstash
 Set LOG_DESTINATIONS variable in .env file
