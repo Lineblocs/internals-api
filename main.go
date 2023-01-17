@@ -91,15 +91,15 @@ func startServer() {
 	if utils.Config("USE_TLS") == "on" {
 		certPath := utils.Config("TLS_CERT_PATH")
 		keyPath := utils.Config("TLS_KEY_PATH")
-
+		httpsPort := utils.ReadEnv("HTTPS_PORT", "443")
 		utils.Log(logrus.InfoLevel, fmt.Sprintf("Starting HTTP server with TLS. cert=%s,  key=%s\r\n", certPath, keyPath))
-		r.Logger.Fatal(r.StartTLS(":443", certPath, keyPath))
+		r.Logger.Fatal(r.StartTLS(":" + httpsPort, certPath, keyPath))
 		utils.Log(logrus.InfoLevel, "Started server...")
 		return
 	}
 
 	// Start with 80 port if TLS is OFF
-	httpPort := utils.ReadEnv("HTTP_PORT", "8001")
+	httpPort := utils.ReadEnv("HTTP_PORT", "80")
 	utils.Log(logrus.InfoLevel, fmt.Sprintf("HTTP port %s\r\n", httpPort))
 	r.Logger.Fatal(r.Start(":" + httpPort))
 	utils.Log(logrus.InfoLevel, "Started server...")
