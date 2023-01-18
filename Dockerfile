@@ -12,9 +12,6 @@ WORKDIR /app
 # Copy go mod and sum files
 COPY go.mod go.sum ./
 
-ADD keys/key /root/.ssh/id_rsa
-RUN chmod 700 /root/.ssh/id_rsa
-ADD .gitconfig /root/.gitconfig
 #RUN echo "Host bitbucket.org\n\tStrictHostKeyChecking no\n" >> /root/.ssh/config
 #RUN git config --global url.ssh://git@bitbucket.org/.insteadOf https://bitbucket.org/
 # Download all dependencies. Dependencies will be cached if the go.mod and go.sum files are not changed
