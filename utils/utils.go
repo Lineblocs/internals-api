@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -13,14 +14,15 @@ import (
 	"time"
 
 	lineblocs "github.com/Lineblocs/go-helpers"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	"github.com/aws/aws-sdk-go/service/sts"
 	logrustash "github.com/bshuster-repo/logrus-logstash-hook"
 	guuid "github.com/google/uuid"
+	logruscloudwatch "github.com/innix/logrus-cloudwatch"
 	"github.com/joho/godotenv"
-	logrus_cloudwatchlogs "github.com/kdar/logrus-cloudwatchlogs"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	easy "github.com/t-tomalak/logrus-easy-formatter"
@@ -28,10 +30,8 @@ import (
 )
 
 var settings *model.GlobalSettings
-var log = logrus.New()
+var log *logrus.Logger
 var microserviceName string
-var logEnv string
-var logTypes []string
 
 func CreateAPIID(prefix string) string {
 	id := guuid.New()
@@ -236,73 +236,51 @@ func GetSetting() *model.GlobalSettings {
 	return settings
 }
 
-// Configure Logrus
-func InitLogrus(logType string) {
-	switch logType {
-	case "console":
-		log = &logrus.Logger{
-			Out:   os.Stderr,
-			Level: logrus.DebugLevel,
-			Formatter: &easy.Formatter{
-				TimestampFormat: "2023-01-01 15:00:00",
-				LogFormat:       "%lvl%: %time% - %msg%\n",
-			},
-		}
-	case "file":
-		log = &logrus.Logger{
-			Out:   os.Stdout,
-			Level: logrus.DebugLevel,
-			Formatter: &easy.Formatter{
-				TimestampFormat: "2023-01-01 15:00:00",
-				LogFormat:       "%lvl%: %time% - %msg%\n",
-			},
-		}
-		file, err := os.OpenFile("logrus.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-		if err == nil {
-			log.Out = file
-		} else {
-			log.Info("Failed to log to file, using default stderr")
-		}
-	case "cloudwatch":
-		group := Config("AWS_CLOUDWATCHLOGS_GROUP_NAME")
-		stream := Config("AWS_CLOUDWATCHLOGS_STREAM_NAME")
+// Init Logrus
+func InitLogrus() {
+	log = logrus.New()
+	//Default Configure for console
+	log = &logrus.Logger{
+		Out:   os.Stdout,
+		Level: logrus.DebugLevel,
+		Formatter: &easy.Formatter{
+			TimestampFormat: "2006-01-02 15:04:05",
+			LogFormat:       "%lvl%: %time% - %msg%\n",
+		},
+		Hooks: log.Hooks,
+	}
+	logEnv := Config("LOG_DESTINATIONS")
+	dests := strings.Split(logEnv, ",")
 
-		// logs.us-east-1.amazonaws.com
-		// Define the session - using SharedConfigState which forces file or env creds
-		sess, err := session.NewSessionWithOptions(session.Options{
-			SharedConfigState: session.SharedConfigEnable,
-			Config:            aws.Config{Region: aws.String("us-east-1")},
-		})
-		if err != nil {
-			panic("Not going to be able to write to cloud watch if you cant create a session")
-		}
+	for _, dest := range dests {
+		switch dest {
+		case "file":
+			logFile, err := os.OpenFile("log.txt", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
+			if err != nil {
+				panic(err)
+			}
+			mw := io.MultiWriter(os.Stdout, logFile)
+			log.SetOutput(mw)
+		case "cloudwatch":
+			cfg, err := config.LoadDefaultConfig(context.Background())
+			if err != nil {
+				log.Fatalf("Could not load AWS config: %v", err)
+			}
+			client := cloudwatchlogs.NewFromConfig(cfg)
 
-		// Determine if we are authorized to access AWS with the credentials provided. This does not mean you have access to the
-		// services required however.
-		_, err = sts.New(sess).GetCallerIdentity(&sts.GetCallerIdentityInput{})
-		if err != nil {
-			panic("Couldn't Validate our aws credentials")
+			hook, err := logruscloudwatch.New(client, nil)
+			if err != nil {
+				log.Fatalf("Could not create CloudWatch hook: %v", err)
+			}
+			log.AddHook(hook)
+		case "logstash":
+			conn, err := net.Dial("tcp", "logstash.mycompany.net:8911")
+			if err != nil {
+				log.Fatal(err)
+			}
+			hook := logrustash.New(conn, logrustash.DefaultFormatter(logrus.Fields{"type": "myappName"}))
+			log.Hooks.Add(hook)
 		}
-
-		hook, err := logrus_cloudwatchlogs.NewHook(group, stream, sess)
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		log.Hooks.Add(hook)
-		log.Out = io.Discard
-		log.Formatter = logrus_cloudwatchlogs.NewProdFormatter()
-	case "logstash":
-		conn, err := net.Dial("tcp", "logstash.mycompany.net:8911")
-		if err != nil {
-			log.Fatal(err)
-		}
-		hook := logrustash.New(conn, logrustash.DefaultFormatter(logrus.Fields{"type": "myappName"}))
-
-		log.Hooks.Add(hook)
-		log.WithFields(logrus.Fields{
-			"method": "main",
-		})
 	}
 }
 
@@ -312,15 +290,8 @@ Todo: Log message with level(Info, Warning, Error, Panic)
 Output:
 */
 func Log(level logrus.Level, message string) {
-	if logEnv == "" {
-		logEnv = Config("LOG_DESTINATIONS")
-		logTypes = strings.Split(logEnv, ",")
-	}
-	for _, logType := range logTypes {
-		InitLogrus(logType)
-		// log.Log(level, "("+microserviceName+") "+message)
-		log.Log(level, message)
-	}
+	// log.Log(level, "("+microserviceName+") "+message)
+	log.Log(level, message)
 }
 
 /*
