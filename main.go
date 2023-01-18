@@ -25,8 +25,11 @@ var db *sql.DB
 var data *model.ServerData
 
 func main() {
-	utils.Log(logrus.InfoLevel, "Starting API...")
 
+	// Init Logrus and configure channels
+	utils.InitLogrus()
+
+	utils.Log(logrus.InfoLevel, "Starting API...")
 	// Load media_server list from db and create media server
 	var err error
 	servers, err := lineblocs.CreateMediaServers()
@@ -93,7 +96,7 @@ func startServer() {
 		keyPath := utils.Config("TLS_KEY_PATH")
 		httpsPort := utils.ReadEnv("HTTPS_PORT", "443")
 		utils.Log(logrus.InfoLevel, fmt.Sprintf("Starting HTTP server with TLS. cert=%s,  key=%s\r\n", certPath, keyPath))
-		r.Logger.Fatal(r.StartTLS(":" + httpsPort, certPath, keyPath))
+		r.Logger.Fatal(r.StartTLS(":"+httpsPort, certPath, keyPath))
 		utils.Log(logrus.InfoLevel, "Started server...")
 		return
 	}
