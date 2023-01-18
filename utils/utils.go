@@ -30,6 +30,8 @@ import (
 var settings *model.GlobalSettings
 var log = logrus.New()
 var microserviceName string
+var logEnv string
+var logTypes []string
 
 func CreateAPIID(prefix string) string {
 	id := guuid.New()
@@ -236,7 +238,6 @@ func GetSetting() *model.GlobalSettings {
 
 // Configure Logrus
 func InitLogrus(logType string) {
-	fmt.Println(logType)
 	switch logType {
 	case "console":
 		log = &logrus.Logger{
@@ -311,11 +312,11 @@ Todo: Log message with level(Info, Warning, Error, Panic)
 Output:
 */
 func Log(level logrus.Level, message string) {
-	logEnv := Config("LOG_DESTINATIONS")
-	fmt.Println("LogEnv:", logEnv)
-	logTypes := strings.Split(logEnv, ",")
+	if logEnv == "" {
+		logEnv = Config("LOG_DESTINATIONS")
+		logTypes = strings.Split(logEnv, ",")
+	}
 	for _, logType := range logTypes {
-		fmt.Println("LogType:", logType)
 		InitLogrus(logType)
 		// log.Log(level, "("+microserviceName+") "+message)
 		log.Log(level, message)
@@ -335,7 +336,7 @@ Config func to get env value from key ---
 func Config(key string) string {
 	// load .env file
 	loadDotEnv := os.Getenv("USE_DOTENV")
-	if loadDotEnv != "off"  {
+	if loadDotEnv != "off" {
 		err := godotenv.Load(".env")
 		if err != nil {
 			fmt.Print("Error loading .env file")
