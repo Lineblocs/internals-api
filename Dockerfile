@@ -24,6 +24,8 @@ RUN go build -o main .
 
 # Expose port 80 to the outside world
 EXPOSE 80
+# for K8s and other environments
+EXPOSE 8010
 
 # Command to run the executable
 CMD ["./main"]
