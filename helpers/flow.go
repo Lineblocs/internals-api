@@ -1,47 +1,51 @@
 package helpers
+
 import (
-	"fmt"
 	"database/sql"
-	"strconv"
 	"errors"
+	"fmt"
 	"sort"
+	"strconv"
+
 	//"encoding/json"
 	"reflect"
+
+	"github.com/sirupsen/logrus"
+	"lineblocs.com/api/utils"
 )
 
 type FlowInfo struct {
-	FlowId          int               `json:"flow_id"`
-	FlowJSON        string            `json:"flow_json"`
-
+	FlowId   int    `json:"flow_id"`
+	FlowJSON string `json:"flow_json"`
 }
 type Vertice struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
 }
 type CellConnection struct {
-	Id string `json:"id"`
+	Id   string `json:"id"`
 	Port string `json:"port"`
 }
 type GraphCell struct {
-	Id string `json:"id"`
-	Name string `json:"name"`
-	Type string `json:"type"`
-	Source CellConnection `json:"source"`
-	Target CellConnection `json:"target"`
-	Vertices []Vertice `json:"vertices"`
+	Id       string         `json:"id"`
+	Name     string         `json:"name"`
+	Type     string         `json:"type"`
+	Source   CellConnection `json:"source"`
+	Target   CellConnection `json:"target"`
+	Vertices []Vertice      `json:"vertices"`
 }
 
 type Link struct {
-	Link *GraphCell
+	Link   *GraphCell
 	Source *Cell
 	Target *Cell
 }
 type Cell struct {
-	Cell *GraphCell
-	Model *Model
+	Cell        *GraphCell
+	Model       *Model
 	SourceLinks []*Link
 	TargetLinks []*Link
-	EventVars map[string]string
+	EventVars   map[string]string
 }
 
 type ModelData interface {
@@ -57,46 +61,46 @@ type ModelDataArr struct {
 	Value []string
 }
 type ModelDataObj struct {
-	Value map[string] string
+	Value map[string]string
 }
 type ModelLink struct {
-	Type string `json:"type"`
+	Type      string `json:"type"`
 	Condition string `json:"condition"`
-	Value string `json:"value"`
-	Cell string `json:"cell"`
+	Value     string `json:"value"`
+	Cell      string `json:"cell"`
 }
 type Model struct {
-	Id string
-	Name string
-	Data map[string] ModelData
+	Id    string
+	Name  string
+	Data  map[string]ModelData
 	Links []*ModelLink `json:"links"`
 }
 
 type UnparsedModel struct {
-	Id string `json:"id"`
-	Name string `json:"name"`
-	Data map[string]interface{} `json:"data"`
-	Links []*ModelLink `json:"links"`
-
+	Id    string                 `json:"id"`
+	Name  string                 `json:"name"`
+	Data  map[string]interface{} `json:"data"`
+	Links []*ModelLink           `json:"links"`
 }
 type Graph struct {
 	Cells []*GraphCell `json:"cells"`
 }
 type FlowVars struct {
-	Graph Graph `json:"graph"`
+	Graph  Graph           `json:"graph"`
 	Models []UnparsedModel `json:"models"`
 }
 
 type FlowDIDData struct {
 	//FlowJson FlowVars `json:"flow_json"`
-	FlowId int `json:"flow_id"`
-	WorkspaceId int `json:"workspace_id"`
+	FlowId        int    `json:"flow_id"`
+	WorkspaceId   int    `json:"workspace_id"`
 	WorkspaceName string `json:"workspace_name"`
-	CreatorId int `json:"creator_id"`
-	FlowJson string `json:"flow_json"`
-	Plan string `json:"plan"`
+	CreatorId     int    `json:"creator_id"`
+	FlowJson      string `json:"flow_json"`
+	Plan          string `json:"plan"`
 }
-func findCellInFlow(id string, flow *Flow) (*Cell) {
+
+func findCellInFlow(id string, flow *Flow) *Cell {
 
 	var cellToFind *GraphCell
 	for _, cell := range flow.Vars.Graph.Cells {
@@ -107,23 +111,23 @@ func findCellInFlow(id string, flow *Flow) (*Cell) {
 	if cellToFind == nil {
 		// could not find
 	}
-	cell := Cell{ Cell: cellToFind, EventVars: make( map[string]string ) }
+	cell := Cell{Cell: cellToFind, EventVars: make(map[string]string)}
 	return &cell
 }
 
-func findLinkByName( links []*Link, direction string, tag string) (*Link, error) {
-		fmt.Println("FindLinkByName called...")
+func findLinkByName(links []*Link, direction string, tag string) (*Link, error) {
+	utils.Log(logrus.InfoLevel, "FindLinkByName called...")
 	for _, link := range links {
-		fmt.Println("FindLinkByName checking source port: " + link.Link.Source.Port)
-		fmt.Println("FindLinkByName checking target port: " + link.Link.Target.Port)
+		utils.Log(logrus.InfoLevel, "FindLinkByName checking source port: "+link.Link.Source.Port)
+		utils.Log(logrus.InfoLevel, "FindLinkByName checking target port: "+link.Link.Target.Port)
 		if direction == "source" {
-			fmt.Println("FindLinkByName checking link: " + link.Source.Cell.Name)
+			utils.Log(logrus.InfoLevel, "FindLinkByName checking link: "+link.Source.Cell.Name)
 			if link.Link.Source.Port == tag {
 				return link, nil
 			}
 		} else if direction == "target" {
 
-			fmt.Println("FindLinkByName checking link: " + link.Target.Cell.Name)
+			utils.Log(logrus.InfoLevel, "FindLinkByName checking link: "+link.Target.Cell.Name)
 			if link.Link.Target.Port == tag {
 				return link, nil
 			}
@@ -131,83 +135,83 @@ func findLinkByName( links []*Link, direction string, tag string) (*Link, error)
 	}
 	return nil, errors.New("Could not find link")
 }
-	
+
 func createCellData(cell *Cell, flow *Flow) {
 	var model Model = Model{
-		Id: "",
-		Data: make(map[string] ModelData) }
-	sourceLinks := make( []*Link, 0 )
-	targetLinks := make( []*Link, 0 )
+		Id:   "",
+		Data: make(map[string]ModelData)}
+	sourceLinks := make([]*Link, 0)
+	targetLinks := make([]*Link, 0)
 	for _, item := range flow.Vars.Models {
-		if (item.Id == cell.Cell.Id) {
+		if item.Id == cell.Cell.Id {
 			//unparsedModel := item
 			var modelData map[string]interface{}
 			modelData = item.Data
-			model.Name =  item.Name
-			model.Links =  item.Links
+			model.Name = item.Name
+			model.Links = item.Links
 			//json.Unmarshal([]byte(unparsedModel.Data), &modelData)
 
 			for key, v := range modelData {
 				//var item ModelData
 				//item = ModelData{}
- 				typeOfValue := fmt.Sprintf("%s", reflect.TypeOf(v))
+				typeOfValue := fmt.Sprintf("%s", reflect.TypeOf(v))
 
-				fmt.Printf("parsing type %s\r\n", typeOfValue)
-					fmt.Printf("setting key: %s\r\n", key)
-				switch ; typeOfValue {
-					case "[]string":
-						// it's an array
-						value := v.([]string)
-						model.Data[key]= ModelDataArr{Value: value}
-						//item.ValueArr = v
-						//item.IsArray = true
+				utils.Log(logrus.InfoLevel, fmt.Sprintf("parsing type %s\r\n", typeOfValue))
+				utils.Log(logrus.InfoLevel, fmt.Sprintf("setting key: %s\r\n", key))
+				switch typeOfValue {
+				case "[]string":
+					// it's an array
+					value := v.([]string)
+					model.Data[key] = ModelDataArr{Value: value}
+					//item.ValueArr = v
+					//item.IsArray = true
 
-					case "map[string]string":
-						// it's an object
-						fmt.Println("converting obj")
-						value := v.(map[string]string)
-						model.Data[key]=ModelDataObj{Value: value}
-						//item.ValueObj = v
-						//item.IsObj = true
-					case "string":
-						// it's something else
-						//item.ValueStr = v.(string)
-						//item.IsStr = true
-						value := v.(string)
-						model.Data[key]=ModelDataStr{Value: value}
-					case "boolean":
-						// it's something else
-						//item.ValueBool = v.(bool)
-						//item.IsBool = true
-						value := v.(bool)
-						model.Data[key]=ModelDataBool{Value: value}
-					}
+				case "map[string]string":
+					// it's an object
+					utils.Log(logrus.InfoLevel, "converting obj")
+					value := v.(map[string]string)
+					model.Data[key] = ModelDataObj{Value: value}
+					//item.ValueObj = v
+					//item.IsObj = true
+				case "string":
+					// it's something else
+					//item.ValueStr = v.(string)
+					//item.IsStr = true
+					value := v.(string)
+					model.Data[key] = ModelDataStr{Value: value}
+				case "boolean":
+					// it's something else
+					//item.ValueBool = v.(bool)
+					//item.IsBool = true
+					value := v.(bool)
+					model.Data[key] = ModelDataBool{Value: value}
+				}
 
 			}
 		}
-	}	
+	}
 
 	cell.Model = &model
 
 	for _, item := range flow.Vars.Graph.Cells {
 		if item.Type == "devs.FlowLink" {
-			fmt.Printf("createCellData processing link %s\r\n", item.Type)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("createCellData processing link %s\r\n", item.Type))
 			if item.Source.Id == cell.Cell.Id {
-				fmt.Printf("createCellData adding target link %s\r\n", item.Target.Id)
-				destCell := addCellToFlow( item.Target.Id, flow )
+				utils.Log(logrus.InfoLevel, fmt.Sprintf("createCellData adding target link %s\r\n", item.Target.Id))
+				destCell := addCellToFlow(item.Target.Id, flow)
 				link := &Link{
-					Link: item,
+					Link:   item,
 					Source: cell,
-					Target: destCell }
-				sourceLinks = append( sourceLinks, link )
+					Target: destCell}
+				sourceLinks = append(sourceLinks, link)
 			} else if item.Target.Id == cell.Cell.Id {
-				fmt.Printf("createCellData adding source link %s\r\n", item.Target.Id)
-				srcCell := addCellToFlow( item.Target.Id, flow )
+				utils.Log(logrus.InfoLevel, fmt.Sprintf("createCellData adding source link %s\r\n", item.Target.Id))
+				srcCell := addCellToFlow(item.Target.Id, flow)
 				link := &Link{
-					Link: item,
+					Link:   item,
 					Source: srcCell,
-					Target: cell }
-				targetLinks = append( targetLinks, link )
+					Target: cell}
+				targetLinks = append(targetLinks, link)
 			}
 
 		}
@@ -215,7 +219,7 @@ func createCellData(cell *Cell, flow *Flow) {
 	cell.SourceLinks = sourceLinks
 	cell.TargetLinks = targetLinks
 }
-func addCellToFlow(id string, flow *Flow) (*Cell) {
+func addCellToFlow(id string, flow *Flow) *Cell {
 
 	for _, cell := range flow.Cells {
 		if cell.Cell.Id == id {
@@ -225,61 +229,60 @@ func addCellToFlow(id string, flow *Flow) (*Cell) {
 
 	cellInFlow := findCellInFlow(id, flow)
 
-	fmt.Printf("adding cell %s", cellInFlow.Cell.Id)
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("adding cell %s", cellInFlow.Cell.Id))
 	flow.Cells = append(flow.Cells, cellInFlow)
 	createCellData(cellInFlow, flow)
 	return cellInFlow
 }
 
 type FlowContext struct {
-	DbConn *sql.DB
-	Cell *Cell
-	Data map[string]string
+	DbConn    *sql.DB
+	Cell      *Cell
+	Data      map[string]string
 	Providers []*RoutablePSTNProvider
 }
 
 type RoutablePSTNProvider struct {
-	Id int
-	Name string
+	Id    int
+	Name  string
 	Hosts []RoutableHost
-	Data map[string] int
+	Data  map[string]int
 }
 
 type RoutableHost struct {
 	Priority int
-	IPAddr string
-	Prefix string
+	IPAddr   string
+	Prefix   string
 }
-
-
 
 type FlowResponse struct {
 	Providers []*RoutablePSTNProvider
-	Link *Link
+	Link      *Link
 }
 type BaseManager interface {
 	Process() (*FlowResponse, error)
 }
 type Manager struct {
-	Ctx *FlowContext 
+	Ctx *FlowContext
 }
 type CallCapacityManager struct {
-*Manager
+	*Manager
 }
-func NewCallCapacityManager(ctx *FlowContext) (*CallCapacityManager) {
-	return &CallCapacityManager{&Manager{Ctx: ctx}};
+
+func NewCallCapacityManager(ctx *FlowContext) *CallCapacityManager {
+	return &CallCapacityManager{&Manager{Ctx: ctx}}
 }
 
 func (man *CallCapacityManager) Process() (*FlowResponse, error) {
-	db:= man.Ctx.DbConn
-	cell:= man.Ctx.Cell
+	db := man.Ctx.DbConn
+	cell := man.Ctx.Cell
 	//providers := make( []*RoutablePSTNProvider,0 )
 	providers := man.Ctx.Providers
 
-	outLink, _ := findLinkByName( cell.TargetLinks, "source", "Out")
-	noMatchLink, _ := findLinkByName( cell.TargetLinks, "source", "No match")
+	outLink, _ := findLinkByName(cell.TargetLinks, "source", "Out")
+	noMatchLink, _ := findLinkByName(cell.TargetLinks, "source", "No match")
 	// lookup by country
-	results,err  := db.Query(`SELECT sip_providers.provider_id, 
+	results, err := db.Query(`SELECT sip_providers.provider_id, 
 sip_providers_hosts.name,
 sip_providers_hosts.ip_address,
 sip_providers_hosts.priority,
@@ -309,63 +312,62 @@ WHERE sip_countries.country_code= ?`, man.Ctx.Data["dest_code"])
 		if err != nil {
 			return nil, err
 		}
-		provider := createOrUseExistingProvider( providers, providerId )
+		provider := createOrUseExistingProvider(providers, providerId)
 		host := RoutableHost{
-			Prefix: prefixes,
+			Prefix:   prefixes,
 			Priority: priority,
-			IPAddr: ipAddr }
+			IPAddr:   ipAddr}
 		provider.Data["channels"] = channels
-		provider.Hosts = append( provider.Hosts, host )
-		providers = append( providers, provider )
+		provider.Hosts = append(provider.Hosts, host)
+		providers = append(providers, provider)
 	}
 	// sort based on costs
 	sort.SliceStable(providers, func(i, j int) bool {
 		return providers[i].Data["channels"] < providers[j].Data["channels"]
 	})
 
-	return createFlowResponse( providers, outLink, noMatchLink ), nil
+	return createFlowResponse(providers, outLink, noMatchLink), nil
 }
-
 
 type LowCostManager struct {
-*Manager
+	*Manager
 }
 
-func NewLowCostManager(ctx *FlowContext) (*LowCostManager) {
+func NewLowCostManager(ctx *FlowContext) *LowCostManager {
 	return &LowCostManager{&Manager{Ctx: ctx}}
 }
-func createOrUseExistingProvider( providers []*RoutablePSTNProvider, providerId int) (*RoutablePSTNProvider) {
-	for _, value := range providers  {
+func createOrUseExistingProvider(providers []*RoutablePSTNProvider, providerId int) *RoutablePSTNProvider {
+	for _, value := range providers {
 		if value.Id == providerId {
 			return value
 		}
 	}
 
 	// create new one
-	return &RoutablePSTNProvider{Id: providerId, Hosts: make([]RoutableHost, 0), Data: make( map[string]int )}
+	return &RoutablePSTNProvider{Id: providerId, Hosts: make([]RoutableHost, 0), Data: make(map[string]int)}
 }
-func createFlowResponse( providers []*RoutablePSTNProvider, outLink, noMatchLink *Link) (*FlowResponse) {
-	var link* Link = outLink
+func createFlowResponse(providers []*RoutablePSTNProvider, outLink, noMatchLink *Link) *FlowResponse {
+	var link *Link = outLink
 
-	if len( providers ) == 0 {
+	if len(providers) == 0 {
 		link = noMatchLink
 	}
 	resp := FlowResponse{
 		Providers: providers,
-		Link: link	}
+		Link:      link}
 	return &resp
 }
 
 func (man *LowCostManager) Process() (*FlowResponse, error) {
-	db:= man.Ctx.DbConn
-	cell:= man.Ctx.Cell
+	db := man.Ctx.DbConn
+	cell := man.Ctx.Cell
 	//providers := make( []*RoutablePSTNProvider,0 )
 	providers := man.Ctx.Providers
 
-	outLink, _ := findLinkByName( cell.TargetLinks, "source", "Out")
-	noMatchLink, _ := findLinkByName( cell.TargetLinks, "source", "No match")
+	outLink, _ := findLinkByName(cell.TargetLinks, "source", "Out")
+	noMatchLink, _ := findLinkByName(cell.TargetLinks, "source", "No match")
 	// lookup by country
-	results,err  := db.Query(`SELECT sip_providers_call_rates.provider_id, 
+	results, err := db.Query(`SELECT sip_providers_call_rates.provider_id, 
 sip_providers_hosts.name,
 sip_providers_hosts.ip_address,
 sip_providers_hosts.priority,
@@ -394,29 +396,28 @@ WHERE sip_countries.country_code= ?`, man.Ctx.Data["dest_code"])
 		if err != nil {
 			return nil, err
 		}
-		provider := createOrUseExistingProvider( providers, providerId )
+		provider := createOrUseExistingProvider(providers, providerId)
 		host := RoutableHost{
 			Priority: priority,
-			IPAddr: ipAddr }
+			IPAddr:   ipAddr}
 		provider.Data["cost"] = rate
-		provider.Hosts = append( provider.Hosts, host )
-		providers = append( providers, provider )
+		provider.Hosts = append(provider.Hosts, host)
+		providers = append(providers, provider)
 	}
 	// sort based on costs
 	sort.SliceStable(providers, func(i, j int) bool {
 		return providers[i].Data["cost"] < providers[j].Data["cost"]
 	})
 
-	return createFlowResponse( providers, outLink, noMatchLink ), nil
+	return createFlowResponse(providers, outLink, noMatchLink), nil
 }
-
 
 type HighCostManager struct {
-*Manager
+	*Manager
 }
 
-func NewHighCostManager(ctx *FlowContext) (*HighCostManager) {
-	return &HighCostManager{&Manager{Ctx: ctx}};
+func NewHighCostManager(ctx *FlowContext) *HighCostManager {
+	return &HighCostManager{&Manager{Ctx: ctx}}
 }
 
 func (man *HighCostManager) Process() (*FlowResponse, error) {
@@ -424,11 +425,11 @@ func (man *HighCostManager) Process() (*FlowResponse, error) {
 }
 
 type LocationCheckManager struct {
-*Manager
+	*Manager
 }
 
-func NewLocationCheckManager(ctx *FlowContext) (*LocationCheckManager) {
-	return &LocationCheckManager{&Manager{Ctx: ctx}};
+func NewLocationCheckManager(ctx *FlowContext) *LocationCheckManager {
+	return &LocationCheckManager{&Manager{Ctx: ctx}}
 }
 
 func (man *LocationCheckManager) Process() (*FlowResponse, error) {
@@ -436,27 +437,23 @@ func (man *LocationCheckManager) Process() (*FlowResponse, error) {
 }
 
 type SortServersManager struct {
-*Manager
+	*Manager
 }
 
-func NewSortServersManager(ctx *FlowContext) (*SortServersManager) {
-	return &SortServersManager{&Manager{Ctx: ctx}};
+func NewSortServersManager(ctx *FlowContext) *SortServersManager {
+	return &SortServersManager{&Manager{Ctx: ctx}}
 }
 
 func (man *SortServersManager) Process() (*FlowResponse, error) {
 	return nil, nil
 }
 
-
-
-
-
 type UserPriorityManager struct {
-*Manager
+	*Manager
 }
 
-func NewUserPriorityManager(ctx *FlowContext) (*UserPriorityManager) {
-	return &UserPriorityManager{&Manager{Ctx: ctx}};
+func NewUserPriorityManager(ctx *FlowContext) *UserPriorityManager {
+	return &UserPriorityManager{&Manager{Ctx: ctx}}
 }
 
 func (man *UserPriorityManager) Process() (*FlowResponse, error) {
@@ -464,75 +461,67 @@ func (man *UserPriorityManager) Process() (*FlowResponse, error) {
 }
 
 type EndRoutingManager struct {
-*Manager
+	*Manager
 }
 
-func NewEndRoutingManager(ctx *FlowContext) (*EndRoutingManager) {
-	return &EndRoutingManager{&Manager{Ctx: ctx}};
+func NewEndRoutingManager(ctx *FlowContext) *EndRoutingManager {
+	return &EndRoutingManager{&Manager{Ctx: ctx}}
 }
 
 func (man *EndRoutingManager) Process() (*FlowResponse, error) {
 	return nil, nil
 }
 
-
-
 type NoRoutingManager struct {
-*Manager
+	*Manager
 }
 
-func NewNoRoutingManager(ctx *FlowContext) (*NoRoutingManager) {
-	return &NoRoutingManager{&Manager{Ctx: ctx}};
+func NewNoRoutingManager(ctx *FlowContext) *NoRoutingManager {
+	return &NoRoutingManager{&Manager{Ctx: ctx}}
 }
 
 func (man *NoRoutingManager) Process() (*FlowResponse, error) {
 	return nil, nil
 }
 
-
-
-
-
-
-
-func ProcessFlow( flow *Flow, cell *Cell, providers []*RoutablePSTNProvider, data map[string]string, db *sql.DB) ([]*RoutablePSTNProvider, error) {
-	fmt.Println("source link count: " + strconv.Itoa( len( cell.SourceLinks )))
-	fmt.Println("target link count: " + strconv.Itoa( len( cell.TargetLinks )))
+func ProcessFlow(flow *Flow, cell *Cell, providers []*RoutablePSTNProvider, data map[string]string, db *sql.DB) ([]*RoutablePSTNProvider, error) {
+	utils.Log(logrus.InfoLevel, "source link count: "+strconv.Itoa(len(cell.SourceLinks)))
+	utils.Log(logrus.InfoLevel, "target link count: "+strconv.Itoa(len(cell.TargetLinks)))
 	// execute it
 	var mngr BaseManager
 	var isFinished bool = false
 
 	ctx := &FlowContext{
 		DbConn: db,
-		Data: data,
-		Cell: cell }
-	switch ; cell.Cell.Type {
-		case "devs.LaunchModel":
-			for _, link := range cell.SourceLinks {
-				return ProcessFlow( flow, link.Target, providers, data, db )
-			}
-			return providers,nil
-		case "devs.CallCapacityModel":
-			mngr = NewCallCapacityManager(ctx)
-		case "devs.LowCostModel":
-			mngr = NewLowCostManager(ctx)
-		case "devs.HighCostModel":
-			mngr = NewHighCostManager(ctx)
-		case "devs.LocationCheckModel":
-			mngr = NewLocationCheckManager(ctx)
-		case "devs.UserPriorityModel":
-			mngr = NewUserPriorityManager(ctx)
-		case "devs.SortServersModel":
-			mngr = NewSortServersManager(ctx)
-		case "devs.EndRoutingModel":
-			mngr = NewEndRoutingManager(ctx)
-			isFinished = true
-		case "devs.NoRoutingModel":
-			mngr = NewNoRoutingManager(ctx)
-			isFinished = true
-		default:
-			fmt.Println("unknown type of cell..")
-			return nil,errors.New("unknown type of cell..")
+		Data:   data,
+		Cell:   cell}
+	switch cell.Cell.Type {
+	case "devs.LaunchModel":
+		for _, link := range cell.SourceLinks {
+			return ProcessFlow(flow, link.Target, providers, data, db)
+		}
+		return providers, nil
+	case "devs.CallCapacityModel":
+		mngr = NewCallCapacityManager(ctx)
+	case "devs.LowCostModel":
+		mngr = NewLowCostManager(ctx)
+	case "devs.HighCostModel":
+		mngr = NewHighCostManager(ctx)
+	case "devs.LocationCheckModel":
+		mngr = NewLocationCheckManager(ctx)
+	case "devs.UserPriorityModel":
+		mngr = NewUserPriorityManager(ctx)
+	case "devs.SortServersModel":
+		mngr = NewSortServersManager(ctx)
+	case "devs.EndRoutingModel":
+		mngr = NewEndRoutingManager(ctx)
+		isFinished = true
+	case "devs.NoRoutingModel":
+		mngr = NewNoRoutingManager(ctx)
+		isFinished = true
+	default:
+		utils.Log(logrus.InfoLevel, "unknown type of cell..")
+		return nil, errors.New("unknown type of cell..")
 	}
 	var resp *FlowResponse
 	var err error
@@ -546,42 +535,41 @@ func ProcessFlow( flow *Flow, cell *Cell, providers []*RoutablePSTNProvider, dat
 		return resp.Providers, nil
 	}
 	next := resp.Link
-	return ProcessFlow(  flow, next.Target, providers, data, db )
+	return ProcessFlow(flow, next.Target, providers, data, db)
 }
-func StartProcessingFlow( flow *Flow, cell *Cell,  data map[string]string, db *sql.DB) ([]*RoutablePSTNProvider, error) {
+func StartProcessingFlow(flow *Flow, cell *Cell, data map[string]string, db *sql.DB) ([]*RoutablePSTNProvider, error) {
 
-	emptyProviders:=make([]*RoutablePSTNProvider,0)
-	providers, err := ProcessFlow( flow, flow.Cells[ 0 ], emptyProviders, data, db )
+	emptyProviders := make([]*RoutablePSTNProvider, 0)
+	providers, err := ProcessFlow(flow, flow.Cells[0], emptyProviders, data, db)
 	return providers, err
 }
-	
-func NewFlow(id int,vars *FlowVars) (*Flow) {
+
+func NewFlow(id int, vars *FlowVars) *Flow {
 	flow := &Flow{FlowId: id, Vars: vars}
-	fmt.Printf("number of cells %d\r\n", len(flow.Vars.Graph.Cells))
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("number of cells %d\r\n", len(flow.Vars.Graph.Cells)))
+
 	// create cells from flow.Vars
 	for _, cell := range flow.Vars.Graph.Cells {
-		fmt.Printf("processing %s\r\n", cell.Type)
-		// creating a cell	
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("processing %s\r\n", cell.Type))
+		// creating a cell
 		if cell != nil {
 			if cell.Type != "devs.FlowLink" {
-				addCellToFlow( cell.Id, flow )
+				addCellToFlow(cell.Id, flow)
 			}
 		}
 	}
 	return flow
 }
 
-
 type Flow struct {
-	Exten string
+	Exten    string
 	CallerId string
-	Cells []*Cell
-	Models []*Model
-	Vars *FlowVars
-	FlowId int
+	Cells    []*Cell
+	Models   []*Model
+	Vars     *FlowVars
+	FlowId   int
 }
 
 type Runner struct {
 	Cancelled bool
 }
-

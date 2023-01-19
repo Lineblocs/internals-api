@@ -518,7 +518,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 
 		// check if we're routing to user SIP turnk
 		if info.TrunkId != 0 {
-			fmt.Printf("found trunk associated with DID number -- routing to user SIP trunk")
+			utils.Log(logrus.InfoLevel, "found trunk associated with DID number -- routing to user SIP trunk")
 			return c.JSON(http.StatusOK, []byte("user_sip_trunk"))
 		}
 		match, err := h.userStore.CheckPSTNIPWhitelist(did, source)
@@ -550,7 +550,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 		if !match {
 			return utils.HandleInternalErr("IncomingDIDValidation no match found 2", err, c)
 		}
-		fmt.Printf("Matched incoming DID..")
+		utils.Log(logrus.InfoLevel, "Matched incoming DID..")
 		valid, err := h.userStore.FinishValidation(number, byoInfo.DidWorkspaceId)
 		if err != nil {
 			return utils.HandleInternalErr("IncomingDIDValidation error 4 valid", err, c)
