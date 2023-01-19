@@ -85,7 +85,7 @@ func UploadS3(folder string, name string, file multipart.File) error {
 	if err != nil {
 		return fmt.Errorf("failed to upload file, %v", err)
 	}
-	fmt.Printf("file uploaded to, %s\n", aws.StringValue(&result.Location))
+	Log(logrus.InfoLevel, fmt.Sprintf("file uploaded to, %s\n", aws.StringValue(&result.Location)))
 	return nil
 }
 
@@ -290,8 +290,8 @@ Todo: Log message with level(Info, Warning, Error, Panic)
 Output:
 */
 func Log(level logrus.Level, message string) {
-	// log.Log(level, "("+microserviceName+") "+message)
-	log.Log(level, message)
+	log.Log(level, "("+microserviceName+") "+message)
+	// log.Log(level, message)
 }
 
 /*

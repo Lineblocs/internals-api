@@ -1,16 +1,18 @@
 package main
 
 import (
-	"fmt"
-	"errors"
-	"net/http"
 	"database/sql"
 	"encoding/json"
-	lineblocs "github.com/Lineblocs/go-helpers"
-	"lineblocs.com/api/helpers"
-)
-var db *sql.DB
+	"errors"
+	"net/http"
 
+	lineblocs "github.com/Lineblocs/go-helpers"
+	"github.com/sirupsen/logrus"
+	"lineblocs.com/api/helpers"
+	"lineblocs.com/api/utils"
+)
+
+var db *sql.DB
 
 func createRoutingFlow(originCode, destCode, userId *string) (*helpers.Flow, error) {
 	var info helpers.FlowInfo
@@ -27,18 +29,18 @@ INNER JOIN workspaces_routing_flows ON workspaces_routing_flows.workspace_id = w
 WHERE workspaces_users.user_id= ?
 AND workspaces_routing_flows.dest_code= ?
 `, *userId, *destCode)
-	err := row.Scan(&info.FlowId,&info.FlowJSON)
+	err := row.Scan(&info.FlowId, &info.FlowJSON)
 
 	if err != sql.ErrNoRows { //lookup country flow
 		if err != nil {
 			return nil, err
 		}
-		err = json.Unmarshal( []byte(info.FlowJSON), &flowJson )
+		err = json.Unmarshal([]byte(info.FlowJSON), &flowJson)
 		if err != nil {
 			return nil, err
 		}
 
-		return helpers.NewFlow( info.FlowId, &flowJson	 ), nil
+		return helpers.NewFlow(info.FlowId, &flowJson), nil
 	}
 
 	// lookup by country
@@ -47,30 +49,27 @@ router_flows.flow_json
 FROM sip_countries
 INNER JOIN router_flows ON router_flows.id = sip_countries.flow_id
 WHERE sip_countries.country_code= ?`, *destCode)
-	err = row.Scan(&info.FlowId,&info.FlowJSON)
+	err = row.Scan(&info.FlowId, &info.FlowJSON)
 
 	if err != sql.ErrNoRows { //lookup country flow
 		if err != nil {
 			return nil, err
 		}
-		err = json.Unmarshal( []byte(info.FlowJSON), &flowJson )
+		err = json.Unmarshal([]byte(info.FlowJSON), &flowJson)
 		if err != nil {
 			return nil, err
 		}
 
-		return helpers.NewFlow( info.FlowId, &flowJson	 ), nil
+		return helpers.NewFlow(info.FlowId, &flowJson), nil
 	}
 
 	return nil, errors.New("no routing flow found...")
 }
 
-
 func main() {
 	var w http.ResponseWriter
 	var err error
 	db, err = lineblocs.CreateDBConn()
-
-
 
 	if err != nil {
 		panic(err)
@@ -85,16 +84,16 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println( "code is: " + destCode )
+	utils.Log(logrus.InfoLevel, "code is: "+destCode)
 
 	originCode, err := helpers.ParseCountryCode(callfrom)
 
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println( "code is: " + originCode )
+	utils.Log(logrus.InfoLevel, "code is: "+originCode)
 
-	flow,err :=createRoutingFlow( &originCode, &destCode, &userId )
+	flow, err := createRoutingFlow(&originCode, &destCode, &userId)
 	if err != nil {
 		panic(err)
 	}
@@ -105,22 +104,22 @@ func main() {
 	data["from"] = callfrom
 	data["to"] = callto
 
-	providers, err := helpers.StartProcessingFlow( flow, flow.Cells[ 0 ], data, db )
+	providers, err := helpers.StartProcessingFlow(flow, flow.Cells[0], data, db)
 
 	if err != nil {
 		panic(err)
 	}
-	if len( providers ) == 0 {
-		fmt.Println("No providers available..")
+	if len(providers) == 0 {
+		utils.Log(logrus.InfoLevel, "No providers available..")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	provider:=providers[0]
-	if len( provider.Hosts ) == 0 {
-		fmt.Println("No IPs to route to..")
+	provider := providers[0]
+	if len(provider.Hosts) == 0 {
+		utils.Log(logrus.InfoLevel, "No IPs to route to..")
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	host:=provider.Hosts[0]
+	host := provider.Hosts[0]
 	w.Write([]byte(host.IPAddr))
 }

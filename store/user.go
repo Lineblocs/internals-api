@@ -31,30 +31,31 @@ func NewUserStore(db *sql.DB) *UserStore {
 }
 
 func (us *UserStore) ValidateAccess(service_name string, api_key string) bool {
-	results, err := us.db.Query("SELECT `service_name, token` FROM microservice_api_keys WHERE service_name=" + service_name)
+	utils.Log(logrus.DebugLevel, "Start Validate Access...")
+	results, err := us.db.Query("SELECT service_name, token FROM microservice_api_keys WHERE service_name='" + service_name + "'")
 	defer results.Close()
 	if err != nil {
+		utils.Log(logrus.DebugLevel, "ValidateAccess query error occurred...")
 		return false
 	}
 
 	var serviceName string
 	var token []byte
 	for results.Next() {
-
 		err := results.Scan(&serviceName, &token)
 		if err != nil {
 			return false
 		}
-
-		hashedApiKey, err := bcrypt.GenerateFromPassword([]byte(api_key), bcrypt.DefaultCost)
 		if err != nil {
+			utils.Log(logrus.DebugLevel, "bcrypt generate error occurred...")
 			return false
 		}
-		err = bcrypt.CompareHashAndPassword(hashedApiKey, token)
+		err = bcrypt.CompareHashAndPassword(token, []byte(api_key))
 		if err == nil {
 			return true
 		}
 	}
+	utils.Log(logrus.DebugLevel, "token match failed...")
 	return false
 }
 
@@ -74,8 +75,8 @@ func (us *UserStore) DoVerifyCaller(workspace *model.Workspace, number string) (
 		return false, err
 	}
 	formattedNum := libphonenumber.Format(num, libphonenumber.E164)
-	fmt.Printf("looking up number %s\r\n", formattedNum)
-	fmt.Printf("domain isr %s\r\n", workspace.Name)
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("looking up number %s\r\n", formattedNum))
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("domain isr %s\r\n", workspace.Name))
 	var id string
 	row := us.db.QueryRow("SELECT id FROM `did_numbers` WHERE `number` = ? AND `workspace_id` = ?", formattedNum, workspace.Id)
 	err = row.Scan(&id)
@@ -190,7 +191,7 @@ return (WorkspaceDIDInfo model, flowJson, err)
 func (us *UserStore) GetDIDNumberData(number string) (*model.WorkspaceDIDInfo, sql.NullString, error) {
 	var info model.WorkspaceDIDInfo
 	var flowJson sql.NullString
-	fmt.Printf("Looking up number: %s", number)
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Looking up number: %s", number))
 	// Execute the query
 	row := us.db.QueryRow(`SELECT 
 		flows.id AS flow_id,
@@ -281,7 +282,7 @@ Output: First Value: PSTNInfo model, Second Value: error
 If success return (PSTNInfo model, nil) else return (nil, err)
 */
 func (us *UserStore) GetBYOPSTNProvider(from, to string, workspaceId int) (*model.PSTNInfo, error) {
-	fmt.Println("Checking BYO..")
+	utils.Log(logrus.InfoLevel, "Checking BYO..")
 	results, err := us.db.Query(`SELECT byo_carriers.name, byo_carriers.ip_address, byo_carriers_routes.prefix, byo_carriers_routes.prepend, byo_carriers_routes.match
 	FROM byo_carriers_routes
 	INNER JOIN byo_carriers  ON byo_carriers.id = byo_carriers_routes.carrier_id
@@ -303,12 +304,12 @@ func (us *UserStore) GetBYOPSTNProvider(from, to string, workspaceId int) (*mode
 			return nil, err
 		}
 		if !ip.Valid {
-			fmt.Printf("skipping 1 PSTN IP result as private IP is empty..\r\n")
+			utils.Log(logrus.InfoLevel, "skipping 1 PSTN IP result as private IP is empty..\r\n")
 			continue
 		}
 		valid, err := utils.CheckRouteMatches(from, to, prefix, prepend, match)
 		if err != nil {
-			fmt.Printf("error occured when trying to match from: %s, to: %s, prefix: %s, prepend: %s, match: %s", from, to, prefix, prepend, match)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("error occured when trying to match from: %s, to: %s, prefix: %s, prepend: %s, match: %s", from, to, prefix, prepend, match))
 			continue
 		}
 		if valid {
@@ -350,7 +351,7 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 
 	defer results.Close()
 	for results.Next() {
-		fmt.Println("Checking non BYO..")
+		utils.Log(logrus.InfoLevel, "Checking non BYO..")
 		var id int
 		var dialPrefix string
 		var name string
@@ -360,7 +361,7 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 		if err != nil {
 			return nil, err
 		}
-		fmt.Println("Checking rate from provider: " + name)
+		utils.Log(logrus.InfoLevel, "Checking rate from provider: "+name)
 		results1, err := us.db.Query(`SELECT dial_prefix
 	FROM call_rates_dial_prefixes
 	WHERE call_rates_dial_prefixes.call_rate_id = ?
@@ -374,14 +375,14 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 		var rateDialPrefix string
 		for results1.Next() {
 			results1.Scan(&rateDialPrefix)
-			fmt.Printf("checking rate dial prefix %s\r\n", rateDialPrefix)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("checking rate dial prefix %s\r\n", rateDialPrefix))
 			full := rateDialPrefix + ".*"
 			valid, err := regexp.MatchString(full, to)
 			if err != nil {
 				return nil, err
 			}
 			if valid {
-				fmt.Println("found matching route...")
+				utils.Log(logrus.InfoLevel, "found matching route...")
 				fullLen := len(full)
 
 				if longestMatch == nil || fullLen >= *longestMatch {
@@ -405,7 +406,7 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 		number = *lowestDialPrefix + to
 
 		// Lookup hosts
-		fmt.Printf("Looking up hosts..\r\n")
+		utils.Log(logrus.InfoLevel, "Looking up hosts..\r\n")
 		// Do LCR based on dial prefixes
 		results1, err := us.db.Query(`SELECT sip_providers_hosts.id, sip_providers_hosts.ip_address, sip_providers_hosts.name, sip_providers_hosts.priority_prefixes
 	FROM sip_providers_hosts
@@ -426,7 +427,7 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 			var name string
 			var prefixPriorities string
 			results1.Scan(&id, &ipAddr, &name, &prefixPriorities)
-			fmt.Printf("Checking SIP host %s, IP: %s\r\n", name, ipAddr)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("Checking SIP host %s, IP: %s\r\n", name, ipAddr))
 			prefixArr := strings.Split(prefixPriorities, ",")
 			info = &model.PSTNInfo{IPAddr: ipAddr, DID: number}
 			if bestProviderId == nil {
@@ -507,7 +508,7 @@ func (us *UserStore) GetDIDAcceptOption(did string) ([]byte, error) {
 
 	row = us.db.QueryRow(`SELECT did_action FROM byo_did_numbers WHERE byo_did_numbers.number = ?`, did)
 	err = row.Scan(&action)
-	fmt.Println("err check is ", err)
+	utils.Log(logrus.InfoLevel, "err check is "+err.Error())
 	if err == nil {
 		return []byte(action), nil
 	}
@@ -568,7 +569,7 @@ func createMediaServersForRouter(routerip string) ([]*lineblocs.MediaServer, err
 		INNER JOIN media_servers ON media_servers.id =  sip_routers_media_servers.server_id
 		WHERE sip_routers.ip_address = ?`, routerip)
 	if err != nil {
-		fmt.Println("query error occurred..")
+		utils.Log(logrus.InfoLevel, "query error occurred..")
 		return nil, err
 	}
 	defer results.Close()
@@ -592,7 +593,7 @@ return (callerId, err)
 */
 func (us *UserStore) GetCallerIdToUse(workspace *model.Workspace, extension string) (string, error) {
 	var callerId string
-	fmt.Printf("Looking up caller ID in domain %s, ID %d, extension %s\r\n", workspace.Name, workspace.Id, extension)
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Looking up caller ID in domain %s, ID %d, extension %s\r\n", workspace.Name, workspace.Id, extension))
 	row := us.db.QueryRow("SELECT caller_id FROM extensions WHERE workspace_id=? AND username = ?", workspace.Id, extension)
 	err := row.Scan(&callerId)
 
@@ -767,7 +768,7 @@ func (us *UserStore) CheckPSTNIPWhitelist(did string, sourceIp string) (bool, er
 		ipWithCidr := ipAddr + ipAddrRange
 		match, err := utils.CheckCIDRMatch(sourceIp, ipWithCidr)
 		if err != nil {
-			fmt.Printf("error matching CIDR source %s, full %s\r\n", sourceIp, ipWithCidr)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("error matching CIDR source %s, full %s\r\n", sourceIp, ipWithCidr))
 			continue
 		}
 		if match {
@@ -845,7 +846,7 @@ func (us *UserStore) CheckBYOPSTNIPWhitelist(did string, sourceIp string) (bool,
 		ipWithCidr := ipAddr + ipAddrRange
 		match, err := utils.CheckCIDRMatch(sourceIp, ipWithCidr)
 		if err != nil {
-			fmt.Printf("error matching CIDR source %s, full %s\r\n", sourceIp, ipWithCidr)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("error matching CIDR source %s, full %s\r\n", sourceIp, ipWithCidr))
 			continue
 		}
 		if match {
@@ -875,7 +876,7 @@ func (us *UserStore) IncomingTrunkValidation(trunkip string) ([]byte, error) {
 	defer results.Close()
 
 	for results.Next() {
-		fmt.Printf("trying to route to SIP server..\r\n")
+		utils.Log(logrus.InfoLevel, "trying to route to SIP server..\r\n")
 		var routingSIPURI string
 		var recoverySIPURI string
 		err := results.Scan(
@@ -884,17 +885,17 @@ func (us *UserStore) IncomingTrunkValidation(trunkip string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		fmt.Printf("SIP routing URI = %s SIP recovery URI = %s\r\n", routingSIPURI, recoverySIPURI)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("SIP routing URI = %s SIP recovery URI = %s\r\n", routingSIPURI, recoverySIPURI))
 		// TODO do some health checks here to see if SIP server is actually up..
 		ips, err := utils.LookupSIPAddresses(routingSIPURI)
 		if err != nil {
-			fmt.Printf("failed to lookup SIP server %s\r\n", routingSIPURI)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("failed to lookup SIP server %s\r\n", routingSIPURI))
 			continue
 		}
 		for _, ip := range *ips {
 			ipAddr := ip.String()
-			fmt.Printf("found IP = %s\r\n", ipAddr)
-			fmt.Printf("comparing with source IP = %s\r\n", trunkip)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("found IP = %s\r\n", ipAddr))
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("comparing with source IP = %s\r\n", trunkip))
 			if ipAddr == trunkip {
 				return []byte(ipAddr), nil
 			}
@@ -930,22 +931,22 @@ func (us *UserStore) LookupSIPTrunkByDID(did string) ([]byte, error) {
 			return nil, err
 		}
 
-		fmt.Printf("SIP routing URI = %s SIP recovery URI = %s\r\n", sipRoutingUri, sipRecoveryUri)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("SIP routing URI = %s SIP recovery URI = %s\r\n", sipRoutingUri, sipRecoveryUri))
 		// TODO do some health checks here to see if SIP server is actually up..
 		isOnline, err := utils.CheckSIPServerHealth(sipRoutingUri)
 		if err != nil {
-			fmt.Printf("failed to verify health of SIP server %s\r\n", sipRoutingUri)
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("failed to verify health of SIP server %s\r\n", sipRoutingUri))
 			continue
 		}
 		if isOnline {
 			return []byte(sipRoutingUri), nil
 		}
-		fmt.Printf("routing server %s is offline, checking next server...\r\n", sipRoutingUri)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("routing server %s is offline, checking next server...\r\n", sipRoutingUri))
 	}
 
 	// no SIP servers were online try to route to recovery URI
 	isOnline, err := utils.CheckSIPServerHealth(sipRecoveryUri)
-	fmt.Printf("no SIP servers were online. routing to recovery URI\r\n")
+	utils.Log(logrus.InfoLevel, "no SIP servers were online. routing to recovery URI\r\n")
 	if isOnline {
 		return []byte(sipRecoveryUri), nil
 	}
@@ -974,7 +975,7 @@ func (us *UserStore) IncomingMediaServerValidation(source string) (bool, error) 
 			return false, err
 		}
 		full := ipAddr + ipRange
-		fmt.Printf("checking IP = %s", ipAddr)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("checking IP = %s", ipAddr))
 		match, err := utils.CheckCIDRMatch(source, full)
 		if err != nil {
 			return false, err

@@ -72,8 +72,8 @@ func (cs *CallStore) UpdateCall(update *model.CallUpdate) error {
 	// Perform a db.Query insert
 	stmt, err := cs.db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ?, `updated_at` = ? WHERE `api_id` = ?")
 	if err != nil {
-		fmt.Printf("UpdateCall 2 Could not execute query..")
-		fmt.Println(err)
+		utils.Log(logrus.InfoLevel, "UpdateCall 2 Could not execute query..")
+		utils.Log(logrus.InfoLevel, err.Error())
 		return err
 	}
 	defer stmt.Close()
