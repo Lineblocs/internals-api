@@ -1013,7 +1013,7 @@ Todo : Get Settings
 Output: return (Settings model, err)
 */
 func (us *UserStore) GetSettings() (*model.Settings, error) {
-	results, err := us.db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls`, `microservice_api_key` FROM api_credentials")
+	results, err := us.db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls` FROM api_credentials")
 	defer results.Close()
 	if err != nil {
 		return nil, err
@@ -1035,8 +1035,7 @@ func (us *UserStore) GetSettings() (*model.Settings, error) {
 			&settings.SmtpPort,
 			&settings.SmtpUser,
 			&settings.SmtpPassword,
-			&settings.SmtpTls,
-			&settings.MicroserviceApiKey)
+			&settings.SmtpTls)
 		if err != nil {
 			return nil, err
 		}
