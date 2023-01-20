@@ -30,15 +30,17 @@ export let options = {
 
 export default function () {
 
+  const baseUrl = "http://localhost:8000";
+
   // Healthz
 
-  const url = "http://localhost:8000/healthz";
+  const url = baseUrl + "/healthz";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
 
   // CreateCall
   /*
-  const url = "http://localhost:8000/call/createCall";
+  const url = baseUrl + "/call/createCall";
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -63,7 +65,7 @@ export default function () {
 
   // UpdateCall
   /*
-  const url = "http://localhost:8000/call/updateCall";
+  const url = baseUrl + "/call/updateCall";
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -80,14 +82,14 @@ export default function () {
 
   // FetchCall
   /*
-  const url = "http://localhost:8000/call/fetchCall?id=256";
+  const url = baseUrl + "/call/fetchCall?id=256";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // SetSIPCallID
   /*
-  const url = "http://localhost:8000/call/setSIPCallID";
+  const url = baseUrl + "/call/setSIPCallID";
   const data = {
     "callid": "aabc",
     "apiid": 255
@@ -99,7 +101,7 @@ export default function () {
 
   // SetProviderByIP
   /*
-  const url = "http://localhost:8000/call/setProviderByIP";
+  const url = baseUrl + "/call/setProviderByIP";
   const data = {
     "ip": "toronto.voip.ms2",
     "apiid": 2572
@@ -111,7 +113,7 @@ export default function () {
 
   // CreateConference
   /*
-  const url = "http://localhost:8000/conference/createConference";
+  const url = baseUrl + "/conference/createConference";
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -128,7 +130,7 @@ export default function () {
 
   // CreateDebit
   /*
-  const url = "http://localhost:8000/debit/createDebit";
+  const url = baseUrl + "/debit/createDebit";
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -150,7 +152,7 @@ export default function () {
 
   // CreateAPIUsageDebit
   /*
-  const url = "http://localhost:8000/debit/createAPIUsageDebit";
+  const url = baseUrl + "/debit/createAPIUsageDebit";
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -173,7 +175,7 @@ export default function () {
 
   // CreateLog
   /*
-  const url = "http://localhost:8000/debugger/createLog";
+  const url = baseUrl + "/debugger/createLog";
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -196,7 +198,7 @@ export default function () {
 
   // CreateLogSimple
   /*
-  const url = "http://localhost:8000/debugger/createLogSimple";
+  const url = baseUrl + "/debugger/createLogSimple";
   const data = {
     "type": "verify-callerid-cailed",
     "level": "info",
@@ -209,7 +211,7 @@ export default function () {
 
   // CreateFax
   /*
-  const url = "http://localhost:8000/fax/createFax";
+  const url = baseUrl + "/fax/createFax";
   const data = {
     "user_id": 2,
     "workspace_id": 2,
@@ -223,7 +225,7 @@ export default function () {
 
   // CreateRecording
   /*
-  const url = "http://localhost:8000/recording/createRecording";
+  const url = baseUrl + "/recording/createRecording";
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -245,7 +247,7 @@ export default function () {
 
   // UpdateRecording
   /*
-  const url = "http://localhost:8000/recording/updateRecording";
+  const url = baseUrl + "/recording/updateRecording";
   const data = {
     "status": "completed",
     "recording_id": 5
@@ -257,7 +259,7 @@ export default function () {
 
   // UpdateRecordingTranscription
   /*
-  const url = "http://localhost:8000/recording/updateRecordingTranscription";
+  const url = baseUrl + "/recording/updateRecordingTranscription";
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -275,14 +277,14 @@ export default function () {
 
   // GetRecording
   /*
-  const url = "http://localhost:8000/recording/getRecording?id=4";
+  const url = baseUrl + "/recording/getRecording?id=4";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // CreateSIPReport
   /*
-  const url = "http://localhost:8000/carrier/createSIPReport";
+  const url = baseUrl + "/carrier/createSIPReport";
   const data = {
     "callid": 2,
     "status": 200
@@ -294,175 +296,175 @@ export default function () {
 
   // ProcessRouterFlow
   /*
-  const url = "http://localhost:8000/carrier/processRouterFlow?callto=15874874526&callfrom=17808503688&userid=2";
+  const url = baseUrl + "/carrier/processRouterFlow?callto=15874874526&callfrom=17808503688&userid=2";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // VerifyCaller
   /*
-  const url = "http://localhost:8000/user/verifyCaller?workspace_id=2&number=15874874526";
+  const url = baseUrl + "/user/verifyCaller?workspace_id=2&number=15874874526";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // VerifyCallerByDomain
   /*
-  const url = "http://localhost:8000/user/verifyCallerByDomain?domain=workspace&number=17808503688";
+  const url = baseUrl + "/user/verifyCallerByDomain?domain=workspace&number=17808503688";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetUserByDomain
   /*
-  const url = "http://localhost:8000/user/getUserByDomain?domain=workspace";
+  const url = baseUrl + "/user/getUserByDomain?domain=workspace";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetUserByDID
   /*
-  const url = "http://localhost:8000/user/getUserByDID?did=23";
+  const url = baseUrl + "/user/getUserByDID?did=23";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetUserByTrunkSourceIp
   /*
-  const url = "http://localhost:8000/user/getUserByTrunkSourceIp?source_ip=155.138.144.230";
+  const url = baseUrl + "/user/getUserByTrunkSourceIp?source_ip=155.138.144.230";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetWorkspaceMacros
   /*
-  const url = "http://localhost:8000/user/getWorkspaceMacros?workspace=2";
+  const url = baseUrl + "/user/getWorkspaceMacros?workspace=2";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetDIDNumberData
   /*
-  const url = "http://localhost:8000/user/getDIDNumberData?number=15874874526";
+  const url = baseUrl + "/user/getDIDNumberData?number=15874874526";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
   
   // GetPSTNProviderIP
   /*
-  const url = "http://localhost:8000/user/getPSTNProviderIP?from=15874874526&to=17808503688&domain=workspace";
+  const url = baseUrl + "/user/getPSTNProviderIP?from=15874874526&to=17808503688&domain=workspace";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetPSTNProviderIPForTrunk
   /*
-  const url = "http://localhost:8000/user/getPSTNProviderIPForTrunk?from=15874874526&to=17808503688";
+  const url = baseUrl + "/user/getPSTNProviderIPForTrunk?from=15874874526&to=17808503688";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // IpWhitelistLookup
   /*
-  const url = "http://localhost:8000/user/ipWhitelistLookup?ip=toronto.voip.ms&domain=workspace";
+  const url = baseUrl + "/user/ipWhitelistLookup?ip=toronto.voip.ms&domain=workspace";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetDIDAcceptOption
   /*
-  const url = "http://localhost:8000/user/getDIDAcceptOption?did=23";
+  const url = baseUrl + "/user/getDIDAcceptOption?did=23";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetDIDAssignedIP
   /*
-  const url = "http://localhost:8000/user/getDIDAssignedIP";
+  const url = baseUrl + "/user/getDIDAssignedIP";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetUserAssignedIP
   /*
-  const url = "http://localhost:8000/user/getUserAssignedIP?rtcOptimized=true&domain=workspace&routerip=155.138.140.32";
+  const url = baseUrl + "/user/getUserAssignedIP?rtcOptimized=true&domain=workspace&routerip=155.138.140.32";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetTrunkAssignedIP
   /*
-  const url = "http://localhost:8000/user/getTrunkAssignedIP";
+  const url = baseUrl + "/user/getTrunkAssignedIP";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // AddPSTNProviderTechPrefix
   /*
-  const url = "http://localhost:8000/user/addPSTNProviderTechPrefix";
+  const url = baseUrl + "/user/addPSTNProviderTechPrefix";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetCallerIdToUse
   /*
-  const url = "http://localhost:8000/user/getCallerIdToUse?domain=workspace&extension=3000";
+  const url = baseUrl + "/user/getCallerIdToUse?domain=workspace&extension=3000";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetExtensionFlowInfo
   /*
-  const url = "http://localhost:8000/user/getExtensionFlowInfo?extension=3000&workspace=2";
+  const url = baseUrl + "/user/getExtensionFlowInfo?extension=3000&workspace=2";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetFlowInfo
   /*
-  const url = "http://localhost:8000/user/getFlowInfo?flow_id=2&workspace=2";
+  const url = baseUrl + "/user/getFlowInfo?flow_id=2&workspace=2";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetDIDDomain
   /*
-  const url = "http://localhost:8000/user/getDIDDomain";
+  const url = baseUrl + "/user/getDIDDomain";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // GetCodeFlowInfo
   /*
-  const url = "http://localhost:8000/user/getCodeFlowInfo?code=2&workspace=2";
+  const url = baseUrl + "/user/getCodeFlowInfo?code=2&workspace=2";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // IncomingDIDValidation
   /*
-  const url = "http://localhost:8000/user/incomingDIDValidation?did=23&number=15874874526&source=158.85.70.148";
+  const url = baseUrl + "/user/incomingDIDValidation?did=23&number=15874874526&source=158.85.70.148";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // IncomingTrunkValidation
   /*
-  const url = "http://localhost:8000/user/incomingTrunkValidation?fromdomain=155.138.144.230";
+  const url = baseUrl + "/user/incomingTrunkValidation?fromdomain=155.138.144.230";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // LookupSIPTrunkByDID
   /*
-  const url = "http://localhost:8000/user/lookupSIPTrunkByDID?did=23";
+  const url = baseUrl + "/user/lookupSIPTrunkByDID?did=23";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // IncomingMediaServerValidation
   /*
-  const url = "http://localhost:8000/user/incomingMediaServerValidation?source=155.138.140.32";
+  const url = baseUrl + "/user/incomingMediaServerValidation?source=155.138.140.32";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
@@ -470,7 +472,7 @@ export default function () {
 
   // StoreRegistration
   /*
-  const url = "http://localhost:8000/user/storeRegistration";
+  const url = baseUrl + "/user/storeRegistration";
   const data = {
     "domain": "workspace",
     "user": 3000
@@ -482,21 +484,21 @@ export default function () {
 
   // GetSettings
   /*
-  const url = "http://localhost:8000/user/getSettings";
+  const url = baseUrl + "/user/getSettings";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // ProcessSIPTrunkCall
   /*
-  const url = "http://localhost:8000/user/processSIPTrunkCall?did=23";
+  const url = baseUrl + "/user/processSIPTrunkCall?did=23";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
 
   // SendAdminEmail
   /*
-  const url = "http://localhost:8000/admin/sendAdminEmail";
+  const url = baseUrl + "/admin/sendAdminEmail";
   const params = {
     headers: {
       'Content-Type': 'application/json',
@@ -512,7 +514,7 @@ export default function () {
 
   // GetBestRTPProxy
   /*
-  const url = "http://localhost:8000/getBestRTPProxy";
+  const url = baseUrl + "/getBestRTPProxy";
   let res = http.get(url);
   check(res, { "status was 200": (r) => r.status == 200 }) || errorRate.add(1);
   */
