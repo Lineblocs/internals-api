@@ -7,7 +7,8 @@ import (
 	"regexp"
 	"strings"
 	"time"
-
+    "net/http"
+    "net/url"
 	lineblocs "github.com/Lineblocs/go-helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/ttacon/libphonenumber"
@@ -1070,6 +1071,44 @@ func (us *UserStore) ProcessSIPTrunkCall(did string) ([]byte, error) {
 		results.Scan(&trunkSIPURI)
 		utils.Log(logrus.InfoLevel, fmt.Sprintf("Found SIP trunk server %s\r\n", trunkSIPURI))
 		return []byte(trunkSIPURI), nil
+	}
+	return nil, nil
+}
+
+/*
+Input: sip_msg
+Todo : Get SIP URI with matching did number
+Output: First Value: SIP Uri, Second Value: error
+If success return (SIP Uri, nil) else return (nil, err)
+*/
+func (us *UserStore) CaptureSIPMessage(domain string, sipMsg string) ([]byte, error) {
+	// get any configured webhooks for workspace
+	results, err := us.db.Query(`SELECT 
+		workspaces_sip_webhooks.http_uri
+		FROM workspaces_sip_webhooks
+		INNER JOIN workspaces ON workspaces.id = workspaces_sip_webhooks.workspace_id
+		WHERE workspaces.name = ?`, domain)
+
+	if err != nil {
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("Trying to send HTTP request to webserver..\r\n"))
+		var httpURL string
+		results.Scan(&httpURL)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("HTTP URL =  %s\r\n", httpURL))
+		data := url.Values{
+			"sip_msg":       {sipMsg},
+		}
+
+		_, err := http.PostForm(httpURL, data)
+
+		if err != nil {
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("error occured while sending SIP message to webhook. %s..\r\n", err.Error()))
+		}
+
 	}
 	return nil, nil
 }

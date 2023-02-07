@@ -714,3 +714,28 @@ func (h *Handler) ProcessSIPTrunkCall(c echo.Context) error {
 
 	return utils.HandleInternalErr("No trunks to route to..", err, c)
 }
+
+
+/*
+Input: sip_msg
+Todo : Get SIP URI with matching did number
+Output: If success return sip uri else return err
+*/
+func (h *Handler) CaptureSIPMessage(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "CaptureSIPMessage	s called")
+
+	domain:= c.QueryParam("domain")
+	sipMsg:= c.QueryParam("sip_msg")
+
+	result, err := h.userStore.CaptureSIPMessage(domain, sipMsg)
+	if err != nil {
+		return utils.HandleInternalErr("ProcessSIPTrunkCall error valid", err, c)
+	}
+
+	if result != nil {
+		return c.JSONBlob(http.StatusOK, result)
+	}
+
+	return utils.HandleInternalErr("No trunks to route to..", err, c)
+}
+
