@@ -27,7 +27,8 @@ var data *model.ServerData
 func main() {
 
 	// Init Logrus and configure channels
-	utils.InitLogrus()
+	logDestination := utils.Config("LOG_DESTINATIONS")
+	lineblocs.InitLogrus(logDestination)
 
 	utils.Log(logrus.InfoLevel, "Starting API...")
 	// Load media_server list from db and create media server

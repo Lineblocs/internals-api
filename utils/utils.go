@@ -1,10 +1,8 @@
 package utils
 
 import (
-	"context"
 	"errors"
 	"fmt"
-	"io"
 	"mime/multipart"
 	"net"
 	"net/http"
@@ -14,18 +12,13 @@ import (
 	"time"
 
 	lineblocs "github.com/Lineblocs/go-helpers"
-	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	logrustash "github.com/bshuster-repo/logrus-logstash-hook"
 	guuid "github.com/google/uuid"
-	logruscloudwatch "github.com/innix/logrus-cloudwatch"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
-	easy "github.com/t-tomalak/logrus-easy-formatter"
 	"lineblocs.com/api/model"
 )
 
@@ -236,62 +229,13 @@ func GetSetting() *model.GlobalSettings {
 	return settings
 }
 
-// Init Logrus
-func InitLogrus() {
-	log = logrus.New()
-	//Default Configure for console
-	log = &logrus.Logger{
-		Out:   os.Stdout,
-		Level: logrus.DebugLevel,
-		Formatter: &easy.Formatter{
-			TimestampFormat: "2006-01-02 15:04:05",
-			LogFormat:       "%lvl%: %time% - %msg%\n",
-		},
-		Hooks: log.Hooks,
-	}
-	logEnv := Config("LOG_DESTINATIONS")
-	dests := strings.Split(logEnv, ",")
-
-	for _, dest := range dests {
-		switch dest {
-		case "file":
-			logFile, err := os.OpenFile("log.txt", os.O_CREATE|os.O_APPEND|os.O_RDWR, 0666)
-			if err != nil {
-				panic(err)
-			}
-			mw := io.MultiWriter(os.Stdout, logFile)
-			log.SetOutput(mw)
-		case "cloudwatch":
-			cfg, err := config.LoadDefaultConfig(context.Background())
-			if err != nil {
-				log.Fatalf("Could not load AWS config: %v", err)
-			}
-			client := cloudwatchlogs.NewFromConfig(cfg)
-
-			hook, err := logruscloudwatch.New(client, nil)
-			if err != nil {
-				log.Fatalf("Could not create CloudWatch hook: %v", err)
-			}
-			log.AddHook(hook)
-		case "logstash":
-			conn, err := net.Dial("tcp", "logstash.mycompany.net:8911")
-			if err != nil {
-				log.Fatal(err)
-			}
-			hook := logrustash.New(conn, logrustash.DefaultFormatter(logrus.Fields{"type": "myappName"}))
-			log.Hooks.Add(hook)
-		}
-	}
-}
-
 /*
 Input: level, message
 Todo: Log message with level(Info, Warning, Error, Panic)
 Output:
 */
 func Log(level logrus.Level, message string) {
-	log.Log(level, "("+microserviceName+") "+message)
-	// log.Log(level, message)
+	lineblocs.Log(level, "("+microserviceName+") "+message)
 }
 
 /*
