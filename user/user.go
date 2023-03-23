@@ -3,7 +3,7 @@ package user
 import (
 	"database/sql"
 
-	lineblocs "github.com/Lineblocs/go-helpers"
+	helpers "github.com/Lineblocs/go-helpers"
 	"lineblocs.com/api/model"
 )
 
@@ -24,7 +24,7 @@ type Store interface {
 	GetBestPSTNProvider(string, string) (*model.PSTNInfo, error)
 	IPWhitelistLookup(string, *model.Workspace) (bool, error)
 	GetDIDAcceptOption(string) ([]byte, error)
-	GetUserRoutedServer2(bool, *model.Workspace, string) (*lineblocs.MediaServer, error)
+	GetUserRoutedServer2(bool, *model.Workspace, string) (*helpers.MediaServer, error)
 	GetCallerIdToUse(*model.Workspace, string) (string, error)
 	GetExtensionFlowInfo(string, string) (*model.ExtensionFlowInfo, error)
 	GetFlowInfo(string, string) (*model.ExtensionFlowInfo, error)

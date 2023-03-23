@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	lineblocs "github.com/Lineblocs/go-helpers"
+	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -146,14 +146,14 @@ func CheckCIDRMatch(sourceIp string, ipWithCidr string) (bool, error) {
 	return net2.Contains(net1.IP), nil
 }
 
-func GetDIDRoutedServer2(rtcOptimized bool) (*lineblocs.MediaServer, error) {
-	servers, err := lineblocs.CreateMediaServers()
+func GetDIDRoutedServer2(rtcOptimized bool) (*helpers.MediaServer, error) {
+	servers, err := helpers.CreateMediaServers()
 
 	if err != nil {
 		return nil, err
 	}
 
-	var result *lineblocs.MediaServer
+	var result *helpers.MediaServer
 	for _, server := range servers {
 		//if result == nil || result != nil && server.LiveCallCount < result.LiveCallCount && rtcOptimized == server.RtcOptimized {
 		if result == nil || result != nil && server.LiveCPUPCTUsed < result.LiveCPUPCTUsed && rtcOptimized == server.RtcOptimized {
@@ -235,7 +235,7 @@ Todo: Log message with level(Info, Warning, Error, Panic)
 Output:
 */
 func Log(level logrus.Level, message string) {
-	lineblocs.Log(level, "("+microserviceName+") "+message)
+	helpers.Log(level, "("+microserviceName+") "+message)
 }
 
 /*

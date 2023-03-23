@@ -4,12 +4,13 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/url"
 	"regexp"
 	"strings"
 	"time"
-    "net/http"
-    "net/url"
-	lineblocs "github.com/Lineblocs/go-helpers"
+
+	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/ttacon/libphonenumber"
 	"golang.org/x/crypto/bcrypt"
@@ -522,13 +523,13 @@ Todo : Get UserAssignedIP
 Output: First Value: MediaServer model, Second Value: error
 If success return (MediaServer model, nil) else return (nil, err)
 */
-func (us *UserStore) GetUserRoutedServer2(rtcOptimized bool, workspace *model.Workspace, routerip string) (*lineblocs.MediaServer, error) {
+func (us *UserStore) GetUserRoutedServer2(rtcOptimized bool, workspace *model.Workspace, routerip string) (*helpers.MediaServer, error) {
 	servers, err := createMediaServersForRouter(routerip)
 
 	if err != nil {
 		return nil, err
 	}
-	var result *lineblocs.MediaServer
+	var result *helpers.MediaServer
 	for _, server := range servers {
 		// class of server
 		// type of call
@@ -550,9 +551,9 @@ Todo : Get MediaServer list with matching routerip
 Output: First Value: MediaServer model Slice, Second Value: error
 If success return (MediaServer model slice, nil) else return (nil, err)
 */
-func createMediaServersForRouter(routerip string) ([]*lineblocs.MediaServer, error) {
-	var servers []*lineblocs.MediaServer
-	db, err := lineblocs.CreateDBConn()
+func createMediaServersForRouter(routerip string) ([]*helpers.MediaServer, error) {
+	var servers []*helpers.MediaServer
+	db, err := helpers.CreateDBConn()
 	if err != nil {
 		return nil, err
 	}
@@ -576,7 +577,7 @@ func createMediaServersForRouter(routerip string) ([]*lineblocs.MediaServer, err
 	defer results.Close()
 
 	for results.Next() {
-		value := lineblocs.MediaServer{}
+		value := helpers.MediaServer{}
 		err := results.Scan(&value.Id, &value.IpAddress, &value.PrivateIpAddress, &value.RtcOptimized, &value.LiveCallCount, &value.LiveCPUPCTUsed, &value.Status)
 		if err != nil {
 			return nil, err
@@ -1099,7 +1100,7 @@ func (us *UserStore) CaptureSIPMessage(domain string, sipMsg string) ([]byte, er
 		results.Scan(&httpURL)
 		utils.Log(logrus.InfoLevel, fmt.Sprintf("HTTP URL =  %s\r\n", httpURL))
 		data := url.Values{
-			"sip_msg":       {sipMsg},
+			"sip_msg": {sipMsg},
 		}
 
 		_, err := http.PostForm(httpURL, data)

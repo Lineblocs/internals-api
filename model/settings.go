@@ -3,7 +3,7 @@ package model
 import (
 	"sync"
 
-	lineblocs "github.com/Lineblocs/go-helpers"
+	helpers "github.com/Lineblocs/go-helpers"
 )
 
 type Settings struct {
@@ -29,5 +29,5 @@ type GlobalSettings struct {
 
 type ServerData struct {
 	Mutex   sync.RWMutex
-	Servers []*lineblocs.MediaServer
+	Servers []*helpers.MediaServer
 }
