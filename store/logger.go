@@ -6,7 +6,7 @@ import (
 	"strconv"
 	"time"
 
-	lineblocs "github.com/Lineblocs/go-helpers"
+	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/mailgun/mailgun-go/v4"
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
@@ -34,9 +34,9 @@ Output: First Value: LastInsertId, Second Value: error
 If success return (logId, nil) else return (nil, err)
 */
 func (ls *LoggerStore) StartLogRoutine(workspace *model.Workspace, log *model.LogRoutine) (*string, error) {
-	var user *lineblocs.User
+	var user *helpers.User
 
-	user, err := lineblocs.GetUserFromDB(log.UserId)
+	user, err := helpers.GetUserFromDB(log.UserId)
 	if err != nil {
 		utils.Log(logrus.ErrorLevel, "Could not get user..")
 		return nil, err
@@ -75,7 +75,7 @@ Input: LogRoutine model, User model, Workspace model
 Todo : Send Log email.
 Output: If success return nil else return err
 */
-func sendLogRoutineEmail(log *model.LogRoutine, user *lineblocs.User, workspace *model.Workspace) error {
+func sendLogRoutineEmail(log *model.LogRoutine, user *helpers.User, workspace *model.Workspace) error {
 	mg := mailgun.NewMailgun(utils.Config("MAILGUN_DOMAIN"), utils.Config("MAILGUN_API_KEY"))
 	m := mg.NewMessage(
 		"Lineblocs <monitor@lineblocs.com>",

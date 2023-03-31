@@ -9,7 +9,7 @@ import (
 	"database/sql"
 	"fmt"
 
-	lineblocs "github.com/Lineblocs/go-helpers"
+	helpers "github.com/Lineblocs/go-helpers"
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
 	"github.com/mrwaggel/golimiter"
@@ -27,12 +27,13 @@ var data *model.ServerData
 func main() {
 
 	// Init Logrus and configure channels
-	utils.InitLogrus()
+	logDestination := utils.Config("LOG_DESTINATIONS")
+	helpers.InitLogrus(logDestination)
 
 	utils.Log(logrus.InfoLevel, "Starting API...")
 	// Load media_server list from db and create media server
 	var err error
-	servers, err := lineblocs.CreateMediaServers()
+	servers, err := helpers.CreateMediaServers()
 
 	data = &model.ServerData{
 		Mutex:   sync.RWMutex{},
@@ -44,7 +45,7 @@ func main() {
 	}
 
 	// Create DB Connection with MySQL
-	db, err = lineblocs.CreateDBConn()
+	db, err = helpers.CreateDBConn()
 	if err != nil {
 		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
