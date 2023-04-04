@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"strings"
 )
 
 /*
@@ -61,5 +62,10 @@ func (as *AdminStore) GetBestRTPProxy() ([]byte, error) {
 			socketAddrResult = rtpSock
 		}
 	}
-	return []byte(socketAddrResult), nil
+	// socket looks like
+	// udp:host:port
+	// we only need the host for OpenSIPs
+	splitted := strings.Split(socketAddrResult, ":")
+	socketHost := splitted[1]
+	return []byte(socketHost), nil
 }
