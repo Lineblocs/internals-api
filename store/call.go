@@ -2,6 +2,7 @@ package store
 
 import (
 	"database/sql"
+	"github.com/gocql/gocql"
 	"fmt"
 	"reflect"
 	"strconv"
@@ -19,6 +20,7 @@ Implementation of Call Store
 
 type CallStore struct {
 	db *sql.DB
+	cqlSess *gocql.Session
 }
 
 func NewCallStore(db *sql.DB) *CallStore {
@@ -60,6 +62,30 @@ func (cs *CallStore) CreateCall(call *model.Call) (string, error) {
 	if err != nil {
 		return "-1", err
 	}
+	return strconv.FormatInt(callId, 10), err
+}
+
+/*
+Input: Call model
+Todo : creates a call and inserts it into Cassandra DB
+Output: First Value: callId, Second Value:error
+If success return (callid, nil) else return (nil, err)
+*/
+func (cs *CallStore) CreateCallv2(call *model.Call) (string, error) {
+	now := time.Now()
+	call.StartedAt = now.Format("MM/DD/YYYY")
+	call.CreatedAt = now.Format("MM/DD/YYYY")
+	call.UpdatedAt = now.Format("MM/DD/YYYY")
+	//plan:="testing123"
+	workspaceId := call.WorkspaceId
+	var callId int64 = 123
+
+	results := make(chan error, 2)
+	go func() {
+		results <- cs.cqlSess.Query(`INSERT INTO call2(callId, workspaceId) VALUES (?, ?);`, callId, workspaceId).Exec()
+	}()
+
+	var err error = nil
 	return strconv.FormatInt(callId, 10), err
 }
 

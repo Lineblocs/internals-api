@@ -4,9 +4,10 @@ import (
 	"net/http"
 	"sync"
 	"time"
-
+	"os"
 	//"errors"
 	"database/sql"
+	"github.com/gocql/gocql"
 	"fmt"
 
 	helpers "github.com/Lineblocs/go-helpers"
@@ -22,6 +23,8 @@ import (
 )
 
 var db *sql.DB
+var cqlCluster *gocql.ClusterConfig
+var cqlSess *gocql.Session
 var data *model.ServerData
 
 func main() {
@@ -46,6 +49,17 @@ func main() {
 
 	// Create DB Connection with MySQL
 	db, err = helpers.CreateDBConn()
+	if err != nil {
+		utils.Log(logrus.PanicLevel, err.Error())
+		panic(err)
+	}
+
+	// connect to cassandra
+	cassandraAddr := os.Getenv("CASSANDRA_HOST") + ":9042"
+	cqlCluster = gocql.NewCluster(cassandraAddr)
+	cqlCluster.Keyspace = os.Getenv("CASSANDRA_KEYSPACE")
+	cqlCluster.ProtoVersion = 4
+	cqlSess, err = cqlCluster.CreateSession()
 	if err != nil {
 		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
