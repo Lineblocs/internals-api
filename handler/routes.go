@@ -15,7 +15,7 @@ Matching API end points and Handler function
 func (h *Handler) Register(e *echo.Echo) {
 	g := e.Group("")
 
-	utils.Log(logrus.InfoLevel, "Auth middleware value = " + utils.Config("USE_AUTH_MIDDLEWARE"))
+	utils.Log(logrus.InfoLevel, "Auth middleware value = "+utils.Config("USE_AUTH_MIDDLEWARE"))
 	if utils.Config("USE_AUTH_MIDDLEWARE") == "on" {
 		// Set BasicAuth Middleware
 		utils.Log(logrus.InfoLevel, "Auth middleware is enabled -- adding API validation")
