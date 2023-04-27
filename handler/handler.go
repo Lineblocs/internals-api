@@ -9,6 +9,7 @@ import (
 	"lineblocs.com/api/logger"
 	"lineblocs.com/api/recording"
 	"lineblocs.com/api/user"
+	"lineblocs.com/api/extension"
 )
 
 /*
@@ -25,9 +26,10 @@ type Handler struct {
 	loggerStore    logger.Store
 	recordingStore recording.Store
 	userStore      user.Store
+	extensionStore      extension.Store
 }
 
-func NewHandler(as admin.Store, cs call.Store, crs carrier.Store, ds debit.Store, fs fax.Store, ls logger.Store, rs recording.Store, us user.Store) *Handler {
+func NewHandler(as admin.Store, cs call.Store, crs carrier.Store, ds debit.Store, fs fax.Store, ls logger.Store, rs recording.Store, us user.Store, es extension.Store) *Handler {
 	return &Handler{
 		adminStore:     as,
 		callStore:      cs,

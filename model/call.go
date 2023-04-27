@@ -15,6 +15,8 @@ type Call struct {
 	StartedAt    string `json:"started_at"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
+	FromExtensionId *int `json:"from_extension_id"`
+	ToExtensionId   *int `json:"to_extension_id"`
 	PlanSnapshot string `json:"plan_snapshot"`
 }
 

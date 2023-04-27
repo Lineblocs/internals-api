@@ -99,7 +99,8 @@ func startServer() {
 	ls := store.NewLoggerStore(db)
 	rs := store.NewRecordingStore(db)
 	us := store.NewUserStore(db)
-	h := handler.NewHandler(as, cs, crs, ds, fs, ls, rs, us)
+	es := store.NewExtensionStore(db)
+	h := handler.NewHandler(as, cs, crs, ds, fs, ls, rs, us, es)
 
 	// Register Handler for Echo context
 	h.Register(r)

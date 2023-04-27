@@ -8,7 +8,32 @@ import (
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
+	"lineblocs.com/api/extension"
 )
+
+func applyExtensionValues(extensionStore extension.Store, call *model.Call) (error) {
+	var extensionValue string
+
+	switch call.Direction {
+	case "inbound":
+		extensionValue = call.To
+		exten, err := extensionStore.GetExtensionByUsername(call.WorkspaceId, extensionValue)
+		if err != nil {
+			return err
+		}
+		call.ToExtensionId = &exten.Id
+	case "outbound":
+		extensionValue = call.From
+		exten, err := extensionStore.GetExtensionByUsername(call.WorkspaceId, extensionValue)
+		if err != nil {
+			return err
+		}
+		call.FromExtensionId = &exten.Id
+	default:
+	}
+
+	return nil
+}
 
 /*
 Input: Call model
@@ -34,6 +59,14 @@ func (h *Handler) CreateCall(c echo.Context) error {
 		go h.callStore.CheckIsMakingOutboundCallFirstTime(call)
 	}
 
+	populateExtensionDetails := c.QueryParam("populateExtensionDetails")
+	if populateExtensionDetails != "" && populateExtensionDetails == "1" {
+		err := applyExtensionValues(h.extensionStore, &call)
+		if err != nil {
+			utils.Log(logrus.InfoLevel, "CreateCall populate extension details failed. err: " + err.Error())
+		}
+	}
+	// check if we need to populate the extension details
 	callId, err := h.callStore.CreateCall(&call)
 	if err != nil {
 		return utils.HandleInternalErr("CreateCall Could not execute query", err, c)

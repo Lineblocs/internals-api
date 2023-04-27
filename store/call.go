@@ -46,13 +46,13 @@ func (cs *CallStore) CreateCall(call *model.Call) (string, error) {
 		return "-1", err
 	}
 
-	stmt, err := cs.db.Prepare("INSERT INTO calls ( `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `sip_call_id`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`, `notes`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '' )")
+	stmt, err := cs.db.Prepare("INSERT INTO calls ( `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `sip_call_id`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`, `notes`, `from_extension_id`, `to_extension_id`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ? )")
 	if err != nil {
 		return "-1", err
 	}
 	defer stmt.Close()
 
-	res, err := stmt.Exec(call.From, call.To, call.ChannelId, call.Status, call.Direction, "8", call.SIPCallId, call.UserId, call.WorkspaceId, now, now, now, call.APIId, workspace.Plan)
+	res, err := stmt.Exec(call.From, call.To, call.ChannelId, call.Status, call.Direction, "8", call.SIPCallId, call.UserId, call.WorkspaceId, now, now, now, call.APIId, workspace.Plan, call.FromExtensionId, call.ToExtensionId)
 
 	if err != nil {
 		return "-1", err
