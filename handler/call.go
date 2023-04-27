@@ -11,19 +11,27 @@ import (
 	"lineblocs.com/api/extension"
 )
 
-func applyExtensionValues(extensionStore extension.Store, call *model.Call, extensionValue string) (error) {
-	exten, err := extensionStore.GetExtensionByUsername(call.WorkspaceId, extensionValue)
-	if err != nil {
-		return err
-	}
+func applyExtensionValues(extensionStore extension.Store, call *model.Call) (error) {
+	var extensionValue string
 
 	switch call.Direction {
 	case "inbound":
+		extensionValue = call.To
+		exten, err := extensionStore.GetExtensionByUsername(call.WorkspaceId, extensionValue)
+		if err != nil {
+			return err
+		}
 		call.ToExtensionId = &exten.Id
 	case "outbound":
+		extensionValue = call.From
+		exten, err := extensionStore.GetExtensionByUsername(call.WorkspaceId, extensionValue)
+		if err != nil {
+			return err
+		}
 		call.FromExtensionId = &exten.Id
 	default:
 	}
+
 	return nil
 }
 
@@ -52,9 +60,8 @@ func (h *Handler) CreateCall(c echo.Context) error {
 	}
 
 	populateExtensionDetails := c.QueryParam("populateExtensionDetails")
-	extensionValue := c.QueryParam("extensionValue")
 	if populateExtensionDetails != "" && populateExtensionDetails == "1" {
-		err := applyExtensionValues(h.extensionStore, &call, extensionValue)
+		err := applyExtensionValues(h.extensionStore, &call)
 		if err != nil {
 			utils.Log(logrus.InfoLevel, "CreateCall populate extension details failed. err: " + err.Error())
 		}
