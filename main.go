@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"sync"
 	"time"
-	//"os"
 	//"errors"
 	"database/sql"
 	"github.com/gocql/gocql"
@@ -58,9 +57,9 @@ func main() {
 	// connect to cassandra
 	/*
 	utils.Log(logrus.InfoLevel, "Connecting to cassandra...")
-	cassandraAddr := os.Getenv("CASSANDRA_HOST") + ":9042"
+	cassandraAddr := utils.Config("CASSANDRA_HOST") + ":9042"
 	cqlCluster = gocql.NewCluster(cassandraAddr)
-	cqlCluster.Keyspace = os.Getenv("CASSANDRA_KEYSPACE")
+	cqlCluster.Keyspace = utils.Config("CASSANDRA_KEYSPACE")
 	cqlCluster.ProtoVersion = 4
 	cqlSess, err = cqlCluster.CreateSession()
 	if err != nil {
