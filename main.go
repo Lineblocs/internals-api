@@ -4,7 +4,7 @@ import (
 	"net/http"
 	"sync"
 	"time"
-	"os"
+	//"os"
 	//"errors"
 	"database/sql"
 	"github.com/gocql/gocql"
