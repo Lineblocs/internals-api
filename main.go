@@ -33,7 +33,7 @@ func main() {
 	logDestination := utils.Config("LOG_DESTINATIONS")
 	helpers.InitLogrus(logDestination)
 
-	utils.Log(logrus.InfoLevel, "Starting API...")
+	utils.Log(logrus.InfoLevel, "Running setup methods for api server..")
 	// Load media_server list from db and create media server
 	var err error
 	servers, err := helpers.CreateMediaServers()
@@ -48,6 +48,7 @@ func main() {
 	}
 
 	// Create DB Connection with MySQL
+	utils.Log(logrus.InfoLevel, "Connecting to database...")
 	db, err = helpers.CreateDBConn()
 	if err != nil {
 		utils.Log(logrus.PanicLevel, err.Error())
@@ -55,6 +56,7 @@ func main() {
 	}
 
 	// connect to cassandra
+	utils.Log(logrus.InfoLevel, "Connecting to cassandra...")
 	cassandraAddr := os.Getenv("CASSANDRA_HOST") + ":9042"
 	cqlCluster = gocql.NewCluster(cassandraAddr)
 	cqlCluster.Keyspace = os.Getenv("CASSANDRA_KEYSPACE")
@@ -70,6 +72,7 @@ func main() {
 
 	go func() {
 		// Start Internals-API Backend server
+		utils.Log(logrus.InfoLevel, "Starting API...")
 		startServer()
 		wg.Done()
 	}()
