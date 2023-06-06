@@ -56,6 +56,7 @@ func main() {
 	}
 
 	// connect to cassandra
+	/*
 	utils.Log(logrus.InfoLevel, "Connecting to cassandra...")
 	cassandraAddr := os.Getenv("CASSANDRA_HOST") + ":9042"
 	cqlCluster = gocql.NewCluster(cassandraAddr)
@@ -66,6 +67,7 @@ func main() {
 		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
 	}
+	*/
 
 	var wg sync.WaitGroup
 	wg.Add(1)
