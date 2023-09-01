@@ -1075,6 +1075,17 @@ func (us *UserStore) ProcessSIPTrunkCall(did string) ([]byte, error) {
 	return nil, nil
 }
 
+
+/*
+Input: did
+Todo : Get SIP URI with matching did number
+Output: First Value: SIP Uri, Second Value: error
+If success return (SIP Uri, nil) else return (nil, err)
+*/
+func (us *UserStore) ProcessDialplan(requestUser string) ([]byte, error) {
+	return []byte("pstn"), nil
+}
+
 /*
 Input: sip_msg
 Todo : Get SIP URI with matching did number

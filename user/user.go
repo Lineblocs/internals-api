@@ -40,5 +40,6 @@ type Store interface {
 	StoreRegistration(string, int, *model.Workspace) error
 	GetSettings() (*model.Settings, error)
 	ProcessSIPTrunkCall(string) ([]byte, error)
+	ProcessDialplan(string) ([]byte, error)
 	CaptureSIPMessage(string, string) ([]byte, error)
 }

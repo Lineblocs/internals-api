@@ -89,6 +89,7 @@ func (h *Handler) Register(e *echo.Echo) {
 	g.POST("/user/storeRegistration", h.StoreRegistration)
 	g.GET("/user/getSettings", h.GetSettings)
 	g.GET("/user/processSIPTrunkCall", h.ProcessSIPTrunkCall)
+	g.GET("/user/processDialplan", h.ProcessDialplan)
 	g.GET("/user/captureSIPMessage", h.CaptureSIPMessage)
 
 

@@ -715,6 +715,32 @@ func (h *Handler) ProcessSIPTrunkCall(c echo.Context) error {
 	return utils.HandleInternalErr("No trunks to route to..", err, c)
 }
 
+/*
+Input: did
+Todo : Get dialplan route
+Output: If success return dialpan context
+*/
+func (h *Handler) ProcessDialplan(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "ProcessDialplan is called")
+
+	//username := c.QueryParam("username")
+	//domain := c.QueryParam("domain")
+	//routerip := c.QueryParam("routerip")
+	requestUser := c.QueryParam("requestuser")
+	//addr := c.QueryParam("addr")
+
+	result, err := h.userStore.ProcessDialplan(requestUser)
+	if err != nil {
+		return utils.HandleInternalErr("ProcessDialplan error valid", err, c)
+	}
+
+	if result != nil {
+		return c.JSONBlob(http.StatusOK, result)
+	}
+
+	return utils.HandleInternalErr("No dialplan context available..", err, c)
+}
+
 
 /*
 Input: sip_msg
