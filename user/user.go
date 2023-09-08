@@ -23,6 +23,7 @@ type Store interface {
 	GetBYOPSTNProvider(string, string, int) (*model.PSTNInfo, error)
 	GetBestPSTNProvider(string, string) (*model.PSTNInfo, error)
 	IPWhitelistLookup(string, *model.Workspace) (bool, error)
+	HostedSIPTrunkLookup(string, *model.Workspace) (bool, error)
 	GetDIDAcceptOption(string) ([]byte, error)
 	GetUserRoutedServer2(bool, *model.Workspace, string) (*helpers.MediaServer, error)
 	GetCallerIdToUse(*model.Workspace, string) (string, error)

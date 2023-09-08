@@ -492,6 +492,16 @@ func (us *UserStore) IPWhitelistLookup(source string, workspace *model.Workspace
 }
 
 /*
+Input: source, Workspace model
+Todo : Check source ip from ip_whitelist with matching source and workspace_id
+Output: First Value: match boolean, Second Value: error
+If success return (true, nil) else return (false, err)
+*/
+func (us *UserStore) HostedSIPTrunkLookup(source string, workspace *model.Workspace) (bool, error) {
+	return false, nil
+}
+
+/*
 Input: did
 Todo : Get did_action with matching did number
 Output: First Value: did_action, Second Value: error

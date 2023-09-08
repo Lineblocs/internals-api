@@ -72,6 +72,7 @@ func (h *Handler) Register(e *echo.Echo) {
 	g.GET("/user/getPSTNProviderIP", h.GetPSTNProviderIP)
 	g.GET("/user/getPSTNProviderIPForTrunk", h.GetPSTNProviderIPForTrunk)
 	g.GET("/user/ipWhitelistLookup", h.IPWhitelistLookup)
+	g.GET("/user/hostedSIPTrunkLookup", h.HostedSIPTrunkLookup)
 	g.GET("/user/getDIDAcceptOption", h.GetDIDAcceptOption)
 	g.GET("/user/getDIDAssignedIP", h.GetDIDAssignedIP)
 	g.GET("/user/getUserAssignedIP", h.GetUserAssignedIP)

@@ -310,6 +310,33 @@ func (h *Handler) IPWhitelistLookup(c echo.Context) error {
 }
 
 /*
+Input: ip, fromdomain, todomain, fromuser, touser
+Todo : Check if this is a valid hosted SIP trunk or not
+Output: If matched return StatusNoContent, not matched return StatusNotFound, error return err
+*/
+func (h *Handler) HostedSIPTrunkLookup(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "HostedSIPTrunkLookup is called...")
+
+	source := c.QueryParam("ip")
+	domain := c.QueryParam("domain")
+	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
+	if err != nil {
+		return utils.HandleInternalErr("HostedSIPTrunkLookup error occured", err, c)
+	}
+	match, err := h.userStore.HostedSIPTrunkLookup(source, workspace)
+	if err != nil {
+		return utils.HandleInternalErr("HostedSIPTrunkLookup error", err, c)
+	}
+	if match {
+		return c.NoContent(http.StatusNoContent)
+	}
+	return c.NoContent(http.StatusNotFound)
+}
+
+
+
+
+/*
 Input: did
 Todo : Get did_action from did_numbers or byo_did_numbers with matching did
 Output: If success return did_action else return err
