@@ -1133,3 +1133,24 @@ func (us *UserStore) CaptureSIPMessage(domain string, sipMsg string) ([]byte, er
 	}
 	return nil, nil
 }
+
+/*
+Input: invite_ip
+Todo : Get SIP URI with matching did number
+Output: First Value: SIP Uri, Second Value: error
+If success return (SIP Uri, nil) else return (nil, err)
+*/
+func (us *UserStore) LogCallInviteEvent(inviteIp string) (error) {
+	return nil
+}
+
+/*
+Input: invite_ip
+Todo : Get SIP URI with matching did number
+Output: First Value: SIP Uri, Second Value: error
+If success return (SIP Uri, nil) else return (nil, err)
+*/
+func (us *UserStore) LogCallByeEvent(inviteIp string) (error) {
+	return nil
+}
+

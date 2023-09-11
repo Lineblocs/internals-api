@@ -43,4 +43,6 @@ type Store interface {
 	ProcessSIPTrunkCall(string) ([]byte, error)
 	ProcessDialplan(string) ([]byte, error)
 	CaptureSIPMessage(string, string) ([]byte, error)
+	LogCallInviteEvent(string) (error)
+	LogCallByeEvent(string) (error)
 }

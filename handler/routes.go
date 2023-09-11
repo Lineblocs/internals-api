@@ -92,6 +92,7 @@ func (h *Handler) Register(e *echo.Echo) {
 	g.GET("/user/processSIPTrunkCall", h.ProcessSIPTrunkCall)
 	g.GET("/user/processDialplan", h.ProcessDialplan)
 	g.GET("/user/captureSIPMessage", h.CaptureSIPMessage)
+	g.GET("/user/logCallInviteEvent", h.LogCallInviteEvent)
 
 
 	// Admin Related Routing

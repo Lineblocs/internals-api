@@ -792,3 +792,39 @@ func (h *Handler) CaptureSIPMessage(c echo.Context) error {
 	return utils.HandleInternalErr("No trunks to route to..", err, c)
 }
 
+/*
+Input: invite_ip
+Todo : Post processing for invite call event 
+Output: If success return sip uri else return err
+*/
+func (h *Handler) LogCallInviteEvent(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "LogCallInviteEvent	s called")
+
+	inviteIp:= c.QueryParam("invite_ip")
+
+	err := h.userStore.LogCallInviteEvent(inviteIp)
+	if err != nil {
+		return utils.HandleInternalErr("LogCallInviteEvent error valid", err, c)
+	}
+
+	return c.NoContent(http.StatusOK)
+}
+
+
+/*
+Input: invite_ip
+Todo : Post processing for invite call event 
+Output: If success return sip uri else return err
+*/
+func (h *Handler) LogCallByeEvent(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "LogCallByeEvent	s called")
+
+	inviteIp:= c.QueryParam("invite_ip")
+
+	err := h.userStore.LogCallByeEvent(inviteIp)
+	if err != nil {
+		return utils.HandleInternalErr("LogCallByeEvent error valid", err, c)
+	}
+
+	return c.NoContent(http.StatusOK)
+}
