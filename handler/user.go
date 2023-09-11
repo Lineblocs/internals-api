@@ -367,6 +367,13 @@ func (h *Handler) GetDIDAssignedIP(c echo.Context) error {
 	if server == nil {
 		return utils.HandleInternalErr("GetUserAssignedIP could not get server", err, c)
 	}
+	canPlace, err := utils.CanPlaceAdditionalCalls()
+	if err != nil {
+		return utils.HandleInternalErr("GetUserAssignedIP error occured", err, c)
+	}
+	if !canPlace {
+		return c.NoContent(http.StatusConflict)
+	}
 	return c.JSONBlob(http.StatusOK, []byte(server.PrivateIpAddress))
 }
 
