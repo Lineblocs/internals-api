@@ -13,6 +13,7 @@ import (
 	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/sirupsen/logrus"
 	"github.com/ttacon/libphonenumber"
+	"github.com/go-redis/redis"
 	"golang.org/x/crypto/bcrypt"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
@@ -24,11 +25,13 @@ Implementation of User Store
 
 type UserStore struct {
 	db *sql.DB
+	rdb *redis.Client
 }
 
-func NewUserStore(db *sql.DB) *UserStore {
+func NewUserStore(db *sql.DB, rdb *redis.Client) *UserStore {
 	return &UserStore{
 		db: db,
+		rdb: rdb,
 	}
 }
 
@@ -1141,6 +1144,12 @@ Output: First Value: SIP Uri, Second Value: error
 If success return (SIP Uri, nil) else return (nil, err)
 */
 func (us *UserStore) LogCallInviteEvent(inviteIp string) (error) {
+	// increment CPS counter for this SIP trunk
+	key := fmt.Sprintf("%s_cps", inviteIp)
+	err := us.rdb.Incr(key).Err()
+    if err != nil {
+		return err
+    }
 	return nil
 }
 
@@ -1151,6 +1160,12 @@ Output: First Value: SIP Uri, Second Value: error
 If success return (SIP Uri, nil) else return (nil, err)
 */
 func (us *UserStore) LogCallByeEvent(inviteIp string) (error) {
+	// decrement CPS counter for this SIP trunk
+	key := fmt.Sprintf("%s_cps", inviteIp)
+	err := us.rdb.Decr(key).Err()
+    if err != nil {
+		return err
+    }
 	return nil
 }
 

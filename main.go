@@ -13,6 +13,7 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/labstack/echo/v4"
 	"github.com/mrwaggel/golimiter"
+	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/handler"
 	"lineblocs.com/api/model"
@@ -22,6 +23,7 @@ import (
 )
 
 var db *sql.DB
+var rdb *redis.Client
 var cqlCluster *gocql.ClusterConfig
 var cqlSess *gocql.Session
 var data *model.ServerData
@@ -49,6 +51,12 @@ func main() {
 	// Create DB Connection with MySQL
 	utils.Log(logrus.InfoLevel, "Connecting to database...")
 	db, err = helpers.CreateDBConn()
+	if err != nil {
+		utils.Log(logrus.PanicLevel, err.Error())
+		panic(err)
+	}
+
+	rdb, err = helpers.CreateRedisConn()
 	if err != nil {
 		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
@@ -102,7 +110,7 @@ func startServer() {
 	fs := store.NewFaxStore(db)
 	ls := store.NewLoggerStore(db)
 	rs := store.NewRecordingStore(db)
-	us := store.NewUserStore(db)
+	us := store.NewUserStore(db, rdb)
 	h := handler.NewHandler(as, cs, crs, ds, fs, ls, rs, us)
 
 	// Register Handler for Echo context
