@@ -1,14 +1,12 @@
 package helpers
 
-
-
 import (
-	"github.com/ttacon/libphonenumber"
 	"strconv"
+
+	"github.com/ttacon/libphonenumber"
 )
 
-
-func ParseCountryCode( number string ) (string, error) {
+func ParseCountryCode(number string) (string, error) {
 	num, err := libphonenumber.Parse(number, "")
 
 	if err != nil {
@@ -17,5 +15,5 @@ func ParseCountryCode( number string ) (string, error) {
 
 	code := num.GetCountryCode()
 
-	return strconv.Itoa( int( code ) ), nil
+	return strconv.Itoa(int(code)), nil
 }
