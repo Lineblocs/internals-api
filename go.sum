@@ -1,3 +1,5 @@
+github.com/DATA-DOG/go-sqlmock v1.5.0 h1:Shsta01QNfFxHCfpW6YH2STWB0MudeXXEWMr20OEh60=
+github.com/DATA-DOG/go-sqlmock v1.5.0/go.mod h1:f/Ixk793poVmq4qj/V1dPUg2JEAKC73Q5eFN3EC/SaM=
 github.com/Lineblocs/go-helpers v0.0.4-0.20230912191058-27942af3c091 h1:cTyIz2w9fp5lx+aCJjx2QQQjTaNCGROcWBQDTwwYsLU=
 github.com/Lineblocs/go-helpers v0.0.4-0.20230912191058-27942af3c091/go.mod h1:URpye7EwegAN5PPq3Vy1DbX77qNkjq+OL4P3Hom8r/k=
 github.com/akyoto/cache v1.0.6 h1:5XGVVYoi2i+DZLLPuVIXtsNIJ/qaAM16XT0LaBaXd2k=

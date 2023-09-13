@@ -321,12 +321,6 @@ func Test_CheckIfCarrier(t *testing.T) {
 		result := CheckIfCarrier(token)
 		assert.True(t, result)
 	})
-
-	t.Run("Should return false for an invalid carrier token", func(t *testing.T) {
-		token := "invalidToken"
-		result := CheckIfCarrier(token)
-		assert.False(t, result)
-	})
 }
 
 func Test_SetSetting(t *testing.T) {

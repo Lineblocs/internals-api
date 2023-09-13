@@ -63,6 +63,7 @@ require (
 )
 
 require (
+	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/aws/aws-sdk-go-v2/config v1.18.39 // indirect
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.23.5 // indirect
 	github.com/go-chi/chi/v5 v5.0.10 // indirect
