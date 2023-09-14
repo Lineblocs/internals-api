@@ -24,9 +24,6 @@ func (h *Handler) CreateRecording(c echo.Context) error {
 	if err := c.Bind(&recording); err != nil {
 		return utils.HandleInternalErr("CreateRecording Could not decode JSON", err, c)
 	}
-	if err := c.Validate(&recording); err != nil {
-		return utils.HandleInternalErr("CreateRecording Could not decode JSON", err, c)
-	}
 
 	recording.APIId = utils.CreateAPIID("rec")
 
