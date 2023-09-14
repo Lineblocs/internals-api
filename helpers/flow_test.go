@@ -3,6 +3,7 @@ package helpers
 import (
 	"testing"
 
+	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -176,5 +177,151 @@ func TestNoRoutingManager_Process(t *testing.T) {
 		noRoutingManager := NewNoRoutingManager(ctx)
 		_, err := noRoutingManager.Process()
 		assert.NoError(t, err)
+	})
+}
+
+func TestCreateOrUseExistingProvider(t *testing.T) {
+	t.Run("CreateNewProvider", func(t *testing.T) {
+
+		existingProvider := &RoutablePSTNProvider{Id: 1}
+		providers := []*RoutablePSTNProvider{existingProvider}
+
+		newProviderId := 2
+		newProvider := createOrUseExistingProvider(providers, newProviderId)
+
+		assert.NotNil(t, newProvider)
+		assert.Equal(t, newProviderId, newProvider.Id)
+		assert.Len(t, providers, 1)
+	})
+
+	t.Run("UseExistingProvider", func(t *testing.T) {
+
+		existingProvider := &RoutablePSTNProvider{Id: 1}
+		providers := []*RoutablePSTNProvider{existingProvider}
+
+		existingProviderId := 1
+		existingProviderResult := createOrUseExistingProvider(providers, existingProviderId)
+
+		assert.NotNil(t, existingProviderResult)
+		assert.Equal(t, existingProvider, existingProviderResult)
+		assert.Len(t, providers, 1)
+	})
+}
+
+func TestCreateFlowResponse(t *testing.T) {
+	t.Run("ProvidersNotEmpty", func(t *testing.T) {
+
+		providers := []*RoutablePSTNProvider{}
+		outLink := &Link{}
+		noMatchLink := &Link{}
+
+		response := createFlowResponse(providers, outLink, noMatchLink)
+
+		assert.NotNil(t, response)
+		assert.Equal(t, providers, response.Providers)
+		assert.Equal(t, outLink, response.Link)
+	})
+
+	t.Run("ProvidersEmpty", func(t *testing.T) {
+
+		providers := []*RoutablePSTNProvider{}
+		outLink := &Link{}
+		noMatchLink := &Link{}
+
+		response := createFlowResponse(providers, outLink, noMatchLink)
+
+		assert.NotNil(t, response)
+		assert.Empty(t, response.Providers)
+		assert.Equal(t, noMatchLink, response.Link)
+	})
+}
+
+func TestCreateCellData(t *testing.T) {
+	t.Run("CreateCellData", func(t *testing.T) {
+
+		flow := &Flow{
+			Vars: &FlowVars{
+				Graph: Graph{
+					Cells: []*GraphCell{},
+				},
+				Models: []UnparsedModel{
+					{
+						Id: "model1",
+					},
+					{
+						Id: "model2",
+					}},
+			},
+		}
+
+		cell := &Cell{
+			Cell: &GraphCell{
+				Id: "cell1",
+			},
+		}
+
+		createCellData(cell, flow)
+
+		assert.NotNil(t, cell.Model)
+
+	})
+
+}
+
+func TestAddCellToFlow(t *testing.T) {
+
+	helpers.InitLogrus("stdout")
+
+	t.Run("Should return the cell", func(t *testing.T) {
+
+		flow := &Flow{
+			Exten:    "",
+			CallerId: "",
+			Cells: []*Cell{
+				{
+					Cell: &GraphCell{
+						Id: "cell1",
+					},
+				},
+			},
+			Models: []*Model{},
+			Vars: &FlowVars{
+				Graph:  Graph{},
+				Models: []UnparsedModel{},
+			},
+			FlowId: 0,
+		}
+
+		cellID := "cell1"
+		cell := addCellToFlow(cellID, flow)
+		assert.Equal(t, cell.Cell.Id, cellID)
+	})
+
+	t.Run("Should create cell data", func(t *testing.T) {
+
+		graphCells := []GraphCell{
+			{
+				Id: "cell1",
+			},
+			{
+				Id: "cell2",
+			},
+		}
+
+		flow := &Flow{
+			Vars: &FlowVars{
+				Graph: Graph{
+					Cells: make([]*GraphCell, len(graphCells)),
+				},
+			},
+		}
+
+		for i, cell := range graphCells {
+			flow.Vars.Graph.Cells[i] = &cell
+		}
+
+		cellID := "cell2"
+		cell := addCellToFlow(cellID, flow)
+		assert.Equal(t, cell.Cell.Id, cellID)
 	})
 }
