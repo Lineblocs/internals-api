@@ -10,6 +10,7 @@ import (
 	"github.com/labstack/echo/v4"
 	"github.com/stretchr/testify/assert"
 	"lineblocs.com/api/mocks"
+	"lineblocs.com/api/model"
 )
 
 func TestVerifyCaller(t *testing.T) {
@@ -224,24 +225,78 @@ func TestGetUserByDID(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.UserStoreInterface{}
-		mockStore.EXPECT().GetUserByDID("").Return("", nil)
-		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
+		mockUserStore := mocks.UserStoreInterface{}
+		mockCallStore := mocks.CallStoreInterface{}
+
+		mockResponse := &model.Workspace{
+			Id:              1,
+			CreatorId:       123,
+			OutboundMacroId: 123,
+			Name:            "test",
+		}
+
+		mockUserStore.EXPECT().GetUserByDID("").Return("", nil)
+		mockCallStore.EXPECT().GetWorkspaceByDomain("").Return(mockResponse, nil)
+		mockUserStore.EXPECT().GetWorkspaceParams(1).Return(nil, nil)
+
+		handler := NewHandler(nil, &mockCallStore, nil, nil, nil, nil, nil, &mockUserStore)
 
 		if assert.NoError(t, handler.GetUserByDID(c)) {
 			assert.Equal(t, http.StatusOK, rec.Code)
 		}
 	})
 
-	t.Run("Should return error", func(t *testing.T) {
+	t.Run("Should return error for UserStore", func(t *testing.T) {
 
 		req := httptest.NewRequest(http.MethodGet, "/user/getUserByDID", nil)
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.UserStoreInterface{}
-		mockStore.EXPECT().GetUserByDID("").Return("", errors.New("error"))
-		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().GetUserByDID("").Return("", errors.New("error"))
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+
+		if assert.NoError(t, handler.GetUserByDID(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+
+	t.Run("Should return error for CallStore", func(t *testing.T) {
+
+		req := httptest.NewRequest(http.MethodGet, "/user/getUserByDID", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockCallStore := mocks.CallStoreInterface{}
+
+		mockCallStore.EXPECT().GetWorkspaceByDomain("").Return(nil, errors.New("error"))
+		mockUserStore.EXPECT().GetUserByDID("").Return("", nil)
+		handler := NewHandler(nil, &mockCallStore, nil, nil, nil, nil, nil, &mockUserStore)
+
+		if assert.NoError(t, handler.GetUserByDID(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+
+	t.Run("Should return error for UserStore in GetWorkspaceParams", func(t *testing.T) {
+
+		req := httptest.NewRequest(http.MethodGet, "/user/getUserByDID", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockCallStore := mocks.CallStoreInterface{}
+
+		mockResponse := &model.Workspace{
+			Id: 1,
+		}
+
+		mockCallStore.EXPECT().GetWorkspaceByDomain("").Return(mockResponse, nil)
+		mockUserStore.EXPECT().GetUserByDID("").Return("", nil)
+		mockUserStore.EXPECT().GetWorkspaceParams(1).Return(nil, errors.New("error"))
+
+		handler := NewHandler(nil, &mockCallStore, nil, nil, nil, nil, nil, &mockUserStore)
 
 		if assert.NoError(t, handler.GetUserByDID(c)) {
 			assert.Equal(t, http.StatusInternalServerError, rec.Code)
