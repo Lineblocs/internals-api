@@ -6,7 +6,7 @@ type Log struct {
 	Title       string  `json:"title"`
 	Report      string  `json:"report"`
 	FlowId      int     `json:"flow_id"`
-	Level       *string `json:"report"`
+	Level       *string `json:"level"`
 	From        *string `json:"from"`
 	To          *string `json:"to"`
 }
