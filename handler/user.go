@@ -622,7 +622,7 @@ func (h *Handler) IncomingTrunkValidation(c echo.Context) error {
 	}
 
 	if result == nil {
-		return utils.HandleInternalErr("Checked all SIP trunks no matches were found... error.", err, c)
+		return utils.HandleInternalErr("Checked all SIP trunks no matches were found... error.", errors.New("no matches"), c)
 	}
 	return c.JSONBlob(http.StatusOK, result)
 }
@@ -643,7 +643,7 @@ func (h *Handler) LookupSIPTrunkByDID(c echo.Context) error {
 	}
 
 	if result == nil {
-		return utils.HandleInternalErr("checked all SIP trunks and found that none were online... error.", err, c)
+		return utils.HandleInternalErr("checked all SIP trunks and found that none were online... error.", errors.New("no SIP"), c)
 	}
 
 	return c.JSONBlob(http.StatusOK, result)
@@ -670,7 +670,7 @@ func (h *Handler) IncomingMediaServerValidation(c echo.Context) error {
 	if result {
 		return c.NoContent(http.StatusNoContent)
 	}
-	return utils.HandleInternalErr("No media server found..", err, c)
+	return utils.HandleInternalErr("No media server found", errors.New("no media server"), c)
 }
 
 /*
@@ -686,16 +686,14 @@ func (h *Handler) StoreRegistration(c echo.Context) error {
 	user := c.FormValue("user")
 	//contact := c.FormValue("contact")
 	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
-	var expires int
+	if err != nil {
+		return utils.HandleInternalErr("StoreRegistration error..", err, c)
+	}
 
-	expires, err = strconv.Atoi(c.FormValue("expires"))
-
+	expires, err := strconv.Atoi(c.FormValue("expires"))
 	if err != nil {
 		utils.Log(logrus.InfoLevel, "Could not get expiry.. not setting online\r\n")
 		return c.NoContent(http.StatusOK)
-	}
-	if err != nil {
-		return utils.HandleInternalErr("StoreRegistration error..", err, c)
 	}
 
 	err = h.userStore.StoreRegistration(user, expires, workspace)

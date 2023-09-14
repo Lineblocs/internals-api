@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"database/sql"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -299,6 +300,261 @@ func TestGetUserByDID(t *testing.T) {
 		handler := NewHandler(nil, &mockCallStore, nil, nil, nil, nil, nil, &mockUserStore)
 
 		if assert.NoError(t, handler.GetUserByDID(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+}
+
+func TestGetSettings(t *testing.T) {
+
+	e := echo.New()
+	helpers.InitLogrus("stdout")
+
+	t.Run("Should return no error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/getSettings", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().GetSettings().Return(nil, nil)
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.GetSettings(c)) {
+			assert.Equal(t, http.StatusOK, rec.Code)
+		}
+	})
+
+	t.Run("Should return error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/getSettings", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().GetSettings().Return(nil, errors.New("error"))
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.GetSettings(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+
+	t.Run("Should return error for sqlNoRows", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/getSettings", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().GetSettings().Return(nil, sql.ErrNoRows)
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.GetSettings(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+}
+
+func TestStoreRegistration(t *testing.T) {
+
+	e := echo.New()
+	helpers.InitLogrus("stdout")
+
+	t.Run("Should return ok for no expires", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/StoreRegistration?expires=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockCallStore := mocks.CallStoreInterface{}
+		mockUserStore := mocks.UserStoreInterface{}
+
+		mockCallStore.EXPECT().GetWorkspaceByDomain("").Return(nil, nil)
+		handler := NewHandler(nil, &mockCallStore, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.StoreRegistration(c)) {
+			assert.Equal(t, http.StatusOK, rec.Code)
+		}
+	})
+
+	t.Run("Should return internal error for wrong domain", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/StoreRegistration?domain=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockCallStore := mocks.CallStoreInterface{}
+		mockUserStore := mocks.UserStoreInterface{}
+
+		mockCallStore.EXPECT().GetWorkspaceByDomain("abc").Return(nil, errors.New("error"))
+		handler := NewHandler(nil, &mockCallStore, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.StoreRegistration(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+
+	t.Run("Should return internal error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/StoreRegistration?expires=123&user=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockCallStore := mocks.CallStoreInterface{}
+		mockUserStore := mocks.UserStoreInterface{}
+
+		workspace := &model.Workspace{}
+
+		mockCallStore.EXPECT().GetWorkspaceByDomain("").Return(workspace, nil)
+		mockUserStore.EXPECT().StoreRegistration("abc", 123, workspace).Return(errors.New("error"))
+
+		handler := NewHandler(nil, &mockCallStore, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.StoreRegistration(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+
+	t.Run("Should return no errors", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/StoreRegistration?expires=123&user=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockCallStore := mocks.CallStoreInterface{}
+		mockUserStore := mocks.UserStoreInterface{}
+
+		workspace := &model.Workspace{}
+
+		mockCallStore.EXPECT().GetWorkspaceByDomain("").Return(workspace, nil)
+		mockUserStore.EXPECT().StoreRegistration("abc", 123, workspace).Return(nil)
+
+		handler := NewHandler(nil, &mockCallStore, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.StoreRegistration(c)) {
+			assert.Equal(t, http.StatusOK, rec.Code)
+		}
+	})
+}
+
+func TestIncomingMediaServerValidation(t *testing.T) {
+
+	e := echo.New()
+	helpers.InitLogrus("stdout")
+
+	t.Run("Should return no error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/IncomingMediaServerValidation?source=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().IncomingMediaServerValidation("abc").Return(true, nil)
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.IncomingMediaServerValidation(c)) {
+			assert.Equal(t, http.StatusNoContent, rec.Code)
+		}
+	})
+
+	t.Run("Should return error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/IncomingMediaServerValidation?source=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().IncomingMediaServerValidation("abc").Return(false, errors.New("error"))
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.IncomingMediaServerValidation(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+
+	t.Run("Should return internal error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/IncomingMediaServerValidation?source=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().IncomingMediaServerValidation("abc").Return(false, nil)
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.IncomingMediaServerValidation(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+}
+
+func TestLookupSIPTrunkByDID(t *testing.T) {
+
+	e := echo.New()
+	helpers.InitLogrus("stdout")
+
+	t.Run("Should return no error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/LookupSIPTrunkByDID?did=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().LookupSIPTrunkByDID("abc").Return([]byte("abc"), nil)
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.LookupSIPTrunkByDID(c)) {
+			assert.Equal(t, http.StatusOK, rec.Code)
+		}
+	})
+
+	t.Run("Should return error for no sips", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/LookupSIPTrunkByDID?did=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().LookupSIPTrunkByDID("abc").Return(nil, nil)
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.LookupSIPTrunkByDID(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+
+	t.Run("Should return error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/LookupSIPTrunkByDID?did=abc", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().LookupSIPTrunkByDID("abc").Return(nil, errors.New("error"))
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.LookupSIPTrunkByDID(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+}
+
+func TestIncomingTrunkValidation(t *testing.T) {
+
+	e := echo.New()
+	helpers.InitLogrus("stdout")
+	iptest := "0.0.0.0"
+
+	t.Run("Should return no error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/IncomingTrunkValidation?fromdomain=0.0.0.0", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().IncomingTrunkValidation(iptest).Return([]byte("abc"), nil)
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.IncomingTrunkValidation(c)) {
+			assert.Equal(t, http.StatusOK, rec.Code)
+		}
+	})
+
+	t.Run("Should return error", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/IncomingTrunkValidation?fromdomain=0.0.0.0", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().IncomingTrunkValidation(iptest).Return([]byte("abc"), errors.New("error"))
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.IncomingTrunkValidation(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+
+	t.Run("Should return error for no matches", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/user/IncomingTrunkValidation?fromdomain=0.0.0.0", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockUserStore := mocks.UserStoreInterface{}
+		mockUserStore.EXPECT().IncomingTrunkValidation(iptest).Return(nil, nil)
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockUserStore)
+		if assert.NoError(t, handler.IncomingTrunkValidation(c)) {
 			assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		}
 	})
