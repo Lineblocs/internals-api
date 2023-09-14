@@ -25,7 +25,7 @@ test: # Runs all the tests in the application and returns if they passed or fail
 
 mocks: # Install mock module and updates all mocks files
 	go install github.com/vektra/mockery/v2@latest
-	mockery --with-expecter --all --output mocks	
+	mockery --with-expecter --disable-version-string --all --output mocks	
 
 coverage:
 	go test -coverprofile=coverage.out -covermode=count ./...

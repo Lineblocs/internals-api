@@ -333,9 +333,6 @@ func (h *Handler) HostedSIPTrunkLookup(c echo.Context) error {
 	return c.NoContent(http.StatusNotFound)
 }
 
-
-
-
 /*
 Input: did
 Todo : Get did_action from did_numbers or byo_did_numbers with matching did
@@ -742,11 +739,7 @@ func (h *Handler) ProcessSIPTrunkCall(c echo.Context) error {
 		return utils.HandleInternalErr("ProcessSIPTrunkCall error valid", err, c)
 	}
 
-	if result != nil {
-		return c.JSONBlob(http.StatusOK, result)
-	}
-
-	return utils.HandleInternalErr("No trunks to route to..", err, c)
+	return c.JSONBlob(http.StatusOK, result)
 }
 
 /*
@@ -768,13 +761,8 @@ func (h *Handler) ProcessDialplan(c echo.Context) error {
 		return utils.HandleInternalErr("ProcessDialplan error valid", err, c)
 	}
 
-	if result != nil {
-		return c.JSONBlob(http.StatusOK, result)
-	}
-
-	return utils.HandleInternalErr("No dialplan context available..", err, c)
+	return c.JSONBlob(http.StatusOK, result)
 }
-
 
 /*
 Input: sip_msg
@@ -784,30 +772,26 @@ Output: If success return sip uri else return err
 func (h *Handler) CaptureSIPMessage(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "CaptureSIPMessage	s called")
 
-	domain:= c.QueryParam("domain")
-	sipMsg:= c.QueryParam("sip_msg")
+	domain := c.QueryParam("domain")
+	sipMsg := c.QueryParam("sip_msg")
 
 	result, err := h.userStore.CaptureSIPMessage(domain, sipMsg)
 	if err != nil {
 		return utils.HandleInternalErr("ProcessSIPTrunkCall error valid", err, c)
 	}
 
-	if result != nil {
-		return c.JSONBlob(http.StatusOK, result)
-	}
-
-	return utils.HandleInternalErr("No trunks to route to..", err, c)
+	return c.JSONBlob(http.StatusOK, result)
 }
 
 /*
 Input: invite_ip
-Todo : Post processing for invite call event 
+Todo : Post processing for invite call event
 Output: If success return sip uri else return err
 */
 func (h *Handler) LogCallInviteEvent(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "LogCallInviteEvent	s called")
 
-	inviteIp:= c.QueryParam("invite_ip")
+	inviteIp := c.QueryParam("invite_ip")
 
 	err := h.userStore.LogCallInviteEvent(inviteIp)
 	if err != nil {
@@ -817,16 +801,15 @@ func (h *Handler) LogCallInviteEvent(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-
 /*
 Input: invite_ip
-Todo : Post processing for invite call event 
+Todo : Post processing for invite call event
 Output: If success return sip uri else return err
 */
 func (h *Handler) LogCallByeEvent(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "LogCallByeEvent	s called")
 
-	inviteIp:= c.QueryParam("invite_ip")
+	inviteIp := c.QueryParam("invite_ip")
 
 	err := h.userStore.LogCallByeEvent(inviteIp)
 	if err != nil {
