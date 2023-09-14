@@ -325,3 +325,88 @@ func TestAddCellToFlow(t *testing.T) {
 		assert.Equal(t, cell.Cell.Id, cellID)
 	})
 }
+
+func TestFindLinkByName_SourceDirection(t *testing.T) {
+
+	helpers.InitLogrus("stdout")
+
+	t.Run("FoundSourceLink", func(t *testing.T) {
+
+		sourceLink := &Link{
+			Link: &GraphCell{
+				Source: CellConnection{Port: "tag"},
+				Name:   "link1",
+			},
+			Source: &Cell{
+				Cell: &GraphCell{
+					Id:   "cell1",
+					Name: "cell1",
+				},
+			},
+			Target: &Cell{},
+		}
+		links := []*Link{sourceLink}
+
+		direction := "source"
+		tag := "tag"
+		result, err := findLinkByName(links, direction, tag)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, sourceLink, result)
+	})
+
+	t.Run("NotFoundSourceLink", func(t *testing.T) {
+
+		links := []*Link{}
+
+		direction := "source"
+		tag := "tag"
+		result, err := findLinkByName(links, direction, tag)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
+
+func TestFindLinkByName_TargetDirection(t *testing.T) {
+
+	helpers.InitLogrus("stdout")
+
+	t.Run("FoundTargetLink", func(t *testing.T) {
+
+		targetLink := &Link{
+			Link: &GraphCell{
+				Target: CellConnection{Port: "tag"},
+			},
+			Source: &Cell{},
+			Target: &Cell{
+				Cell: &GraphCell{
+					Id:   "cell1",
+					Name: "cell1",
+				},
+			},
+		}
+		links := []*Link{targetLink}
+
+		direction := "target"
+		tag := "tag"
+		result, err := findLinkByName(links, direction, tag)
+
+		assert.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.Equal(t, targetLink, result)
+	})
+
+	t.Run("NotFoundTargetLink", func(t *testing.T) {
+
+		links := []*Link{}
+
+		direction := "target"
+		tag := "tag"
+		result, err := findLinkByName(links, direction, tag)
+
+		assert.Error(t, err)
+		assert.Nil(t, result)
+	})
+}
