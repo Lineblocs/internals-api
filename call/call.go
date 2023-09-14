@@ -6,7 +6,7 @@ import "lineblocs.com/api/model"
 Interface of Call Store.
 Implementation of Call Store is located /store/call
 */
-type Store interface {
+type CallStoreInterface interface {
 	CreateCall(*model.Call) (string, error)
 	UpdateCall(*model.CallUpdate) error
 	GetCallFromDB(int) (*model.Call, error)
