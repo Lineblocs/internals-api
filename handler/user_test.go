@@ -40,7 +40,7 @@ func TestCaptureSIPMessage(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().CaptureSIPMessage("123", "12345").Return(nil, nil)
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
@@ -55,7 +55,7 @@ func TestCaptureSIPMessage(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().CaptureSIPMessage("123", "12345").Return(nil, errors.New("error"))
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
@@ -80,7 +80,7 @@ func TestLogCallInviteEvent(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().LogCallInviteEvent("").Return(nil)
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
@@ -95,7 +95,7 @@ func TestLogCallInviteEvent(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().LogCallInviteEvent("").Return(errors.New("error"))
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
@@ -116,7 +116,7 @@ func TestLogCallByeEvent(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().LogCallByeEvent("").Return(nil)
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
@@ -131,7 +131,7 @@ func TestLogCallByeEvent(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().LogCallByeEvent("").Return(errors.New("error"))
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
@@ -152,7 +152,7 @@ func TestProcessDialplan(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().ProcessDialplan("").Return(nil, nil)
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
@@ -167,7 +167,7 @@ func TestProcessDialplan(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().ProcessDialplan("").Return(nil, errors.New("error"))
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
@@ -188,7 +188,7 @@ func TestProcessSIPTrunkCall(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().ProcessSIPTrunkCall("").Return(nil, nil)
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
@@ -203,11 +203,47 @@ func TestProcessSIPTrunkCall(t *testing.T) {
 		rec := httptest.NewRecorder()
 		c := e.NewContext(req, rec)
 
-		mockStore := mocks.Store{}
+		mockStore := mocks.UserStoreInterface{}
 		mockStore.EXPECT().ProcessSIPTrunkCall("").Return(nil, errors.New("error"))
 		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
 
 		if assert.NoError(t, handler.ProcessSIPTrunkCall(c)) {
+			assert.Equal(t, http.StatusInternalServerError, rec.Code)
+		}
+	})
+}
+
+func TestGetUserByDID(t *testing.T) {
+
+	e := echo.New()
+	helpers.InitLogrus("stdout")
+
+	t.Run("Should return no error", func(t *testing.T) {
+
+		req := httptest.NewRequest(http.MethodGet, "/user/getUserByDID", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockStore := mocks.UserStoreInterface{}
+		mockStore.EXPECT().GetUserByDID("").Return("", nil)
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
+
+		if assert.NoError(t, handler.GetUserByDID(c)) {
+			assert.Equal(t, http.StatusOK, rec.Code)
+		}
+	})
+
+	t.Run("Should return error", func(t *testing.T) {
+
+		req := httptest.NewRequest(http.MethodGet, "/user/getUserByDID", nil)
+		rec := httptest.NewRecorder()
+		c := e.NewContext(req, rec)
+
+		mockStore := mocks.UserStoreInterface{}
+		mockStore.EXPECT().GetUserByDID("").Return("", errors.New("error"))
+		handler := NewHandler(nil, nil, nil, nil, nil, nil, nil, &mockStore)
+
+		if assert.NoError(t, handler.GetUserByDID(c)) {
 			assert.Equal(t, http.StatusInternalServerError, rec.Code)
 		}
 	})
