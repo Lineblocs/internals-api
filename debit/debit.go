@@ -8,7 +8,7 @@ import (
 Interface of Debit Store.
 Implementation of Debit Store is located /store/debit
 */
-type Store interface {
+type DebitStoreInterface interface {
 	CreateDebit(*model.CallRate, *model.Debit) error
 	CreateAPIUsageDebit(*model.Workspace, *model.DebitAPI) error
 }

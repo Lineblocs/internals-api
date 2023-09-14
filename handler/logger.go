@@ -19,10 +19,7 @@ func (h *Handler) CreateLog(c echo.Context) error {
 	var logReq model.Log
 
 	if err := c.Bind(&logReq); err != nil {
-		return utils.HandleInternalErr("CreateLog 1 Could not decode JSON", err, c)
-	}
-	if err := c.Validate(&logReq); err != nil {
-		return utils.HandleInternalErr("CreateLog 2 Could not decode JSON", err, c)
+		return utils.HandleInternalErr("CreateLog could not decode JSON", err, c)
 	}
 
 	level := "info"
@@ -38,7 +35,7 @@ func (h *Handler) CreateLog(c echo.Context) error {
 	if logReq.To != nil {
 		to = *logReq.To
 	}
-	var log *model.LogRoutine = &model.LogRoutine{From: from,
+	log := &model.LogRoutine{From: from,
 		To:          to,
 		Level:       level,
 		Title:       logReq.Title,
@@ -75,7 +72,7 @@ func (h *Handler) CreateLogSimple(c echo.Context) error {
 		return utils.HandleInternalErr("Could not get workspace..", err, c)
 	}
 
-	if &level == nil {
+	if level == "" {
 		level = "infO"
 	}
 
@@ -86,7 +83,7 @@ func (h *Handler) CreateLogSimple(c echo.Context) error {
 		title = "Caller ID Verify failed.."
 		report = "Caller ID Verify failed.."
 	}
-	var log *model.LogRoutine = &model.LogRoutine{
+	log := &model.LogRoutine{
 		From:        "",
 		To:          "",
 		Level:       level,

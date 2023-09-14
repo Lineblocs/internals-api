@@ -333,9 +333,6 @@ func (h *Handler) HostedSIPTrunkLookup(c echo.Context) error {
 	return c.NoContent(http.StatusNotFound)
 }
 
-
-
-
 /*
 Input: did
 Todo : Get did_action from did_numbers or byo_did_numbers with matching did
@@ -625,7 +622,7 @@ func (h *Handler) IncomingTrunkValidation(c echo.Context) error {
 	}
 
 	if result == nil {
-		return utils.HandleInternalErr("Checked all SIP trunks no matches were found... error.", err, c)
+		return utils.HandleInternalErr("Checked all SIP trunks no matches were found... error.", errors.New("no matches"), c)
 	}
 	return c.JSONBlob(http.StatusOK, result)
 }
@@ -646,7 +643,7 @@ func (h *Handler) LookupSIPTrunkByDID(c echo.Context) error {
 	}
 
 	if result == nil {
-		return utils.HandleInternalErr("checked all SIP trunks and found that none were online... error.", err, c)
+		return utils.HandleInternalErr("checked all SIP trunks and found that none were online... error.", errors.New("no SIP"), c)
 	}
 
 	return c.JSONBlob(http.StatusOK, result)
@@ -673,7 +670,7 @@ func (h *Handler) IncomingMediaServerValidation(c echo.Context) error {
 	if result {
 		return c.NoContent(http.StatusNoContent)
 	}
-	return utils.HandleInternalErr("No media server found..", err, c)
+	return utils.HandleInternalErr("No media server found", errors.New("no media server"), c)
 }
 
 /*
@@ -689,16 +686,14 @@ func (h *Handler) StoreRegistration(c echo.Context) error {
 	user := c.FormValue("user")
 	//contact := c.FormValue("contact")
 	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
-	var expires int
+	if err != nil {
+		return utils.HandleInternalErr("StoreRegistration error..", err, c)
+	}
 
-	expires, err = strconv.Atoi(c.FormValue("expires"))
-
+	expires, err := strconv.Atoi(c.FormValue("expires"))
 	if err != nil {
 		utils.Log(logrus.InfoLevel, "Could not get expiry.. not setting online\r\n")
 		return c.NoContent(http.StatusOK)
-	}
-	if err != nil {
-		return utils.HandleInternalErr("StoreRegistration error..", err, c)
 	}
 
 	err = h.userStore.StoreRegistration(user, expires, workspace)
@@ -742,11 +737,7 @@ func (h *Handler) ProcessSIPTrunkCall(c echo.Context) error {
 		return utils.HandleInternalErr("ProcessSIPTrunkCall error valid", err, c)
 	}
 
-	if result != nil {
-		return c.JSONBlob(http.StatusOK, result)
-	}
-
-	return utils.HandleInternalErr("No trunks to route to..", err, c)
+	return c.JSONBlob(http.StatusOK, result)
 }
 
 /*
@@ -768,13 +759,8 @@ func (h *Handler) ProcessDialplan(c echo.Context) error {
 		return utils.HandleInternalErr("ProcessDialplan error valid", err, c)
 	}
 
-	if result != nil {
-		return c.JSONBlob(http.StatusOK, result)
-	}
-
-	return utils.HandleInternalErr("No dialplan context available..", err, c)
+	return c.JSONBlob(http.StatusOK, result)
 }
-
 
 /*
 Input: sip_msg
@@ -784,30 +770,26 @@ Output: If success return sip uri else return err
 func (h *Handler) CaptureSIPMessage(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "CaptureSIPMessage	s called")
 
-	domain:= c.QueryParam("domain")
-	sipMsg:= c.QueryParam("sip_msg")
+	domain := c.QueryParam("domain")
+	sipMsg := c.QueryParam("sip_msg")
 
 	result, err := h.userStore.CaptureSIPMessage(domain, sipMsg)
 	if err != nil {
 		return utils.HandleInternalErr("ProcessSIPTrunkCall error valid", err, c)
 	}
 
-	if result != nil {
-		return c.JSONBlob(http.StatusOK, result)
-	}
-
-	return utils.HandleInternalErr("No trunks to route to..", err, c)
+	return c.JSONBlob(http.StatusOK, result)
 }
 
 /*
 Input: invite_ip
-Todo : Post processing for invite call event 
+Todo : Post processing for invite call event
 Output: If success return sip uri else return err
 */
 func (h *Handler) LogCallInviteEvent(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "LogCallInviteEvent	s called")
 
-	inviteIp:= c.QueryParam("invite_ip")
+	inviteIp := c.QueryParam("invite_ip")
 
 	err := h.userStore.LogCallInviteEvent(inviteIp)
 	if err != nil {
@@ -817,16 +799,15 @@ func (h *Handler) LogCallInviteEvent(c echo.Context) error {
 	return c.NoContent(http.StatusOK)
 }
 
-
 /*
 Input: invite_ip
-Todo : Post processing for invite call event 
+Todo : Post processing for invite call event
 Output: If success return sip uri else return err
 */
 func (h *Handler) LogCallByeEvent(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "LogCallByeEvent	s called")
 
-	inviteIp:= c.QueryParam("invite_ip")
+	inviteIp := c.QueryParam("invite_ip")
 
 	err := h.userStore.LogCallByeEvent(inviteIp)
 	if err != nil {

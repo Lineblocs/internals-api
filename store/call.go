@@ -2,12 +2,13 @@ package store
 
 import (
 	"database/sql"
-	"github.com/gocql/gocql"
 	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/gocql/gocql"
 
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
@@ -19,7 +20,7 @@ Implementation of Call Store
 */
 
 type CallStore struct {
-	db *sql.DB
+	db      *sql.DB
 	cqlSess *gocql.Session
 }
 

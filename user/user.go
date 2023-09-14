@@ -11,7 +11,7 @@ import (
 Interface of User Store.
 Implementation of User Store is located /store/user
 */
-type Store interface {
+type UserStoreInterface interface {
 	ValidateAccess(string, string) bool
 	DoVerifyCaller(*model.Workspace, string) (bool, error)
 	GetWorkspaceParams(int) (*[]model.WorkspaceParam, error)
@@ -43,6 +43,6 @@ type Store interface {
 	ProcessSIPTrunkCall(string) ([]byte, error)
 	ProcessDialplan(string) ([]byte, error)
 	CaptureSIPMessage(string, string) ([]byte, error)
-	LogCallInviteEvent(string) (error)
-	LogCallByeEvent(string) (error)
+	LogCallInviteEvent(string) error
+	LogCallByeEvent(string) error
 }

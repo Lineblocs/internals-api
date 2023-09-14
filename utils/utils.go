@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"errors"
 	"fmt"
 	"mime/multipart"
 	"net"
@@ -41,15 +40,13 @@ func ToCents(dollars float64) int {
 }
 
 func CalculateTTSCosts(length int) float64 {
-	var result float64 = float64(length) * .000005
-	return result
+	return float64(length) * .000005
 }
 
 func CalculateSTTCosts(recordingLength float64) float64 {
 	// Google cloud bills .006 per 15 seconds
 	billable := recordingLength / 15
-	var result float64 = 0.006 * billable
-	return result
+	return 0.006 * billable
 }
 
 func CreateS3URL(folder string, id string) string {
@@ -96,17 +93,15 @@ func GetPlanRecordingLimit(workspace *model.Workspace) (int, error) {
 }
 
 func GetPlanFaxLimit(workspace *model.Workspace) (*int, error) {
-	var res *int
-	if workspace.Plan == "pay-as-you-go" {
-		*res = 100
-	} else if workspace.Plan == "starter" {
-		*res = 100
-	} else if workspace.Plan == "pro" {
-		res = nil
-	} else if workspace.Plan == "starter" {
-		res = nil
+	var res int
+	switch workspace.Plan {
+	case "pay-as-you-go", "starter":
+		res = 100
+	case "pro", "unknown":
+		// Default case: leave res as 0 (nil)
 	}
-	return res, nil
+
+	return &res, nil
 }
 
 func CheckRouteMatches(from string, to string, prefix string, prepend string, match string) (bool, error) {
@@ -168,9 +163,8 @@ func CheckFreeTrialStatus(plan string, started time.Time) string {
 		now := time.Now()
 		//make configurable
 		expireDays := 10
-		expireHours := expireDays * 24
-		started.Add(time.Hour * time.Duration(expireHours))
-		if started.After(now) {
+		expireTime := started.Add(time.Hour * 24 * time.Duration(expireDays))
+		if now.After(expireTime) {
 			return "expired"
 		}
 		return "pending-expiry"
@@ -183,9 +177,7 @@ func LookupSIPAddresses(host string) (*[]net.IP, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(ips) == 0 {
-		return nil, errors.New("No IP match found..")
-	}
+
 	return &ips, nil
 }
 

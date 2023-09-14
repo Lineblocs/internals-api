@@ -94,7 +94,6 @@ func (h *Handler) Register(e *echo.Echo) {
 	g.GET("/user/captureSIPMessage", h.CaptureSIPMessage)
 	g.GET("/user/logCallInviteEvent", h.LogCallInviteEvent)
 
-
 	// Admin Related Routing
 	g.POST("/admin/sendAdminEmail", h.SendAdminEmail)
 	g.GET("/getBestRTPProxy", h.GetBestRTPProxy)
