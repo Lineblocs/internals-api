@@ -27,8 +27,23 @@ var rdb *redis.Client
 var cqlCluster *gocql.ClusterConfig
 var cqlSess *gocql.Session
 var data *model.ServerData
+var customizations *helpers.CustomizationSettings
+
+func updateCustomizationSettings() (error) {
+	record, err := helpers.GetCustomizationSettings()
+	if err != nil {
+		utils.Log(logrus.PanicLevel, err.Error())
+		panic(err)
+		return err
+	}
+
+	customizations = record
+	return nil
+}
 
 func main() {
+    ticker := time.NewTicker(60 * time.Second)
+    defer ticker.Stop()
 
 	// Init Logrus and configure channels
 	logDestination := utils.Config("LOG_DESTINATIONS")
@@ -57,6 +72,9 @@ func main() {
 	}
 
 	rdb, err = helpers.CreateRedisConn()
+
+	// get customization record before starting server
+	err = updateCustomizationSettings()
 	if err != nil {
 		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
@@ -76,8 +94,24 @@ func main() {
 	}
 	*/
 
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("got customization settings. billing frequency = %s", customizations.BillingFrequency))
+
 	var wg sync.WaitGroup
 	wg.Add(1)
+
+	go func() {
+        for {
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("updating customization settings"))
+            <-ticker.C
+            err := updateCustomizationSettings()
+			if err != nil {
+				utils.Log(logrus.DebugLevel, fmt.Sprintf("failed to get updated customizations record"))
+				continue
+			}
+
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("updated settings successfully."))
+        }
+    }()
 
 	go func() {
 		// Start Internals-API Backend server

@@ -3,7 +3,7 @@ module lineblocs.com/api
 go 1.17
 
 require (
-	github.com/Lineblocs/go-helpers v0.0.4-0.20230912191058-27942af3c091
+	github.com/Lineblocs/go-helpers v0.0.4-0.20240513214446-9bd35e2e761b
 	github.com/aws/aws-sdk-go v1.45.8
 	github.com/go-sql-driver/mysql v1.7.1
 	github.com/google/uuid v1.3.1
@@ -19,6 +19,7 @@ require (
 )
 
 require (
+	filippo.io/edwards25519 v1.1.0 // indirect
 	github.com/akyoto/cache v1.0.6 // indirect
 	github.com/aws/aws-sdk-go-v2 v1.21.0 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.13.37 // indirect

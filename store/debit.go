@@ -30,9 +30,20 @@ Todo : Create new user_debit and store to db
 Output: If success return nil else return err
 */
 func (ds *DebitStore) CreateDebit(rate *model.CallRate, debit *model.Debit) error {
-	minutes := math.Floor(debit.Seconds / 60)
-	dollars := minutes * rate.CallRate
-	cents := utils.ToCents(dollars)
+	var cents int;
+
+	customizations := utils.GetCustomizationSettings()
+
+	if customizations.BillingFrequency == "PER_MINUTE" {
+		minutes := math.Ceil(debit.Seconds / 60)
+		dollars := minutes * rate.CallRate
+		cents = utils.ToCents(dollars)
+	} else if customizations.BillingFrequency == "PER_SECOND" {
+		minutes := debit.Seconds / 60
+		dollars := minutes * rate.CallRate
+		cents = utils.ToCents(dollars)
+	}
+
 	now := time.Now()
 	stmt, err := ds.db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`, `plan_snapshot`, `module_id`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ? )")
 	if err != nil {

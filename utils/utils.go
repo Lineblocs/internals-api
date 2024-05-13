@@ -24,6 +24,7 @@ import (
 var settings *model.GlobalSettings
 var log *logrus.Logger
 var microserviceName string
+var customizations *helpers.CustomizationSettings
 
 func CreateAPIID(prefix string) string {
 	id := guuid.New()
@@ -219,6 +220,14 @@ func SetSetting(gs model.GlobalSettings) {
 
 func GetSetting() *model.GlobalSettings {
 	return settings
+}
+
+func SetCustomizations(value *helpers.CustomizationSettings) {
+	customizations = value
+}
+
+func GetCustomizationSettings() (value *helpers.CustomizationSettings) {
+	return customizations
 }
 
 /*
