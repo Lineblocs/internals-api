@@ -97,15 +97,18 @@ Output: If success return nil else return err
 */
 func (cs *CallStore) UpdateCall(update *model.CallUpdate) error {
 	// Perform a db.Query insert
-	stmt, err := cs.db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ?, `updated_at` = ? WHERE `api_id` = ?")
+	stmt, err := cs.db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ?, `updated_at` = ? WHERE `id` = ?")
 	if err != nil {
 		utils.Log(logrus.InfoLevel, "UpdateCall 2 Could not execute query..")
 		utils.Log(logrus.InfoLevel, err.Error())
 		return err
 	}
+
 	defer stmt.Close()
 	endedAt := time.Now()
 	updatedAt := time.Now()
+
+	utils.Log(logrus.InfoLevel, "updating call id = " + strconv.Itoa( update.CallId ))
 	_, err = stmt.Exec(update.Status, endedAt, updatedAt, update.CallId)
 	if err != nil {
 		return err

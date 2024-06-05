@@ -388,7 +388,7 @@ func (h *Handler) GetUserAssignedIP(c echo.Context) error {
 	// default
 	rtcOptimized = false
 
-	if &opt != nil {
+	if &opt != nil && opt != "" {
 		rtcOptimized, err = strconv.ParseBool(opt)
 	}
 	if err != nil {
