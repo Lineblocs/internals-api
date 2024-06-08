@@ -592,7 +592,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 
 		return c.JSON(http.StatusOK, []byte("byo_carrier"))
 	}
-	return utils.HandleInternalErr("IncomingDIDValidation error 3", errors.New("No DID match found..."), c)
+	return utils.HandleInternalErr("IncomingDIDValidation error 5", errors.New("No DID match found..."), c)
 }
 
 /*
