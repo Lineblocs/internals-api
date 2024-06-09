@@ -2,9 +2,9 @@ package handler
 
 import (
 	"github.com/labstack/echo/v4"
-	"github.com/labstack/echo/v4/middleware"
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/utils"
+	"lineblocs.com/api/middlewares"
 )
 
 /*
@@ -19,15 +19,13 @@ func (h *Handler) Register(e *echo.Echo) {
 	if utils.Config("USE_AUTH_MIDDLEWARE") == "on" {
 		// Set BasicAuth Middleware
 		utils.Log(logrus.InfoLevel, "Auth middleware is enabled -- adding API validation")
-		g.Use(middleware.BasicAuth(func(username, password string, c echo.Context) (bool, error) {
-			if h.userStore.ValidateAccess(username, password) {
-				utils.Log(logrus.InfoLevel, "Authentification is successfully passed")
-				utils.SetMicroservice(username)
-				return true, nil
-			}
-			return false, nil
-		}))
+		g.Use(middlewares.BasicAuthMiddleware(h.userStore))
 	}
+
+	apiTokenValue := utils.Config("API_TOKEN")
+
+	// Middleware to check for the x-lineblocs-api-token header
+	e.Use(middlewares.APIAuthMiddleware(apiTokenValue))
 
 	// For Health Check
 	e.GET("/healthz", h.Healthz)
