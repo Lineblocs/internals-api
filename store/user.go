@@ -748,7 +748,8 @@ return (DidNumberInfo, err)
 func (us *UserStore) IncomingDIDValidation(did string) (*model.DidNumberInfo, error) {
 	var info model.DidNumberInfo
 	// Execute the query
-	row := us.db.QueryRow(`SELECT did_numbers.number, did_numbers.api_number, did_numbers.workspace_id, did_numbers.trunk_id FROM did_numbers WHERE did_numbers.api_number = ?`, did)
+
+	row := us.db.QueryRow(`SELECT did_numbers.number, did_numbers.api_number, did_numbers.workspace_id, COALESCE(0, did_numbers.trunk_id) FROM did_numbers WHERE did_numbers.api_number = ?`, did)
 	err := row.Scan(&info.DidNumber,
 		&info.DidApiNumber,
 		&info.DidWorkspaceId,

@@ -544,13 +544,17 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 	number := c.QueryParam("number")
 	source := c.QueryParam("source")
 
+	utils.Log(logrus.InfoLevel, "IncomingDIDValidation looking up DID number " + did)
+
 	info, err := h.userStore.IncomingDIDValidation(did)
 	if err == nil {
+
+		utils.Log(logrus.InfoLevel, "found DID number in database")
 
 		// check if we're routing to user SIP turnk
 		if info.TrunkId != 0 {
 			utils.Log(logrus.InfoLevel, "found trunk associated with DID number -- routing to user SIP trunk")
-			return c.JSON(http.StatusOK, []byte("user_sip_trunk"))
+			return c.String(http.StatusOK, "user_sip_trunk")
 		}
 		match, err := h.userStore.CheckPSTNIPWhitelist(did, source)
 		if err != nil {
@@ -568,7 +572,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 		if !valid {
 			return utils.HandleInternalErr("number not valid..", err, c)
 		}
-		return c.JSON(http.StatusOK, []byte("network_managed"))
+		return c.String(http.StatusOK, "network_managed")
 	}
 
 	utils.Log(logrus.InfoLevel, "Looking up BYO DIDs now...")
@@ -590,7 +594,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 			return utils.HandleInternalErr("number not valid..", err, c)
 		}
 
-		return c.JSON(http.StatusOK, []byte("byo_carrier"))
+		return c.String(http.StatusOK, "byo_carrier")
 	}
 	return utils.HandleInternalErr("IncomingDIDValidation error 5", errors.New("No DID match found..."), c)
 }

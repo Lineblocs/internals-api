@@ -34,7 +34,7 @@ func (rs *RecordingStore) CreateRecording(workspace *model.Workspace, recording 
 	now := time.Now()
 
 	// Perform a db.Query insert
-	stmt, err := rs.db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `plan_snapshot`, `storage_id`, `storage_server_ip`, `trim`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+	stmt, err := rs.db.Prepare("INSERT INTO recordings (`user_id`, `call_id`, `workspace_id`, `status`, `name`, `uri`, `tag`, `api_id`, `plan_snapshot`, `storage_id`, `storage_server_ip`, `trim`, `transcription_text`, `s3_url`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 	if err != nil {
 		return -1, err
 	}
@@ -52,6 +52,8 @@ func (rs *RecordingStore) CreateRecording(workspace *model.Workspace, recording 
 		recording.StorageId,
 		recording.StorageServerIp,
 		recording.Trim,
+		"", // transcription text
+		"", // s3 URL
 		now,
 		now)
 	if err != nil {
