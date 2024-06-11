@@ -42,6 +42,7 @@ type UserStoreInterface interface {
 	GetSettings() (*model.Settings, error)
 	ProcessSIPTrunkCall(string) ([]byte, error)
 	ProcessDialplan(string) ([]byte, error)
+	ProcessCDRsAndBill(string) (error)
 	CaptureSIPMessage(string, string) ([]byte, error)
 	LogCallInviteEvent(string) error
 	LogCallByeEvent(string) error

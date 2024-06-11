@@ -767,6 +767,22 @@ func (h *Handler) ProcessDialplan(c echo.Context) error {
 }
 
 /*
+Input: sip_call_id
+Output: If success return nil
+*/
+func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "ProcessCDRsAndBill is called")
+
+	sipCallId := c.FormValue("callid")
+	err := h.userStore.ProcessCDRsAndBill(sipCallId)
+	if err != nil {
+		return utils.HandleInternalErr("ProcessDialplan error valid", err, c)
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+/*
 Input: sip_msg
 Todo : Get SIP URI with matching did number
 Output: If success return sip uri else return err

@@ -13,6 +13,7 @@ func APIAuthMiddleware(expectedValue string) echo.MiddlewareFunc {
             headerKey := "x-lineblocs-api-token"
             header := c.Request().Header.Get(headerKey)
             if header == "" {
+	            utils.Log(logrus.InfoLevel, "API token header is missing")
                 return c.String(http.StatusBadRequest, "Missing header: " + headerKey)
             }
 

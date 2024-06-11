@@ -11,7 +11,7 @@ type Call struct {
 	APIId        string `json:"api_id"`
 	SourceIp     string `json:"source_ip"`
 	ChannelId    string `json:"channel_id"`
-	SIPCallId    string `json:"call_id"`
+	SIPCallId    string `json:"sip_call_id"`
 	StartedAt    string `json:"started_at"`
 	CreatedAt    string `json:"created_at"`
 	UpdatedAt    string `json:"updated_at"`
