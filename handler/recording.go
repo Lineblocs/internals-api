@@ -97,6 +97,28 @@ func (h *Handler) UpdateRecording(c echo.Context) error {
 }
 
 /*
+Input: status, recording_id
+Todo : Update recordings with status
+Output: If success return NoContent in header else return err
+*/
+func (h *Handler) SetRecordingStatus(c echo.Context) error {
+	utils.Log(logrus.InfoLevel, "SetRecordingStatus is called...")
+
+	var statusData model.RecordingStatus
+
+	if err := c.Bind(&statusData); err != nil {
+		return utils.HandleInternalErr("SetRecordingStatus could not decode JSON", err, c)
+	}
+
+	err := h.recordingStore.SetRecordingStatus(statusData.Id, statusData.Status)
+	if err != nil {
+		return utils.HandleInternalErr("SetRecordingStatus error.", err, c)
+	}
+
+	return c.NoContent(http.StatusNoContent)
+}
+
+/*
 Input: RecordingTranscription model
 Todo : Update recording transcription_ready and transcription_text with matching id
 Output: If success return NoContent else return err

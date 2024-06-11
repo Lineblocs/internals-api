@@ -22,7 +22,9 @@ func (h *Handler) Register(e *echo.Echo) {
 		g.Use(middlewares.BasicAuthMiddleware(h.userStore))
 	}
 
-	apiTokenValue := utils.Config("API_TOKEN")
+	apiTokenValue := utils.Config("LINEBLOCS_KEY")
+
+	utils.Log(logrus.InfoLevel, "registring API auth middleware with Lineblocs key: " + apiTokenValue)
 
 	// Middleware to check for the x-lineblocs-api-token header
 	e.Use(middlewares.APIAuthMiddleware(apiTokenValue))
@@ -51,6 +53,7 @@ func (h *Handler) Register(e *echo.Echo) {
 
 	// Recording Related Routing
 	g.POST("/recording/createRecording", h.CreateRecording)
+	g.POST("/recording/setRecordingStatus", h.SetRecordingStatus)
 	g.POST("/recording/updateRecording", h.UpdateRecording)
 	g.POST("/recording/updateRecordingTranscription", h.UpdateRecordingTranscription)
 	g.GET("/recording/getRecording", h.GetRecording)

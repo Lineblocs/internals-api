@@ -15,6 +15,11 @@ type Recording struct {
 	StorageServerIp    string    `json:"storage_server_ip"`
 }
 
+type RecordingStatus struct {
+	Id                 int       `json:"id"`
+	Status    string    `json:"status"`
+}
+
 type RecordingTranscription struct {
 	RecordingId int    `json:"recording_id"`
 	Ready       bool   `json:"ready"`

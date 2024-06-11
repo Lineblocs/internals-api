@@ -129,19 +129,39 @@ func (rs *RecordingStore) GetRecordingSpace(id int) (int, error) {
 }
 
 /*
+Input: apiId, status
+Todo : set recording status
+Output: If success return nil else return err
+*/
+func (rs *RecordingStore) SetRecordingStatus(recordingId int, status string) error {
+	now := time.Now()
+	//uri := utils.CreateS3URL("recordings", apiId)
+	stmt, err := rs.db.Prepare("UPDATE `recordings` SET `status` = ?, `updated_at` = ? WHERE `id` = ?")
+	if err != nil {
+		return err
+	}
+	defer stmt.Close()
+	_, err = stmt.Exec(status, now, recordingId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
 Input: apiId, status, size, recordingId
 Todo : Update recordings with matching id
 Output: If success return nil else return err
 */
 func (rs *RecordingStore) UpdateRecording(apiId string, status string, size int64, recordingId int) error {
 	now := time.Now()
-	uri := utils.CreateS3URL("recordings", apiId)
-	stmt, err := rs.db.Prepare("UPDATE `recordings` SET `status` = ?, `uri` = ?, `size` = ?, `updated_at` = ? WHERE `id` = ?")
+	//uri := utils.CreateS3URL("recordings", apiId)
+	stmt, err := rs.db.Prepare("UPDATE `recordings` SET `status` = ?, `size` = ?, `updated_at` = ? WHERE `api_id` = ?")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(status, uri, size, now, recordingId)
+	_, err = stmt.Exec(status, size, now, recordingId)
 	if err != nil {
 		return err
 	}

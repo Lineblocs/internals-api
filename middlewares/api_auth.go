@@ -3,6 +3,8 @@ package middlewares
 import (
 	"net/http"
     "github.com/labstack/echo/v4"
+    "github.com/sirupsen/logrus"
+	"lineblocs.com/api/utils"
 )
 
 func APIAuthMiddleware(expectedValue string) echo.MiddlewareFunc {
@@ -13,6 +15,9 @@ func APIAuthMiddleware(expectedValue string) echo.MiddlewareFunc {
             if header == "" {
                 return c.String(http.StatusBadRequest, "Missing header: " + headerKey)
             }
+
+	        utils.Log(logrus.InfoLevel, "received API token: '" + header + "'")
+	        utils.Log(logrus.InfoLevel, "comparing agaisnt configured token: '" + expectedValue + "'")
             if header != expectedValue {
                 return c.String(http.StatusUnauthorized, "API key is invalid.")
             }
