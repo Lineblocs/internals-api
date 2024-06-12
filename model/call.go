@@ -6,6 +6,7 @@ type Call struct {
 	Status       string `json:"status"`
 	Direction    string `json:"direction"`
 	Duration     string `json:"duration"`
+	Id       int    `json:"id"`
 	UserId       int    `json:"user_id"`
 	WorkspaceId  int    `json:"workspace_id"`
 	APIId        string `json:"api_id"`

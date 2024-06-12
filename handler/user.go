@@ -775,35 +775,38 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 
 	sipCallId := c.FormValue("callid")
 
-	var debit model.Debit
-
-	if err := c.Bind(&debit); err != nil {
-		return utils.HandleInternalErr("ProcessCDRsAndBill 1 Could not decode JSON", err, c)
-	}
-	if err := c.Validate(&debit); err != nil {
-		return utils.HandleInternalErr("ProcessCDRsAndBill 2 Could not decode JSON", err, c)
-	}
-
-	workspace, err := h.callStore.GetWorkspaceFromDB(debit.WorkspaceId)
-	if err != nil {
-		return utils.HandleInternalErr("Could not get workspace..", err, c)
-	}
-
-	// Get Call Rate depends number and type
-	rate := utils.LookupBestCallRate(debit.Number, debit.Type)
-	if rate == nil {
-		return c.NoContent(http.StatusNotFound)
-	}
-	debit.PlanSnapshot = workspace.Plan
-	err = h.debitStore.CreateDebit(rate, &debit)
-	if err != nil {
-		return utils.HandleInternalErr("ProcessCDRsAndBill error when creating debit.", err, c)
-	}
 
 	call, err := h.callStore.GetCallBySIPCallId(sipCallId)
 	if err != nil {
 		return utils.HandleInternalErr("ProcessCDRsAndBill error while looking up call.", err, c)
 	}
+
+	workspace, err := h.callStore.GetWorkspaceFromDB(call.WorkspaceId)
+	if err != nil {
+		return utils.HandleInternalErr("ProcessCDRsAndBill error looking up workspace.", err, c)
+	}
+
+	callStartDate, err := utils.ParseDate(call.CreatedAt)
+	if err != nil {
+		return utils.HandleInternalErr("ProcessCDRsAndBill error looking up workspace.", err, c)
+	}
+
+	seconds := utils.CalculateCallDuration( callStartDate )
+
+	debit := model.Debit{
+		Type: "call",
+		Source: "call",
+		Status: "completed",
+		Seconds: seconds,
+		ModuleId: call.Id,
+	}
+
+	// Get Call Rate depends number and type
+	rate := utils.LookupBestCallRate2(call.From, call.To, debit.Type)
+	if rate == nil {
+		return c.NoContent(http.StatusNotFound)
+	}
+	debit.PlanSnapshot = workspace.Plan
 
 	// send CDR to any remote locations configured by the user
 	err = utils.CreateCDRs(call)

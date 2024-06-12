@@ -35,6 +35,17 @@ func LookupBestCallRate(number string, typeRate string) *model.CallRate {
 	return &model.CallRate{CallRate: 9.99}
 }
 
+func LookupBestCallRate2(from string, to string, typeRate string) *model.CallRate {
+	return &model.CallRate{CallRate: 9.99}
+}
+
+func CalculateCallDuration(start *time.Time) (float64) {
+	now := time.Now()
+	diff := now.Sub(*start)
+	return diff.Seconds()
+}
+
+
 func ToCents(dollars float64) int {
 	result := dollars * 100
 	return int(result)
@@ -270,4 +281,14 @@ func CanPlaceAdditionalCalls() (bool, error) {
 // RADIUS servers, external databases and more
 func CreateCDRs(call *model.Call) (error) {
 	return nil
+}
+
+func ParseDate(isoDate string) (*time.Time, error) {
+
+	// Layout for parsing the ISO date string
+	layout := time.RFC3339
+
+	// Parse the ISO date string
+	parsedTime, err := time.Parse(layout, isoDate)
+	return &parsedTime, err
 }
