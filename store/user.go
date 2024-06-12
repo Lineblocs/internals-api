@@ -1101,14 +1101,6 @@ func (us *UserStore) ProcessDialplan(requestUser string) ([]byte, error) {
 }
 
 /*
-Input: call_id
-If success return (nil) else return (err)
-*/
-func (us *UserStore) ProcessCDRsAndBill(sipCallId string) (error) {
-	return nil
-}
-
-/*
 Input: sip_msg
 Todo : Get SIP URI with matching did number
 Output: First Value: SIP Uri, Second Value: error

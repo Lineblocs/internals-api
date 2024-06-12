@@ -167,6 +167,35 @@ func (cs *CallStore) GetCallFromDB(id int) (*model.Call, error) {
 }
 
 /*
+Input: id
+Todo : Fetch a call with sip_call_id
+Output: First Value: Call model,Second Value: error
+If success return Call model else return err
+*/
+func (cs *CallStore) GetCallBySIPCallId(sipCallId string) (*model.Call, error) {
+	row := cs.db.QueryRow("SELECT `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) FROM calls WHERE sip_call_id = ?", sipCallId)
+	call := model.Call{}
+	err := row.Scan(
+		&call.From,
+		&call.To,
+		&call.ChannelId,
+		&call.Status,
+		&call.Direction,
+		&call.Duration,
+		&call.UserId,
+		&call.WorkspaceId,
+		&call.StartedAt,
+		&call.CreatedAt,
+		&call.UpdatedAt,
+		&call.APIId,
+		&call.PlanSnapshot)
+	if err == sql.ErrNoRows {
+		return nil, err
+	}
+	return &call, nil
+}
+
+/*
 Input: callid, apiid
 Todo : Set sip_call_id field with matching id
 Output: If success return nil else return err

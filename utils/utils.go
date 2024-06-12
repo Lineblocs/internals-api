@@ -264,3 +264,10 @@ func Config(key string) string {
 func CanPlaceAdditionalCalls() (bool, error) {
 	return true, nil
 }
+
+// TODO:
+// send this CDR to any configured locations. handle
+// RADIUS servers, external databases and more
+func CreateCDRs(call *model.Call) (error) {
+	return nil
+}

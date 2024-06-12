@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"sort"
-	"strconv"
 
 	//"encoding/json"
 	"reflect"
@@ -156,8 +155,8 @@ func createCellData(cell *Cell, flow *Flow) {
 				//item = ModelData{}
 				typeOfValue := fmt.Sprintf("%s", reflect.TypeOf(v))
 
-				utils.Log(logrus.InfoLevel, fmt.Sprintf("parsing type %s\r\n", typeOfValue))
-				utils.Log(logrus.InfoLevel, fmt.Sprintf("setting key: %s\r\n", key))
+				//utils.Log(logrus.InfoLevel, fmt.Sprintf("parsing type %s\r\n", typeOfValue))
+				//utils.Log(logrus.InfoLevel, fmt.Sprintf("setting key: %s\r\n", key))
 				switch typeOfValue {
 				case "[]string":
 					// it's an array
@@ -195,7 +194,7 @@ func createCellData(cell *Cell, flow *Flow) {
 
 	for _, item := range flow.Vars.Graph.Cells {
 		if item.Type == "devs.FlowLink" {
-			utils.Log(logrus.InfoLevel, fmt.Sprintf("createCellData processing link %s\r\n", item.Type))
+			//utils.Log(logrus.InfoLevel, fmt.Sprintf("createCellData processing link %s\r\n", item.Type))
 			if item.Source.Id == cell.Cell.Id {
 				utils.Log(logrus.InfoLevel, fmt.Sprintf("createCellData adding target link %s\r\n", item.Target.Id))
 				destCell := addCellToFlow(item.Target.Id, flow)
@@ -485,8 +484,8 @@ func (man *NoRoutingManager) Process() (*FlowResponse, error) {
 }
 
 func ProcessFlow(flow *Flow, cell *Cell, providers []*RoutablePSTNProvider, data map[string]string, db *sql.DB) ([]*RoutablePSTNProvider, error) {
-	utils.Log(logrus.InfoLevel, "source link count: "+strconv.Itoa(len(cell.SourceLinks)))
-	utils.Log(logrus.InfoLevel, "target link count: "+strconv.Itoa(len(cell.TargetLinks)))
+	//utils.Log(logrus.InfoLevel, "source link count: "+strconv.Itoa(len(cell.SourceLinks)))
+	//utils.Log(logrus.InfoLevel, "target link count: "+strconv.Itoa(len(cell.TargetLinks)))
 	// execute it
 	var mngr BaseManager
 	var isFinished bool = false

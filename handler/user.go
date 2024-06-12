@@ -774,9 +774,41 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "ProcessCDRsAndBill is called")
 
 	sipCallId := c.FormValue("callid")
-	err := h.userStore.ProcessCDRsAndBill(sipCallId)
+
+	var debit model.Debit
+
+	if err := c.Bind(&debit); err != nil {
+		return utils.HandleInternalErr("ProcessCDRsAndBill 1 Could not decode JSON", err, c)
+	}
+	if err := c.Validate(&debit); err != nil {
+		return utils.HandleInternalErr("ProcessCDRsAndBill 2 Could not decode JSON", err, c)
+	}
+
+	workspace, err := h.callStore.GetWorkspaceFromDB(debit.WorkspaceId)
 	if err != nil {
-		return utils.HandleInternalErr("ProcessDialplan error valid", err, c)
+		return utils.HandleInternalErr("Could not get workspace..", err, c)
+	}
+
+	// Get Call Rate depends number and type
+	rate := utils.LookupBestCallRate(debit.Number, debit.Type)
+	if rate == nil {
+		return c.NoContent(http.StatusNotFound)
+	}
+	debit.PlanSnapshot = workspace.Plan
+	err = h.debitStore.CreateDebit(rate, &debit)
+	if err != nil {
+		return utils.HandleInternalErr("ProcessCDRsAndBill error when creating debit.", err, c)
+	}
+
+	call, err := h.callStore.GetCallBySIPCallId(sipCallId)
+	if err != nil {
+		return utils.HandleInternalErr("ProcessCDRsAndBill error while looking up call.", err, c)
+	}
+
+	// send CDR to any remote locations configured by the user
+	err = utils.CreateCDRs(call)
+	if err != nil {
+		return utils.HandleInternalErr("ProcessCDRsAndBill could not create CDRs", err, c)
 	}
 
 	return c.NoContent(http.StatusNoContent)
