@@ -796,11 +796,11 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 	seconds := utils.CalculateCallDuration( callStartDate )
 
 	debit := model.Debit{
-		Type: "call",
-		Source: "call",
+		Source: "CALL",
 		Status: "completed",
 		Seconds: seconds,
 		ModuleId: call.Id,
+		UserId: call.UserId,
 	}
 
 	// Get Call Rate depends number and type
