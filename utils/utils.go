@@ -284,11 +284,14 @@ func CreateCDRs(call *model.Call) (error) {
 }
 
 func ParseDate(isoDate string) (*time.Time, error) {
-
 	// Layout for parsing the ISO date string
 	layout := time.RFC3339
 
 	// Parse the ISO date string
 	parsedTime, err := time.Parse(layout, isoDate)
-	return &parsedTime, err
+	if err != nil {
+		return nil, err
+	}
+
+	return &parsedTime, nil
 }

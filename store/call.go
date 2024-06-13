@@ -144,7 +144,7 @@ Output: First Value: Call model,Second Value: error
 If success return Call model else return err
 */
 func (cs *CallStore) GetCallFromDB(id int) (*model.Call, error) {
-	row := cs.db.QueryRow("SELECT `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) FROM calls WHERE id = ?", id)
+	row := cs.db.QueryRow("SELECT `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot` FROM calls WHERE id = ?", id)
 	call := model.Call{Id: id}
 	err := row.Scan(
 		&call.From,
@@ -160,7 +160,7 @@ func (cs *CallStore) GetCallFromDB(id int) (*model.Call, error) {
 		&call.UpdatedAt,
 		&call.APIId,
 		&call.PlanSnapshot)
-	if err == sql.ErrNoRows {
+	if err != nil {
 		return nil, err
 	}
 	return &call, nil
@@ -173,7 +173,7 @@ Output: First Value: Call model,Second Value: error
 If success return Call model else return err
 */
 func (cs *CallStore) GetCallBySIPCallId(sipCallId string) (*model.Call, error) {
-	row := cs.db.QueryRow("SELECT `id`, `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot`) FROM calls WHERE sip_call_id = ?", sipCallId)
+	row := cs.db.QueryRow("SELECT `id`, `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot` FROM calls WHERE sip_call_id = ?", sipCallId)
 	call := model.Call{}
 	err := row.Scan(
 		&call.Id,
@@ -190,7 +190,7 @@ func (cs *CallStore) GetCallBySIPCallId(sipCallId string) (*model.Call, error) {
 		&call.UpdatedAt,
 		&call.APIId,
 		&call.PlanSnapshot)
-	if err == sql.ErrNoRows {
+	if err != nil {
 		return nil, err
 	}
 	return &call, nil

@@ -781,6 +781,8 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 		return utils.HandleInternalErr("ProcessCDRsAndBill error while looking up call.", err, c)
 	}
 
+
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("ProcessCDRsAndBill looking up workspace %d", call.WorkspaceId))
 	workspace, err := h.callStore.GetWorkspaceFromDB(call.WorkspaceId)
 	if err != nil {
 		return utils.HandleInternalErr("ProcessCDRsAndBill error looking up workspace.", err, c)
@@ -788,7 +790,7 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 
 	callStartDate, err := utils.ParseDate(call.CreatedAt)
 	if err != nil {
-		return utils.HandleInternalErr("ProcessCDRsAndBill error looking up workspace.", err, c)
+		return utils.HandleInternalErr("ProcessCDRsAndBill error parsing date string.", err, c)
 	}
 
 	seconds := utils.CalculateCallDuration( callStartDate )
@@ -807,6 +809,11 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 		return c.NoContent(http.StatusNotFound)
 	}
 	debit.PlanSnapshot = workspace.Plan
+
+	err = h.debitStore.CreateDebit(rate, &debit)
+	if err != nil {
+		return utils.HandleInternalErr("ProcessCDRsAndBill could not create debit.", err, c)
+	}
 
 	// send CDR to any remote locations configured by the user
 	err = utils.CreateCDRs(call)
