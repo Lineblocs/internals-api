@@ -1,6 +1,7 @@
 module lineblocs.com/api
 
-go 1.17
+go 1.22
+
 
 require (
 	github.com/Lineblocs/go-helpers v0.0.4-0.20240523213000-312f8adcf999
