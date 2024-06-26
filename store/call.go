@@ -120,7 +120,7 @@ func (cs *CallStore) UpdateCall(update *model.CallUpdate) error {
 Input: Call model
 Todo : Check first call and send email
 */
-func (cs *CallStore) CheckIsMakingOutboundCallFirstTime(call model.Call) {
+func (cs *CallStore) ProcessUsersFirstCall(call model.Call) {
 	var id string
 	row := cs.db.QueryRow("SELECT id FROM `calls` WHERE `workspace_id` = ? AND `from` LIKE '?%s' AND `direction = 'outbound'", call.WorkspaceId, call.From, call.Direction)
 	err := row.Scan(&id)

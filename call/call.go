@@ -13,7 +13,7 @@ type CallStoreInterface interface {
 	SetSIPCallID(string, string) error
 	SetProviderByIP(string, string) error
 	CreateConference(*model.Conference) (string, error)
-	CheckIsMakingOutboundCallFirstTime(call model.Call)
+	ProcessUsersFirstCall(call model.Call)
 	GetWorkspaceFromDB(int) (*model.Workspace, error)
 	GetWorkspaceByDomain(string) (*model.Workspace, error)
 	GetUserFromDB(id int) (*model.User, error)

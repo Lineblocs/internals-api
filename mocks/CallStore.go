@@ -20,35 +20,35 @@ func (_m *CallStore) EXPECT() *CallStore_Expecter {
 	return &CallStore_Expecter{mock: &_m.Mock}
 }
 
-// CheckIsMakingOutboundCallFirstTime provides a mock function with given fields: _a0
-func (_m *CallStore) CheckIsMakingOutboundCallFirstTime(_a0 model.Call) {
+// ProcessUsersFirstCall provides a mock function with given fields: _a0
+func (_m *CallStore) ProcessUsersFirstCall(_a0 model.Call) {
 	_m.Called(_a0)
 }
 
-// CallStore_CheckIsMakingOutboundCallFirstTime_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckIsMakingOutboundCallFirstTime'
-type CallStore_CheckIsMakingOutboundCallFirstTime_Call struct {
+// CallStore_ProcessUsersFirstCall_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ProcessUsersFirstCall'
+type CallStore_ProcessUsersFirstCall_Call struct {
 	*mock.Call
 }
 
-// CheckIsMakingOutboundCallFirstTime is a helper method to define mock.On call
+// ProcessUsersFirstCall is a helper method to define mock.On call
 //   - _a0 model.Call
-func (_e *CallStore_Expecter) CheckIsMakingOutboundCallFirstTime(_a0 interface{}) *CallStore_CheckIsMakingOutboundCallFirstTime_Call {
-	return &CallStore_CheckIsMakingOutboundCallFirstTime_Call{Call: _e.mock.On("CheckIsMakingOutboundCallFirstTime", _a0)}
+func (_e *CallStore_Expecter) ProcessUsersFirstCall(_a0 interface{}) *CallStore_ProcessUsersFirstCall_Call {
+	return &CallStore_ProcessUsersFirstCall_Call{Call: _e.mock.On("ProcessUsersFirstCall", _a0)}
 }
 
-func (_c *CallStore_CheckIsMakingOutboundCallFirstTime_Call) Run(run func(_a0 model.Call)) *CallStore_CheckIsMakingOutboundCallFirstTime_Call {
+func (_c *CallStore_ProcessUsersFirstCall_Call) Run(run func(_a0 model.Call)) *CallStore_ProcessUsersFirstCall_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(model.Call))
 	})
 	return _c
 }
 
-func (_c *CallStore_CheckIsMakingOutboundCallFirstTime_Call) Return() *CallStore_CheckIsMakingOutboundCallFirstTime_Call {
+func (_c *CallStore_ProcessUsersFirstCall_Call) Return() *CallStore_ProcessUsersFirstCall_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *CallStore_CheckIsMakingOutboundCallFirstTime_Call) RunAndReturn(run func(model.Call)) *CallStore_CheckIsMakingOutboundCallFirstTime_Call {
+func (_c *CallStore_ProcessUsersFirstCall_Call) RunAndReturn(run func(model.Call)) *CallStore_ProcessUsersFirstCall_Call {
 	_c.Call.Return(run)
 	return _c
 }

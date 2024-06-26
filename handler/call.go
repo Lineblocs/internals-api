@@ -31,7 +31,7 @@ func (h *Handler) CreateCall(c echo.Context) error {
 
 	if call.Direction == "outbound" {
 		// Check if this is the first time we are making a call to this destination
-		go h.callStore.CheckIsMakingOutboundCallFirstTime(call)
+		go h.callStore.ProcessUsersFirstCall(call)
 	}
 
 	callId, err := h.callStore.CreateCall(&call)

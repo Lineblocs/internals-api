@@ -20,35 +20,35 @@ func (_m *CallStoreInterface) EXPECT() *CallStoreInterface_Expecter {
 	return &CallStoreInterface_Expecter{mock: &_m.Mock}
 }
 
-// CheckIsMakingOutboundCallFirstTime provides a mock function with given fields: _a0
-func (_m *CallStoreInterface) CheckIsMakingOutboundCallFirstTime(_a0 model.Call) {
+// ProcessUsersFirstCall provides a mock function with given fields: _a0
+func (_m *CallStoreInterface) ProcessUsersFirstCall(_a0 model.Call) {
 	_m.Called(_a0)
 }
 
-// CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckIsMakingOutboundCallFirstTime'
-type CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call struct {
+// CallStoreInterface_ProcessUsersFirstCall_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'ProcessUsersFirstCall'
+type CallStoreInterface_ProcessUsersFirstCall_Call struct {
 	*mock.Call
 }
 
-// CheckIsMakingOutboundCallFirstTime is a helper method to define mock.On call
+// ProcessUsersFirstCall is a helper method to define mock.On call
 //   - _a0 model.Call
-func (_e *CallStoreInterface_Expecter) CheckIsMakingOutboundCallFirstTime(_a0 interface{}) *CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call {
-	return &CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call{Call: _e.mock.On("CheckIsMakingOutboundCallFirstTime", _a0)}
+func (_e *CallStoreInterface_Expecter) ProcessUsersFirstCall(_a0 interface{}) *CallStoreInterface_ProcessUsersFirstCall_Call {
+	return &CallStoreInterface_ProcessUsersFirstCall_Call{Call: _e.mock.On("ProcessUsersFirstCall", _a0)}
 }
 
-func (_c *CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call) Run(run func(_a0 model.Call)) *CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call {
+func (_c *CallStoreInterface_ProcessUsersFirstCall_Call) Run(run func(_a0 model.Call)) *CallStoreInterface_ProcessUsersFirstCall_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		run(args[0].(model.Call))
 	})
 	return _c
 }
 
-func (_c *CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call) Return() *CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call {
+func (_c *CallStoreInterface_ProcessUsersFirstCall_Call) Return() *CallStoreInterface_ProcessUsersFirstCall_Call {
 	_c.Call.Return()
 	return _c
 }
 
-func (_c *CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call) RunAndReturn(run func(model.Call)) *CallStoreInterface_CheckIsMakingOutboundCallFirstTime_Call {
+func (_c *CallStoreInterface_ProcessUsersFirstCall_Call) RunAndReturn(run func(model.Call)) *CallStoreInterface_ProcessUsersFirstCall_Call {
 	_c.Call.Return(run)
 	return _c
 }
