@@ -1,7 +1,7 @@
 package store
 
 import (
-	"database/sql"
+	"lineblocs.com/api/database"
 	"strings"
 )
 
@@ -10,10 +10,10 @@ Implementation of Admin Store
 */
 
 type AdminStore struct {
-	db *sql.DB
+	db *database.MySQLConn
 }
 
-func NewAdminStore(db *sql.DB) *AdminStore {
+func NewAdminStore(db *database.MySQLConn) *AdminStore {
 	return &AdminStore{
 		db: db,
 	}

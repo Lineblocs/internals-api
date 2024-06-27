@@ -2,7 +2,6 @@ module lineblocs.com/api
 
 go 1.22
 
-
 require (
 	github.com/Lineblocs/go-helpers v0.0.4-0.20240523213000-312f8adcf999
 	github.com/aws/aws-sdk-go v1.54.0
@@ -53,6 +52,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/satori/go.uuid v1.2.0 // indirect
+	github.com/sony/gobreaker v1.0.0 // indirect
 	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/stripe/stripe-go/v71 v71.48.0 // indirect
 	github.com/t-tomalak/logrus-easy-formatter v0.0.0-20190827215021-c074f06c5816 // indirect

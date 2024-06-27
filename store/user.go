@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"database/sql"
 	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
@@ -17,6 +17,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
+	"lineblocs.com/api/database"
 )
 
 /*
@@ -24,11 +25,11 @@ Implementation of User Store
 */
 
 type UserStore struct {
-	db  *sql.DB
+	db *database.MySQLConn
 	rdb *redis.Client
 }
 
-func NewUserStore(db *sql.DB, rdb *redis.Client) *UserStore {
+func NewUserStore(db *database.MySQLConn, rdb *redis.Client) *UserStore {
 	return &UserStore{
 		db:  db,
 		rdb: rdb,

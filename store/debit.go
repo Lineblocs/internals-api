@@ -1,7 +1,6 @@
 package store
 
 import (
-	"database/sql"
 	"fmt"
 	"math"
 	"time"
@@ -10,6 +9,7 @@ import (
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 	"lineblocs.com/api/customizations"
+	"lineblocs.com/api/database"
 )
 
 /*
@@ -17,10 +17,10 @@ Implementation of Debit Store
 */
 
 type DebitStore struct {
-	db *sql.DB
+	db *database.MySQLConn
 }
 
-func NewDebitStore(db *sql.DB) *DebitStore {
+func NewDebitStore(db *database.MySQLConn) *DebitStore {
 	return &DebitStore{
 		db: db,
 	}

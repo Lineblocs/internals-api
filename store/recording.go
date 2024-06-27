@@ -1,13 +1,14 @@
 package store
 
 import (
-	"database/sql"
 	"fmt"
 	"time"
 
+	"database/sql"
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
+	"lineblocs.com/api/database"
 )
 
 /*
@@ -15,10 +16,10 @@ Implementation of Recording Store
 */
 
 type RecordingStore struct {
-	db *sql.DB
+	db *database.MySQLConn
 }
 
-func NewRecordingStore(db *sql.DB) *RecordingStore {
+func NewRecordingStore(db *database.MySQLConn) *RecordingStore {
 	return &RecordingStore{
 		db: db,
 	}

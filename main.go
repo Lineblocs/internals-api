@@ -5,7 +5,6 @@ import (
 	"sync"
 	"time"
 	//"errors"
-	"database/sql"
 	"github.com/gocql/gocql"
 	"fmt"
 
@@ -20,9 +19,10 @@ import (
 	"lineblocs.com/api/router"
 	"lineblocs.com/api/store"
 	"lineblocs.com/api/utils"
+	"lineblocs.com/api/database"
 )
 
-var db *sql.DB
+var dbConn *database.MySQLConn
 var rdb *redis.Client
 var cqlCluster *gocql.ClusterConfig
 var cqlSess *gocql.Session
@@ -65,11 +65,13 @@ func main() {
 
 	// Create DB Connection with MySQL
 	utils.Log(logrus.InfoLevel, "Connecting to database...")
-	db, err = helpers.CreateDBConn()
+	db, err := helpers.CreateDBConn()
 	if err != nil {
 		utils.Log(logrus.PanicLevel, err.Error())
 		panic(err)
 	}
+
+	dbConn = database.NewMySQLConn(db)
 
 	rdb, err = helpers.CreateRedisConn()
 
@@ -137,14 +139,14 @@ func startServer() {
 	}
 
 	// Configure Handler with Global DB
-	as := store.NewAdminStore(db)
-	cs := store.NewCallStore(db)
-	crs := store.NewCarrierStore(db)
-	ds := store.NewDebitStore(db)
-	fs := store.NewFaxStore(db)
-	ls := store.NewLoggerStore(db)
-	rs := store.NewRecordingStore(db)
-	us := store.NewUserStore(db, rdb)
+	as := store.NewAdminStore(dbConn)
+	cs := store.NewCallStore(dbConn)
+	crs := store.NewCarrierStore(dbConn)
+	ds := store.NewDebitStore(dbConn)
+	fs := store.NewFaxStore(dbConn)
+	ls := store.NewLoggerStore(dbConn)
+	rs := store.NewRecordingStore(dbConn)
+	us := store.NewUserStore(dbConn, rdb)
 	h := handler.NewHandler(as, cs, crs, ds, fs, ls, rs, us)
 
 	// Register Handler for Echo context

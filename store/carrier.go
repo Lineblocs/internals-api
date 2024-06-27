@@ -1,14 +1,15 @@
 package store
 
 import (
-	"database/sql"
 	"encoding/json"
 	"errors"
 	"strconv"
 
+	"database/sql"
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/helpers"
 	"lineblocs.com/api/utils"
+	"lineblocs.com/api/database"
 )
 
 /*
@@ -16,10 +17,10 @@ Implementation of Carrier Store
 */
 
 type CarrierStore struct {
-	db *sql.DB
+	db *database.MySQLConn
 }
 
-func NewCarrierStore(db *sql.DB) *CarrierStore {
+func NewCarrierStore(db *database.MySQLConn) *CarrierStore {
 	return &CarrierStore{
 		db: db,
 	}
@@ -112,6 +113,7 @@ Output: First value: RoutablePSTNProvider model, Second Value: error
 If success return (RoutablePSTNProvider model, nil) else (nil, err)
 */
 func (crs *CarrierStore) StartProcessingFlow(flow *helpers.Flow, data map[string]string) ([]*helpers.RoutablePSTNProvider, error) {
-	providers, err := helpers.StartProcessingFlow(flow, flow.Cells[0], data, crs.db)
+	db := crs.db.GetConnection()
+	providers, err := helpers.StartProcessingFlow(flow, flow.Cells[0], data, db)
 	return providers, err
 }

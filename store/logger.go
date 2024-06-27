@@ -2,7 +2,6 @@ package store
 
 import (
 	"context"
-	"database/sql"
 	"strconv"
 	"time"
 
@@ -11,6 +10,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
+	"lineblocs.com/api/database"
 )
 
 /*
@@ -18,10 +18,10 @@ Implementation of Logger Store
 */
 
 type LoggerStore struct {
-	db *sql.DB
+	db *database.MySQLConn
 }
 
-func NewLoggerStore(db *sql.DB) *LoggerStore {
+func NewLoggerStore(db *database.MySQLConn) *LoggerStore {
 	return &LoggerStore{
 		db: db,
 	}

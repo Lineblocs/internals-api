@@ -1,10 +1,11 @@
 package store
 
 import (
-	"database/sql"
 	"time"
 
+	"database/sql"
 	"lineblocs.com/api/model"
+	"lineblocs.com/api/database"
 )
 
 /*
@@ -12,10 +13,10 @@ Implementation of Fax Store
 */
 
 type FaxStore struct {
-	db *sql.DB
+	db *database.MySQLConn
 }
 
-func NewFaxStore(db *sql.DB) *FaxStore {
+func NewFaxStore(db *database.MySQLConn) *FaxStore {
 	return &FaxStore{
 		db: db,
 	}
