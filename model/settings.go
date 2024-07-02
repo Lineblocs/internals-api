@@ -24,6 +24,10 @@ type Settings struct {
 	GoogleServiceAccountJson string `json:"google_service_account_json"`
 }
 
+type APICredentials struct {
+	Credentials           map[string]string `json:"credentials"`
+}
+
 type GlobalSettings struct {
 	ValidateCallerId bool
 }

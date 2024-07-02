@@ -39,7 +39,7 @@ type UserStoreInterface interface {
 	LookupSIPTrunkByDID(string) ([]byte, error)
 	IncomingMediaServerValidation(string) (bool, error)
 	StoreRegistration(string, int, *model.Workspace) error
-	GetSettings() (*model.Settings, error)
+	GetSettings() (*model.APICredentials, error)
 	ProcessSIPTrunkCall(string) ([]byte, error)
 	ProcessDialplan(string) ([]byte, error)
 	CaptureSIPMessage(string, string) ([]byte, error)

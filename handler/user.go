@@ -716,10 +716,7 @@ func (h *Handler) GetSettings(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "GetSettings")
 
 	settings, err := h.userStore.GetSettings()
-	if err == sql.ErrNoRows {
-		// no records setup were setup, just return empty
-		return utils.HandleInternalErr("GetSettings no rows found..", err, c)
-	}
+
 	if err != nil {
 		return utils.HandleInternalErr("GetSettings error:"+err.Error(), err, c)
 	}

@@ -1028,6 +1028,7 @@ Input: _
 Todo : Get Settings
 Output: return (Settings model, err)
 */
+/*
 func (us *UserStore) GetSettings() (*model.Settings, error) {
 	results, err := us.db.Query("SELECT `aws_access_key_id`, `aws_secret_access_key`, `aws_region`, `s3_bucket`, `google_service_account_json`, `stripe_pub_key`, `stripe_private_key`, `stripe_test_pub_key`, `stripe_test_private_key`, `stripe_mode`, `smtp_host`, `smtp_port`, `smtp_user`, `smtp_password`, `smtp_tls` FROM api_credentials")
 	defer results.Close()
@@ -1059,6 +1060,29 @@ func (us *UserStore) GetSettings() (*model.Settings, error) {
 		return &settings, nil
 	}
 	return nil, nil
+}
+	*/
+
+func (us *UserStore) GetSettings() (*model.APICredentials, error) {
+	results, err := us.db.Query("SELECT `key`, `string_value` FROM api_credentials")
+	defer results.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	var key string
+	var value string
+	apiCreds := model.APICredentials{ Credentials: make(map[string]string) }
+	for results.Next() {
+		err := results.Scan(&key, &value)
+		if err != nil {
+			return nil, err
+		}
+
+		apiCreds.Credentials[key] = value
+	}
+
+	return apiCreds, nil
 }
 
 /*
