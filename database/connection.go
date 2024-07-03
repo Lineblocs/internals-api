@@ -25,7 +25,7 @@ func NewMySQLConn(db *sql.DB) *MySQLConn {
 		Timeout:     10 * time.Second,     // Time period after which to consider a request as timed out
 		ReadyToTrip: func(counts gobreaker.Counts) bool {
 			// If more than totalTries requests have failed consecutively, trip the circuit
-			totalTries := 100
+			var totalTries uint32 = 100
 			return counts.ConsecutiveFailures > totalTries
 		},
 	})

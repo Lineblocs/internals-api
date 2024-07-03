@@ -1082,7 +1082,7 @@ func (us *UserStore) GetSettings() (*model.APICredentials, error) {
 		apiCreds.Credentials[key] = value
 	}
 
-	return apiCreds, nil
+	return &apiCreds, nil
 }
 
 /*
