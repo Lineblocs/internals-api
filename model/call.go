@@ -21,6 +21,7 @@ type Call struct {
 
 type CallUpdate struct {
 	CallId   int    `json:"call_id"`
+	SIPCallId   string    `json:"sip_call_id"`
 	Status   string `json:"status"`
 	SourceIp string `json:"source_ip"`
 }

@@ -118,6 +118,32 @@ func (cs *CallStore) UpdateCall(update *model.CallUpdate) error {
 }
 
 /*
+Input: CallUpdate model
+Todo : Update existing call with matching id
+Output: If success return nil else return err
+*/
+func (cs *CallStore) UpdateCallBySIPId(update *model.CallUpdate) error {
+	// Perform a db.Query insert
+	stmt, err := cs.db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ?, `updated_at` = ? WHERE `sip_call_id` = ?")
+	if err != nil {
+		utils.Log(logrus.InfoLevel, "UpdateCallBySIPId 2 Could not execute query..")
+		utils.Log(logrus.InfoLevel, err.Error())
+		return err
+	}
+
+	defer stmt.Close()
+	endedAt := time.Now()
+	updatedAt := time.Now()
+
+	utils.Log(logrus.InfoLevel, "updating call id = " + update.SIPCallId)
+	_, err = stmt.Exec(update.Status, endedAt, updatedAt, update.SIPCallId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+/*
 Input: Call model
 Todo : Check first call and send email
 */

@@ -805,6 +805,14 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 	if rate == nil {
 		return c.NoContent(http.StatusNotFound)
 	}
+
+	// update the calls status to ended
+	update := model.CallUpdate{CallId: call.Id, Status: "ended"}
+	err = h.callStore.UpdateCall(&update)
+	if err != nil {
+		return utils.HandleInternalErr("UpdateCall Could not execute query..", err, c)
+	}
+
 	debit.PlanSnapshot = workspace.Plan
 
 	err = h.debitStore.CreateDebit(rate, &debit)
