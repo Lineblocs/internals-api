@@ -381,7 +381,7 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 		var rateDialPrefix string
 		for results1.Next() {
 			results1.Scan(&rateDialPrefix)
-			utils.Log(logrus.InfoLevel, fmt.Sprintf("checking rate dial prefix %s\r\n", rateDialPrefix))
+			//utils.Log(logrus.DebugLevel, fmt.Sprintf("checking rate dial prefix %s\r\n", rateDialPrefix))
 			full := rateDialPrefix + ".*"
 			valid, err := regexp.MatchString(full, to)
 			if err != nil {
@@ -1064,7 +1064,7 @@ func (us *UserStore) GetSettings() (*model.Settings, error) {
 	*/
 
 func (us *UserStore) GetSettings() (*model.APICredentials, error) {
-	results, err := us.db.Query("SELECT `key`, `string_value` FROM api_credentials")
+	results, err := us.db.Query("SELECT `key`, `string_value` FROM api_credentials_kv_store")
 	defer results.Close()
 	if err != nil {
 		return nil, err
