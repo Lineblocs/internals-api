@@ -775,7 +775,7 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 
 	call, err := h.callStore.GetCallBySIPCallId(sipCallId)
 	if err != nil {
-		utils.Log(logrus.InfoLevel, fmt.Sprintf("ProcessCDRsAndBill couldnt find call %s in records -- skipping process routine", sipCallId);
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("ProcessCDRsAndBill couldnt find call %s in records -- skipping the process routine and sending back 2XX anyway", sipCallId));
 		return c.NoContent(http.StatusOK);
 		//return utils.HandleInternalErr("ProcessCDRsAndBill error while looking up call.", err, c)
 	}
