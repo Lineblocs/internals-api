@@ -1172,10 +1172,15 @@ If success return (SIP Uri, nil) else return (nil, err)
 func (us *UserStore) LogCallInviteEvent(inviteIp string) error {
 	// increment CPS counter for this SIP trunk
 	key := fmt.Sprintf("%s_cps", inviteIp)
-	err := us.rdb.Incr(key).Err()
-	if err != nil {
-		return err
+	useCounters := false
+
+	if useCounters {
+		err := us.rdb.Incr(key).Err()
+		if err != nil {
+			return err
+		}
 	}
+
 	return nil
 }
 
