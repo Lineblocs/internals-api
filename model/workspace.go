@@ -40,5 +40,6 @@ type WorkspaceDIDInfo struct {
 	CreatorId           int               `json:"creator_id"`
 	APIToken            string            `json:"api_token"`
 	APISecret           string            `json:"api_secret"`
+	CreationIntent      string            `json:"creation_intent"`
 	WorkspaceParams     *[]WorkspaceParam `json:"workspace_params"`
 }

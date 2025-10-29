@@ -202,6 +202,7 @@ func (us *UserStore) GetDIDNumberData(number string) (*model.WorkspaceDIDInfo, s
 	row := us.db.QueryRow(`SELECT 
 		flows.id AS flow_id,
 		flows.workspace_id, 
+		flows.creation_intent,
 		flows.flow_json, 
 		did_numbers.number, 
 		workspaces.name, 
@@ -221,6 +222,7 @@ func (us *UserStore) GetDIDNumberData(number string) (*model.WorkspaceDIDInfo, s
 	err := row.Scan(
 		&info.FlowId,
 		&info.WorkspaceId,
+		&info.CreationIntent,
 		&flowJson,
 		&info.Number,
 		&info.Name,
