@@ -197,7 +197,15 @@ return (WorkspaceDIDInfo model, flowJson, err)
 func (us *UserStore) GetDIDNumberData(number string) (*model.WorkspaceDIDInfo, sql.NullString, error) {
 	var info model.WorkspaceDIDInfo
 	var flowJson sql.NullString
-	utils.Log(logrus.InfoLevel, fmt.Sprintf("Looking up number: %s", number))
+	region := "US"
+
+	results, err := utils.GetPhoneNumberVariants(number, region)
+	if err != nil {
+		return nil, sql.NullString{}, err
+	}
+
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Looking up number with three variants national %s original %s e164 %s", results["no_plus"], results["original"], results["e164"]))
+
 	// Execute the query
 	row := us.db.QueryRow(`SELECT 
 		flows.id AS flow_id,
@@ -218,8 +226,10 @@ func (us *UserStore) GetDIDNumberData(number string) (*model.WorkspaceDIDInfo, s
 		INNER JOIN flows ON flows.id = did_numbers.flow_id	
 		INNER JOIN users ON users.id = workspaces.creator_id
 		WHERE did_numbers.api_number = ?	
-		`, number)
-	err := row.Scan(
+		OR did_numbers.api_number = ?	
+		OR did_numbers.api_number = ?	
+		`, results["original"], results["e164"], results["no_plus"])
+	err = row.Scan(
 		&info.FlowId,
 		&info.WorkspaceId,
 		&info.CreationIntent,
@@ -751,9 +761,13 @@ return (DidNumberInfo, err)
 func (us *UserStore) IncomingDIDValidation(did string) (*model.DidNumberInfo, error) {
 	var info model.DidNumberInfo
 	// Execute the query
+	numberVariants, err := utils.GetPhoneNumberVariants(did, "US")
+	if err != nil {
+		return nil, err
+	}
 
-	row := us.db.QueryRow(`SELECT did_numbers.number, did_numbers.api_number, did_numbers.workspace_id, COALESCE(0, did_numbers.trunk_id) FROM did_numbers WHERE did_numbers.api_number = ?`, did)
-	err := row.Scan(&info.DidNumber,
+	row := us.db.QueryRow(`SELECT did_numbers.number, did_numbers.api_number, did_numbers.workspace_id, did_numbers.trunk_id FROM did_numbers WHERE did_numbers.api_number = ? OR did_numbers.api_number = ? OR did_numbers.api_number = ?`, numberVariants["original"], numberVariants["e164"], numberVariants["no_plus"])
+	err = row.Scan(&info.DidNumber,
 		&info.DidApiNumber,
 		&info.DidWorkspaceId,
 		&info.TrunkId)

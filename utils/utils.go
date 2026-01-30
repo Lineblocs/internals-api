@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"strconv"
 
 	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/aws/aws-sdk-go/aws"
@@ -18,6 +19,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
+	"github.com/ttacon/libphonenumber"
 	"lineblocs.com/api/model"
 )
 
@@ -294,4 +296,33 @@ func ParseDate(isoDate string) (*time.Time, error) {
 	}
 
 	return &parsedTime, nil
+}
+
+// GetPhoneNumberVariants returns a map of various phone number formats.
+func GetPhoneNumberVariants(rawNumber string, region string) (map[string]string, error) {
+	// Parse the raw input
+	num, err := libphonenumber.Parse(rawNumber, region)
+	if err != nil {
+		return nil, err
+	}
+
+	// 1. E164 Format: +16502530000
+	e164 := libphonenumber.Format(num, libphonenumber.E164)
+
+	// 2. No Plus Format: 16502530000
+	noPlus := strings.TrimPrefix(e164, "+")
+
+	// 3. National Number: 6502530000
+	// GetNationalNumber returns a uint64, so we convert it to a string.
+	national := strconv.FormatUint(num.GetNationalNumber(), 10)
+
+	// Build the hashmap
+	variants := map[string]string{
+		"original":      rawNumber,
+		"e164":          e164,
+		"no_plus":       noPlus,
+		"national_only": national,
+	}
+
+	return variants, nil
 }
