@@ -41,6 +41,14 @@ func updateCustomizationSettings() (error) {
 	return nil
 }
 
+// vars for the rate limiting middleware
+var (
+	indexLimit          = 60
+	indexLimitCarrier   = 3600
+	indexLimiter        golimiter.Limiter
+	indexLimiterCarrier golimiter.Limiter
+)
+
 func main() {
     ticker := time.NewTicker(60 * time.Second)
     defer ticker.Stop()
@@ -126,7 +134,7 @@ func main() {
 }
 
 // Start Internals-API Backend server
-// Configure Handler, limit middleware, TLS
+// Configure Handler, indexLimit middleware, TLS
 func startServer() {
 	utils.SetSetting(model.GlobalSettings{ValidateCallerId: false})
 
@@ -135,7 +143,9 @@ func startServer() {
 	utils.Log(logrus.InfoLevel, "Starting HTTP server...")
 	// Configure Limit Handler if USE_LIMIT_MIDDLEWARE is "on"
 	if utils.Config("USE_LIMIT_MIDDLEWARE") == "on" {
-		r.Any("", limitHandler)
+		indexLimiter = golimiter.New(indexLimit, time.Minute)
+		indexLimiterCarrier = golimiter.New(indexLimitCarrier, time.Minute)
+		r.Use(limitHandler)
 	}
 
 	// Configure Handler with Global DB
@@ -172,43 +182,39 @@ func startServer() {
 }
 
 // Configure Limit Handler for Echo context
-func limitHandler(c echo.Context) error {
-	var addr string
-	requestedAddr := c.QueryParam("addr")
-	if requestedAddr == "" {
-		addr = requestedAddr
-	} else {
-		addr = c.RealIP()
+func limitHandler(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		var addr string
+		requestedAddr := c.QueryParam("addr")
+		if requestedAddr == "" {
+			addr = requestedAddr
+		} else {
+			addr = c.RealIP()
+		}
+
+		carrier := c.Request().Header.Get("X-Lineblocs-Carrier-Auth")
+		isCarrier := false
+
+		if carrier != "" {
+			isCarrier = utils.CheckIfCarrier(carrier)
+		}
+
+		// Limit for users
+		var useLimiter golimiter.Limiter
+		if isCarrier {
+			useLimiter = indexLimiterCarrier
+		} else {
+			useLimiter = indexLimiter
+		}
+
+		// Check if the given IP is rate limited
+		if useLimiter.IsLimited(addr) {
+			return c.String(http.StatusTooManyRequests, fmt.Sprintf("Rate indexLimit exhausted from %s", addr))
+		}
+		// Add a request to the count for the Ip
+		useLimiter.Increment(addr)
+
+		// Tell echo to continue the request
+		return next(c)
 	}
-
-	carrier := c.Request().Header.Get("X-Lineblocs-Carrier-Auth")
-	isCarrier := false
-
-	if carrier != "" {
-		isCarrier = utils.CheckIfCarrier(carrier)
-	}
-
-	// Limit for users
-
-	var limit int = 60
-	if isCarrier {
-		limit = 3600
-	}
-
-	var indexLimiter = golimiter.New(limit, time.Minute)
-
-	// Check if the given IP is rate limited
-	if indexLimiter.IsLimited(addr) {
-		return c.String(http.StatusTooManyRequests, fmt.Sprintf("Rate limit exhausted from %s", addr))
-	}
-	// Add a request to the count for the Ip
-	indexLimiter.Increment(addr)
-	totalRequestPastMinute := indexLimiter.Count(addr)
-	totalRemaining := limit - totalRequestPastMinute
-	return c.String(http.StatusOK, fmt.Sprintf(""+
-		"Your IP %s is not rate limited!\n"+
-		"You made %d requests in the last minute.\n"+
-		"You are allowed to make %d more request.\n"+
-		"Maximum request you can make per minute is %d.",
-		addr, totalRequestPastMinute, totalRemaining, limit))
 }
