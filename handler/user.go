@@ -544,8 +544,6 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 	number := c.QueryParam("number")
 	source := c.QueryParam("source")
 
-	utils.Log(logrus.InfoLevel, "IncomingDIDValidation looking up DID number " + did)
-
 	info, err := h.userStore.IncomingDIDValidation(did)
 	if err == nil {
 
@@ -556,6 +554,8 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 			utils.Log(logrus.InfoLevel, "found trunk associated with DID number -- routing to user SIP trunk")
 			return c.String(http.StatusOK, "user_sip_trunk")
 		}
+
+		utils.Log(logrus.InfoLevel, "checking if IP: " + source + " is whitelisted.")
 		match, err := h.userStore.CheckPSTNIPWhitelist(did, source)
 		if err != nil {
 			return utils.HandleInternalErr("IncomingDIDValidation error 1", err, c)
@@ -564,6 +564,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 		if !match {
 			return utils.HandleInternalErr("IncomingDIDValidation no match found 1", err, c)
 		}
+
 		utils.Log(logrus.InfoLevel, "Matched incoming DID..")
 		valid, err := h.userStore.FinishValidation(number, info.DidWorkspaceId)
 		if err != nil {
@@ -574,6 +575,8 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 		}
 		return c.String(http.StatusOK, "network_managed")
 	}
+
+	utils.Log(logrus.InfoLevel, "error in number lookup: "+err.Error())
 
 	utils.Log(logrus.InfoLevel, "Looking up BYO DIDs now...")
 	byoInfo, err := h.userStore.IncomingBYODIDValidation(did)

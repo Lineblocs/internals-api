@@ -766,7 +766,9 @@ func (us *UserStore) IncomingDIDValidation(did string) (*model.DidNumberInfo, er
 		return nil, err
 	}
 
-	row := us.db.QueryRow(`SELECT did_numbers.number, did_numbers.api_number, did_numbers.workspace_id, did_numbers.trunk_id FROM did_numbers WHERE did_numbers.api_number = ? OR did_numbers.api_number = ? OR did_numbers.api_number = ?`, numberVariants["original"], numberVariants["e164"], numberVariants["no_plus"])
+	utils.Log(logrus.InfoLevel, "IncomingDIDValidation looking up DID number " + numberVariants["original"] + " or " + numberVariants["e164"] + " or " + numberVariants["no_plus"])
+
+	row := us.db.QueryRow(`SELECT did_numbers.number, did_numbers.api_number, did_numbers.workspace_id, COALESCE(did_numbers.trunk_id, 0) FROM did_numbers WHERE did_numbers.api_number = ? OR did_numbers.api_number = ? OR did_numbers.api_number = ?`, numberVariants["original"], numberVariants["e164"], numberVariants["no_plus"])
 	err = row.Scan(&info.DidNumber,
 		&info.DidApiNumber,
 		&info.DidWorkspaceId,
@@ -799,6 +801,7 @@ func (us *UserStore) CheckPSTNIPWhitelist(did string, sourceIp string) (bool, er
 
 		}
 		ipWithCidr := ipAddr + ipAddrRange
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("checking CIDR match for source IP %s with %s\r\n", sourceIp, ipWithCidr))
 		match, err := utils.CheckCIDRMatch(sourceIp, ipWithCidr)
 		if err != nil {
 			utils.Log(logrus.InfoLevel, fmt.Sprintf("error matching CIDR source %s, full %s\r\n", sourceIp, ipWithCidr))
@@ -909,7 +912,6 @@ func (us *UserStore) IncomingTrunkValidation(trunkip string) ([]byte, error) {
 	defer results.Close()
 
 	for results.Next() {
-		utils.Log(logrus.InfoLevel, "trying to route to SIP server..\r\n")
 		var routingSIPURI string
 		var recoverySIPURI string
 		err := results.Scan(
@@ -918,17 +920,13 @@ func (us *UserStore) IncomingTrunkValidation(trunkip string) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		utils.Log(logrus.InfoLevel, fmt.Sprintf("SIP routing URI = %s SIP recovery URI = %s\r\n", routingSIPURI, recoverySIPURI))
 		// TODO do some health checks here to see if SIP server is actually up..
 		ips, err := utils.LookupSIPAddresses(routingSIPURI)
 		if err != nil {
-			utils.Log(logrus.InfoLevel, fmt.Sprintf("failed to lookup SIP server %s\r\n", routingSIPURI))
 			continue
 		}
 		for _, ip := range *ips {
 			ipAddr := ip.String()
-			utils.Log(logrus.InfoLevel, fmt.Sprintf("found IP = %s\r\n", ipAddr))
-			utils.Log(logrus.InfoLevel, fmt.Sprintf("comparing with source IP = %s\r\n", trunkip))
 			if ipAddr == trunkip {
 				return []byte(ipAddr), nil
 			}

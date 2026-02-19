@@ -104,6 +104,7 @@ func (h *Handler) SetSIPCallID(c echo.Context) error {
 	callid := c.FormValue("callid")
 	apiid := c.FormValue("apiid")
 
+	utils.Log(logrus.InfoLevel, "SetSIPCallId API ID: " + apiid + " Call ID: " + callid)
 	err := h.callStore.SetSIPCallID(callid, apiid)
 	if err != nil {
 		return utils.HandleInternalErr("SetSIPCallID could not execute query..", err, c)

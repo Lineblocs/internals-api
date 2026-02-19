@@ -222,8 +222,12 @@ func CheckIfCarrier(token string) bool {
 }
 
 func HandleInternalErr(msg string, err error, c echo.Context) error {
-	Log(logrus.FatalLevel, msg)
-	Log(logrus.FatalLevel, err.Error())
+	if err != nil {
+		Log(logrus.FatalLevel, msg +  ". error message: " + err.Error())
+	} else {
+		Log(logrus.FatalLevel, msg)
+	}
+
 	return c.JSON(http.StatusInternalServerError, err.Error())
 }
 
