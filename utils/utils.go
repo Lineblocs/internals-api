@@ -33,7 +33,7 @@ func CreateAPIID(prefix string) string {
 	return prefix + "-" + id.String()
 }
 
-func LookupBestCallRate(number string, typeRate string) *model.CallRate {
+func LookupBestCallRate(number string, callDirection string) *model.CallRate {
 	return &model.CallRate{CallRate: 0.0140}
 }
 

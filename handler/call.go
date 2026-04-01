@@ -86,12 +86,12 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 		if err != nil {
 			return utils.HandleInternalErr("UpdateCall Could not parse endedAt", err, c)
 		}
-		createdAt, err := utils.ParseDateTime(call.CreatedAt)
+		startedAt, err := utils.ParseDateTime(call.StartedAt)
 		if err != nil {
 			return utils.HandleInternalErr("UpdateCall Could not parse createdAt", err, c)
 		}
 
-		durationInSeconds := int(endedAt.Sub(createdAt).Seconds())
+		durationInSeconds := int(endedAt.Sub(startedAt).Seconds())
 		utils.Log(logrus.InfoLevel, "Call duration is "+strconv.Itoa(durationInSeconds)+" seconds for call ID "+strconv.Itoa(call.Id))
 		debit := model.Debit{
 			UserId:      call.UserId,
