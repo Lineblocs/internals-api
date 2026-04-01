@@ -52,6 +52,7 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "UpdateCall is called...")
 
 	var update model.CallUpdate
+	enableBillingInCallFlow := true
 
 	if err := c.Bind(&update); err != nil {
 		return utils.HandleInternalErr("UpdateCall 1 Could not decode JSON", err, c)
@@ -60,11 +61,56 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 		return utils.HandleInternalErr("UpdateCall 2 Could not decode JSON", err, c)
 	}
 
+	err := h.callStore.UpdateCall(&update)
+	if err != nil {
+		return utils.HandleInternalErr("UpdateCall Could not execute query..", err, c)
+	}
+
+	call, err := h.callStore.GetCallFromDB(update.CallId)
+	if err != nil {
+		return utils.HandleInternalErr("UpdateCall Could not fetch call from DB", err, c)
+	}
+
+	// Note: To use variables from the call data structure in your debit processing below, 
+	// you should update the debit initialization inside the if statement to look like this:
+	// debit := model.Debit{
+	// 	UserId:      call.UserId,
+	// 	WorkspaceId: call.WorkspaceId,
+	// 	Status:      "completed",
+	// 	Number:      call.To, // Using 'to' as the number
+	// }
 	// Only update if status is "ended"
-	if update.Status == "ended" {
-		err := h.callStore.UpdateCall(&update)
+	if update.Status == "ended" && enableBillingInCallFlow {
+		// Get Call Rate depends number and type
+		endedAt, err := utils.ParseDateTime(call.EndedAt)
 		if err != nil {
-			return utils.HandleInternalErr("UpdateCall Could not execute query..", err, c)
+			return utils.HandleInternalErr("UpdateCall Could not parse endedAt", err, c)
+		}
+		createdAt, err := utils.ParseDateTime(call.CreatedAt)
+		if err != nil {
+			return utils.HandleInternalErr("UpdateCall Could not parse createdAt", err, c)
+		}
+
+		durationInSeconds := int(endedAt.Sub(createdAt).Seconds())
+		utils.Log(logrus.InfoLevel, "Call duration is "+strconv.Itoa(durationInSeconds)+" seconds for call ID "+strconv.Itoa(call.Id))
+		debit := model.Debit{
+			UserId:      call.UserId,
+			WorkspaceId: call.WorkspaceId,
+			Status:      "completed",
+			Number:      call.To,
+			Seconds:     durationInSeconds,
+			Source:      "CALL",
+			ModuleId:    call.Id,
+		}
+
+		rate := utils.LookupBestCallRate2(call.From, call.To, call.Direction)
+		if rate == nil {
+			return c.NoContent(http.StatusNotFound)
+		}
+
+		err = h.debitStore.CreateDebit(rate, &debit)
+		if err != nil {
+			utils.Log(logrus.ErrorLevel, "UpdateCall Could not create debit: "+err.Error())
 		}
 	}
 

@@ -98,19 +98,35 @@ Output: If success return nil else return err
 */
 func (cs *CallStore) UpdateCall(update *model.CallUpdate) error {
 	// Perform a db.Query insert
-	stmt, err := cs.db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ?, `updated_at` = ? WHERE `id` = ?")
-	if err != nil {
-		utils.Log(logrus.InfoLevel, "UpdateCall 2 Could not execute query..")
-		utils.Log(logrus.InfoLevel, err.Error())
-		return err
-	}
-
-	defer stmt.Close()
-	endedAt := time.Now()
+	var err error
+	var stmt *sql.Stmt
 	updatedAt := time.Now()
 
-	utils.Log(logrus.InfoLevel, "updating call id = " + strconv.Itoa( update.CallId ))
-	_, err = stmt.Exec(update.Status, endedAt, updatedAt, update.CallId)
+	if update.Status == "ended" {
+		stmt, err = cs.db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ?, `updated_at` = ? WHERE `id` = ?")
+		if err != nil {
+			utils.Log(logrus.InfoLevel, "UpdateCall 2 Could not execute query..")
+			utils.Log(logrus.InfoLevel, err.Error())
+			return err
+		}
+		defer stmt.Close()
+
+		endedAt := time.Now()
+		utils.Log(logrus.InfoLevel, "updating call id = " + strconv.Itoa( update.CallId ))
+		_, err = stmt.Exec(update.Status, endedAt, updatedAt, update.CallId)
+	} else {
+		stmt, err = cs.db.Prepare("UPDATE calls SET `status` = ?, `updated_at` = ? WHERE `id` = ?")
+		if err != nil {
+			utils.Log(logrus.InfoLevel, "UpdateCall 2 Could not execute query..")
+			utils.Log(logrus.InfoLevel, err.Error())
+			return err
+		}
+		defer stmt.Close()
+
+		utils.Log(logrus.InfoLevel, "updating call id = " + strconv.Itoa( update.CallId ))
+		_, err = stmt.Exec(update.Status, updatedAt, update.CallId)
+	}
+
 	if err != nil {
 		return err
 	}
@@ -171,7 +187,7 @@ Output: First Value: Call model,Second Value: error
 If success return Call model else return err
 */
 func (cs *CallStore) GetCallFromDB(id int) (*model.Call, error) {
-	row := cs.db.QueryRow("SELECT `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot` FROM calls WHERE id = ?", id)
+	row := cs.db.QueryRow("SELECT `from`, `to`, `channel_id`, `status`, `direction`, `duration`, `user_id`, `workspace_id`, `started_at`, `ended_at`, `created_at`, `updated_at`, `api_id`, `plan_snapshot` FROM calls WHERE id = ?", id)
 	call := model.Call{Id: id}
 	err := row.Scan(
 		&call.From,
@@ -183,6 +199,7 @@ func (cs *CallStore) GetCallFromDB(id int) (*model.Call, error) {
 		&call.UserId,
 		&call.WorkspaceId,
 		&call.StartedAt,
+		&call.EndedAt,
 		&call.CreatedAt,
 		&call.UpdatedAt,
 		&call.APIId,

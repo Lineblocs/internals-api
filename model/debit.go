@@ -9,7 +9,7 @@ type Debit struct {
 	ModuleId     int     `json:"module_id"`
 	Balance      int     `json:"balance"`
 	Status       string  `json:"status"`
-	Seconds      float64 `json:"seconds"`
+	Seconds      int `json:"seconds"`
 	PlanSnapshot string  `json:"plan_snapshot"`
 
 	//extra request field

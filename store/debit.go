@@ -41,25 +41,29 @@ func (ds *DebitStore) CreateDebit(rate *model.CallRate, debit *model.Debit) erro
 		return err
 	}
 
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Calculating debit cost. BillingFrequency: %s, Seconds: %d, CallRate: %f", customizationsData.BillingFrequency, debit.Seconds, rate.CallRate))
+
 	if customizationsData.BillingFrequency == "PER_MINUTE" {
-		minutes := math.Ceil(debit.Seconds / 60)
+		minutes := math.Ceil(float64(debit.Seconds) / 60)
 		dollars := minutes * rate.CallRate
 		cents = utils.ToCents(dollars)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("PER_MINUTE calculation - minutes: %f, dollars: %f, cents: %d", minutes, dollars, cents))
 	} else if customizationsData.BillingFrequency == "PER_SECOND" {
-		minutes := debit.Seconds / 60
+		minutes := float64(debit.Seconds) / 60
 		dollars := minutes * rate.CallRate
 		cents = utils.ToCents(dollars)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("PER_SECOND calculation - minutes: %f, dollars: %f, cents: %d", minutes, dollars, cents))
 	}
 
-	balance := 0
+
 	status := "INCOMPLETE"
 	now := time.Now()
-	stmt, err := ds.db.Prepare("INSERT INTO users_debits (`user_id`, `cents`, `source`, `plan_snapshot`, `module_id`, `balance`, `status`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )")
+	stmt, err := ds.db.Prepare("INSERT INTO users_debits (`workspace_id`, `user_id`, `cents`, `source`, `module_id`, `status`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(debit.UserId, cents, debit.Source, debit.PlanSnapshot, debit.ModuleId, balance, status, now, now)
+	_, err = stmt.Exec(debit.WorkspaceId, debit.UserId, cents, debit.Source, debit.ModuleId, status, now, now)
 	if err != nil {
 		return err
 	}

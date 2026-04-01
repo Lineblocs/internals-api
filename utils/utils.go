@@ -34,17 +34,24 @@ func CreateAPIID(prefix string) string {
 }
 
 func LookupBestCallRate(number string, typeRate string) *model.CallRate {
-	return &model.CallRate{CallRate: 9.99}
+	return &model.CallRate{CallRate: 0.0140}
 }
 
-func LookupBestCallRate2(from string, to string, typeRate string) *model.CallRate {
-	return &model.CallRate{CallRate: 9.99}
+func LookupBestCallRate2(from string, to string, callDirection string) *model.CallRate {
+	// TODO: implement logic to lookup best call rate based on from, to and call direction. for now return hardcoded values
+	if callDirection == "outbound" {
+		return &model.CallRate{CallRate: 0.0140}
+	} else if callDirection == "inbound" {
+		return &model.CallRate{CallRate: 0.0050}
+	}
+
+	return nil
 }
 
-func CalculateCallDuration(start *time.Time) (float64) {
+func CalculateCallDuration(start *time.Time) int {
 	now := time.Now()
 	diff := now.Sub(*start)
-	return diff.Seconds()
+	return int(diff.Seconds())
 }
 
 
@@ -329,4 +336,8 @@ func GetPhoneNumberVariants(rawNumber string, region string) (map[string]string,
 	}
 
 	return variants, nil
+}
+
+func ParseDateTime(t string) (time.Time, error) {
+	return time.Parse(time.RFC3339, t) // Adjust layout if needed (e.g., "2006-01-02 15:04:05")
 }
