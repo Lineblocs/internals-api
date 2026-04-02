@@ -3,11 +3,13 @@ package handler
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
+	helpers "github.com/Lineblocs/go-helpers"
 )
 
 /*
@@ -93,6 +95,10 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 
 		durationInSeconds := int(endedAt.Sub(startedAt).Seconds())
 		utils.Log(logrus.InfoLevel, "Call duration is "+strconv.Itoa(durationInSeconds)+" seconds for call ID "+strconv.Itoa(call.Id))
+
+		now := time.Now()
+		deduplicationKey := helpers.GenerateDeduplicationKey("CALL", now.Year(), int(now.Month()), now.Day(), call.WorkspaceId, int(call.Id))
+
 		debit := model.Debit{
 			UserId:      call.UserId,
 			WorkspaceId: call.WorkspaceId,
@@ -101,6 +107,7 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 			Seconds:     durationInSeconds,
 			Source:      "CALL",
 			ModuleId:    call.Id,
+			DeduplicationKey: deduplicationKey,
 		}
 
 		rate := utils.LookupBestCallRate2(call.From, call.To, call.Direction)

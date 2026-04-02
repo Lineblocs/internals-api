@@ -58,12 +58,16 @@ func (ds *DebitStore) CreateDebit(rate *model.CallRate, debit *model.Debit) erro
 
 	status := "INCOMPLETE"
 	now := time.Now()
-	stmt, err := ds.db.Prepare("INSERT INTO users_debits (`workspace_id`, `user_id`, `cents`, `source`, `module_id`, `status`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ? )")
+	deduplicationKey := debit.DeduplicationKey
+	if deduplicationKey == "" {
+		deduplicationKey = "NULL"
+	}
+	stmt, err := ds.db.Prepare("INSERT INTO users_debits (`workspace_id`, `user_id`, `cents`, `source`, `module_id`, `status`, `deduplication_key`, `created_at`, `updated_at`) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ? )")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	_, err = stmt.Exec(debit.WorkspaceId, debit.UserId, cents, debit.Source, debit.ModuleId, status, now, now)
+	_, err = stmt.Exec(debit.WorkspaceId, debit.UserId, cents, debit.Source, debit.ModuleId, status, deduplicationKey, now, now)
 	if err != nil {
 		return err
 	}

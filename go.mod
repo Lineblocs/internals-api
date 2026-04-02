@@ -3,7 +3,7 @@ module lineblocs.com/api
 go 1.22
 
 require (
-	github.com/Lineblocs/go-helpers v0.0.4-0.20240523213000-312f8adcf999
+	github.com/Lineblocs/go-helpers v0.0.4-0.20260402202554-3b44d5b31c60
 	github.com/aws/aws-sdk-go v1.54.0
 	github.com/go-sql-driver/mysql v1.8.1
 	github.com/google/uuid v1.6.0

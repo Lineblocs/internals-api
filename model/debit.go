@@ -11,6 +11,7 @@ type Debit struct {
 	Status       string  `json:"status"`
 	Seconds      int `json:"seconds"`
 	PlanSnapshot string  `json:"plan_snapshot"`
+	DeduplicationKey string  `json:"deduplication_key"`
 
 	//extra request field
 	WorkspaceId int    `json:"workspace_id"`
