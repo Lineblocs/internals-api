@@ -13,4 +13,5 @@ type RecordingStoreInterface interface {
 	GetRecordingSpace(int) (int, error)
 	UpdateRecording(string, string, int64, int) error
 	UpdateRecordingTranscription(*model.RecordingTranscription) error
+	IsUserAllowedToRecord(int) (bool, error)
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
+	helpers "github.com/Lineblocs/go-helpers"
 )
 
 /*
@@ -30,6 +31,23 @@ func (h *Handler) CreateRecording(c echo.Context) error {
 	workspace, err := h.callStore.GetWorkspaceFromDB(recording.WorkspaceId)
 	if err != nil {
 		return utils.HandleInternalErr("Could not get workspace..", err, c)
+	}
+
+	customizations, err := helpers.GetCustomizationKVs()
+	if err != nil {
+		return utils.HandleInternalErr("CreateRecording internal error in processing.", err, c)
+	}
+
+	allowOverage := utils.IsOverageEnabled(customizations)
+
+	if !allowOverage {
+		allowed, err := h.recordingStore.IsUserAllowedToRecord(recording.WorkspaceId)
+		if err != nil {
+			return utils.HandleInternalErr("CreateRecording internal error in processing.", err, c)
+		}
+		if !allowed {
+			return utils.HandlePaymentRequired("CreateRecording user is not allowed to record as they have exceeded their plan limits.", nil, c)
+		}
 	}
 
 	recId, err := h.recordingStore.CreateRecording(workspace, &recording)

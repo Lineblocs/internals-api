@@ -183,3 +183,49 @@ func (rs *RecordingStore) UpdateRecordingTranscription(update *model.RecordingTr
 	defer stmt.Close()
 	return nil
 }
+
+/*
+Input: workspaceId
+Todo : Check if recording is allowed for workspace
+Output: First Value: bool, Second Value: error
+If success return (true, nil) else return (false, err)
+*/
+func (rs *RecordingStore) IsUserAllowedToRecord(workspaceId int) (bool, error) {
+	var totalBytes int64
+	var err error
+
+	row := rs.db.QueryRow("SELECT COALESCE(SUM(size), 0) FROM recordings WHERE workspace_id = ?", workspaceId)
+
+	err = row.Scan(&totalBytes)
+	if err != nil {
+		return false, err
+	}
+
+	var planId int
+	var allowedBytes int64
+	var payAsYouGo bool
+
+	row = rs.db.QueryRow("SELECT current_plan_id FROM subscriptions WHERE workspace_id = ?", workspaceId)
+	err = row.Scan(&planId)
+	if err != nil {
+		return false, err
+	}
+
+	// Get total recording space used this month
+	row = rs.db.QueryRow("SELECT COALESCE(SUM(size), 0) FROM recordings WHERE workspace_id = ? AND MONTH(created_at) = MONTH(NOW()) AND YEAR(created_at) = YEAR(NOW())", workspaceId)
+	err = row.Scan(&totalBytes)
+	if err != nil {
+		return false, err
+	}
+
+	err = row.Scan(&payAsYouGo, &allowedBytes)
+	if err != nil {
+		return false, err
+	}
+
+	if !payAsYouGo && totalBytes >= allowedBytes {
+		return false, nil
+	}
+
+	return true, nil
+}
