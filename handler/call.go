@@ -21,7 +21,6 @@ func (h *Handler) CreateCall(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "CreateCall is called...")
 
 	var call model.Call
-
 	if err := c.Bind(&call); err != nil {
 		return utils.HandleInternalErr("CreateCall 1 Could not decode JSON", err, c)
 	}
@@ -34,6 +33,24 @@ func (h *Handler) CreateCall(c echo.Context) error {
 	if call.Direction == "outbound" {
 		// Check if this is the first time we are making a call to this destination
 		go h.callStore.ProcessUsersFirstCall(call)
+	}
+
+	customizations, err := helpers.GetCustomizationKVs()
+	if err != nil {
+		return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
+	}
+
+	allowOverage := utils.IsOverageEnabled(customizations)
+
+	if !allowOverage {
+		// check minutes left in plan and if user is allowed to make call
+		allowed, err := h.callStore.IsUserAllowedToMakeCall(call.WorkspaceId)
+		if err != nil {
+			return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
+		}
+		if !allowed {
+			return utils.HandlePaymentRequired("CreateCall user is not allowed to make call as they have exceeded their plan limits.", nil, c)
+		}
 	}
 
 	callId, err := h.callStore.CreateCall(&call)

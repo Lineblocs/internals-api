@@ -399,3 +399,38 @@ func (cs *CallStore) GetUserFromDB(id int) (*model.User, error) {
 
 	return &model.User{Id: userId, Username: username, FirstName: fname, LastName: lname, Email: email}, nil
 }
+
+func (cs *CallStore) IsUserAllowedToMakeCall(workspaceId int) (bool, error) {
+	var totalSeconds int64
+	var err error
+
+	row := cs.db.QueryRow("SELECT COALESCE(SUM(duration), 0) FROM calls WHERE workspace_id = ?", workspaceId)
+
+	err = row.Scan(&totalSeconds)
+	if err != nil {
+		return false, err
+	}
+
+	totalMinutes := totalSeconds / 60
+	var planId int
+	var allowedMinutes int
+	var payAsYouGo bool
+
+	row = cs.db.QueryRow("SELECT current_plan_id FROM subscriptions WHERE workspace_id = ?", workspaceId)
+	err = row.Scan(&planId)
+	if err != nil {
+		return false, err
+	}
+
+	row = cs.db.QueryRow("SELECT pay_as_you_go, minutes_per_month FROM service_plans WHERE id = ?", planId)
+	err = row.Scan(&payAsYouGo, &allowedMinutes)
+	if err != nil {
+		return false, err
+	}
+
+	if !payAsYouGo && totalMinutes >= int64(allowedMinutes) {
+		return false, nil
+	}
+
+	return true, nil
+}

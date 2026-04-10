@@ -238,6 +238,16 @@ func HandleInternalErr(msg string, err error, c echo.Context) error {
 	return c.JSON(http.StatusInternalServerError, err.Error())
 }
 
+func HandlePaymentRequired(msg string, err error, c echo.Context) error {
+	if err != nil {
+		Log(logrus.FatalLevel, msg +  ". error message: " + err.Error())
+	} else {
+		Log(logrus.FatalLevel, msg)
+	}
+
+	return c.JSON(http.StatusPaymentRequired, err.Error())
+}
+
 func SetSetting(gs model.GlobalSettings) {
 	settings = &gs
 }
@@ -340,4 +350,17 @@ func GetPhoneNumberVariants(rawNumber string, region string) (map[string]string,
 
 func ParseDateTime(t string) (time.Time, error) {
 	return time.Parse(time.RFC3339, t) // Adjust layout if needed (e.g., "2006-01-02 15:04:05")
+}
+
+func IsOverageEnabled(customizations *helpers.CustomizationSettingsKV) bool {
+	var allowed bool = false
+
+	if interfacePtr, ok := customizations.Pairs["allow_billing_overage"]; ok && interfacePtr != nil {
+		if boolStruct, ok := (*interfacePtr).(*helpers.CustomizationBooleanValue); ok {
+			result := boolStruct.Value
+			allowed = result
+		}
+	}
+
+	return allowed
 }
