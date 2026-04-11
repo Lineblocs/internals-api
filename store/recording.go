@@ -2,6 +2,8 @@ package store
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
 	"database/sql"
@@ -193,36 +195,43 @@ If success return (true, nil) else return (false, err)
 func (rs *RecordingStore) IsUserAllowedToRecord(workspaceId int) (bool, error) {
 	var totalBytes int64
 	var err error
-
-	row := rs.db.QueryRow("SELECT COALESCE(SUM(size), 0) FROM recordings WHERE workspace_id = ?", workspaceId)
-
-	err = row.Scan(&totalBytes)
-	if err != nil {
-		return false, err
-	}
-
 	var planId int
 	var allowedBytes int64
 	var payAsYouGo bool
 
-	row = rs.db.QueryRow("SELECT current_plan_id FROM subscriptions WHERE workspace_id = ?", workspaceId)
+
+	row := rs.db.QueryRow("SELECT current_plan_id FROM subscriptions WHERE workspace_id = ?", workspaceId)
 	err = row.Scan(&planId)
 	if err != nil {
 		return false, err
 	}
 
-	// Get total recording space used this month
-	row = rs.db.QueryRow("SELECT COALESCE(SUM(size), 0) FROM recordings WHERE workspace_id = ? AND MONTH(created_at) = MONTH(NOW()) AND YEAR(created_at) = YEAR(NOW())", workspaceId)
+	row = rs.db.QueryRow("SELECT COALESCE(SUM(size), 0) FROM recordings WHERE workspace_id = ?", workspaceId)
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Workspace %d has used %d bytes of recording space", workspaceId, totalBytes))
 	err = row.Scan(&totalBytes)
 	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("Failed to get total recording space for workspace %d: %v", workspaceId, err))
 		return false, err
 	}
 
-	err = row.Scan(&payAsYouGo, &allowedBytes)
+	row = rs.db.QueryRow("SELECT pay_as_you_go, recording_space FROM service_plans WHERE id = ?", planId)
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Fetching plan details for plan ID: %d", planId))
+	var recordingSpaceStr string
+	err = row.Scan(&payAsYouGo, &recordingSpaceStr)
 	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("Failed to fetch plan details for plan ID %d: %v", planId, err))
+		return false, err
+	}
+	recordingSpaceStr = strings.TrimSuffix(recordingSpaceStr, "gb")
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Recording space for plan ID %d: %s", planId, recordingSpaceStr))
+	recordingSpaceGB, err := strconv.ParseInt(recordingSpaceStr, 10, 64)
+	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("Failed to parse recording space for plan ID %d: %v", planId, err))
 		return false, err
 	}
 
+	allowedBytes = recordingSpaceGB * 1024 * 1024 * 1024
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("Workspace %d has used %d bytes of recording space, allowed bytes: %d", workspaceId, totalBytes, allowedBytes))
 	if !payAsYouGo && totalBytes >= allowedBytes {
 		return false, nil
 	}

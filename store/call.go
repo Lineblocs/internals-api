@@ -404,14 +404,16 @@ func (cs *CallStore) IsUserAllowedToMakeCall(workspaceId int) (bool, error) {
 	var totalSeconds int64
 	var err error
 
-	row := cs.db.QueryRow("SELECT COALESCE(SUM(duration), 0) FROM calls WHERE workspace_id = ?", workspaceId)
+	row := cs.db.QueryRow("SELECT COALESCE(SUM(duration), 0) FROM calls WHERE workspace_id = ? AND MONTH(created_at) = MONTH(NOW()) AND YEAR(created_at) = YEAR(NOW())", workspaceId)
 
 	err = row.Scan(&totalSeconds)
 	if err != nil {
 		return false, err
 	}
 
+
 	totalMinutes := totalSeconds / 60
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("total minutes: %d", totalMinutes))
 	var planId int
 	var allowedMinutes int
 	var payAsYouGo bool
@@ -428,6 +430,7 @@ func (cs *CallStore) IsUserAllowedToMakeCall(workspaceId int) (bool, error) {
 		return false, err
 	}
 
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("total minutes: %d, allowed minutes: %d", totalMinutes, allowedMinutes))
 	if !payAsYouGo && totalMinutes >= int64(allowedMinutes) {
 		return false, nil
 	}
