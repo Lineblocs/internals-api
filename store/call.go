@@ -444,20 +444,26 @@ Todo : Check if caller id is permitted to be used with a workspace
 Output: If success return true else return false
 */
 func (cs *CallStore) IsCallerIdPermitted(workspaceId int, callerId string) (bool, error) {
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("checking if caller id %s is permitted for workspace %d", callerId, workspaceId))
+	
 	// Check caller_ids table
 	// Check caller_ids table with phone number variants
 	variants, err := utils.GetPhoneNumberVariants(callerId, "US")
 	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("error getting phone number variants: %v", err))
 		return false, err
 	}
+	utils.Log(logrus.DebugLevel, fmt.Sprintf("phone number variants: %+v", variants))
 
-	row := cs.db.QueryRow("SELECT number FROM caller_ids WHERE workspace_id = ? AND number IN (?, ?, ?, ?)", workspaceId, variants["e164"], variants["no_plus"], variants["national_only"], variants["original"])
+	row := cs.db.QueryRow("SELECT number FROM verified_callerids WHERE workspace_id = ? AND number IN (?, ?, ?, ?)", workspaceId, variants["e164"], variants["no_plus"], variants["national_only"], variants["original"])
 	var number string
 	err = row.Scan(&number)
 	if err == nil {
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("found verified caller id %s for workspace %d", number, workspaceId))
 		return true, nil
 	}
 	if err != sql.ErrNoRows {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("error querying verified_callerids: %v", err))
 		return false, err
 	}
 
@@ -466,11 +472,14 @@ func (cs *CallStore) IsCallerIdPermitted(workspaceId int, callerId string) (bool
 	var apiNumber string
 	err = row.Scan(&apiNumber)
 	if err == nil {
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("found did number %s for workspace %d", apiNumber, workspaceId))
 		return true, nil
 	}
 	if err != sql.ErrNoRows {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("error querying did_numbers: %v", err))
 		return false, err
 	}
 
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("caller id %s not permitted for workspace %d", callerId, workspaceId))
 	return false, nil
 }
