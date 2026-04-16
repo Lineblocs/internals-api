@@ -437,3 +437,40 @@ func (cs *CallStore) IsUserAllowedToMakeCall(workspaceId int) (bool, error) {
 
 	return true, nil
 }
+
+/*
+Input: workspaceId, callerId
+Todo : Check if caller id is permitted to be used with a workspace
+Output: If success return true else return false
+*/
+func (cs *CallStore) IsCallerIdPermitted(workspaceId int, callerId string) (bool, error) {
+	// Check caller_ids table
+	// Check caller_ids table with phone number variants
+	variants, err := utils.GetPhoneNumberVariants(callerId, "US")
+	if err != nil {
+		return false, err
+	}
+
+	row := cs.db.QueryRow("SELECT number FROM caller_ids WHERE workspace_id = ? AND number IN (?, ?, ?, ?)", workspaceId, variants["e164"], variants["no_plus"], variants["national_only"], variants["original"])
+	var number string
+	err = row.Scan(&number)
+	if err == nil {
+		return true, nil
+	}
+	if err != sql.ErrNoRows {
+		return false, err
+	}
+
+	// Check did_numbers table
+	row = cs.db.QueryRow("SELECT api_number FROM did_numbers WHERE workspace_id = ? AND api_number IN (?, ?, ?, ?)", workspaceId, variants["e164"], variants["no_plus"], variants["national_only"], variants["original"])
+	var apiNumber string
+	err = row.Scan(&apiNumber)
+	if err == nil {
+		return true, nil
+	}
+	if err != sql.ErrNoRows {
+		return false, err
+	}
+
+	return false, nil
+}

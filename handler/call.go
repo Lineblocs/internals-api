@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"context"
+	"encoding/json"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -10,7 +13,61 @@ import (
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 	helpers "github.com/Lineblocs/go-helpers"
+	amqp "github.com/rabbitmq/amqp091-go"
 )
+
+type CallActivityTask struct {
+	RunID       string `json:"run_id"`
+	EventType   string `json:"event_type"`
+	From        string `json:"from"`
+	To          string `json:"to"`
+	WorkspaceID string `json:"workspace_id"`
+	Description string `json:"description"`
+}
+
+
+func (h *Handler) publishCallEventToQueue(eventType string, call *model.Call) error {
+	conn, err := amqp.Dial(os.Getenv("QUEUE_URL"))
+	if err != nil {
+		utils.Log(logrus.ErrorLevel, "RabbitMQ connection failed: "+err.Error())
+		return err
+	}
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
+
+	ch.Confirm(false)
+	q, err := ch.QueueDeclare("call_activity", true, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+
+
+	task := CallActivityTask{
+		RunID:       strconv.Itoa(call.Id),
+		EventType:   eventType,
+		From:        call.From,
+		To:          call.To,
+		WorkspaceID: strconv.Itoa(call.WorkspaceId),
+	}
+
+	body, _ := json.Marshal(task)
+	err = ch.PublishWithContext(context.Background(), "", q.Name, false, false, amqp.Publishing{
+		DeliveryMode: amqp.Persistent,
+		ContentType:  "application/json",
+		Body:         body,
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
 
 /*
 Input: Call model
@@ -33,6 +90,23 @@ func (h *Handler) CreateCall(c echo.Context) error {
 	if call.Direction == "outbound" {
 		// Check if this is the first time we are making a call to this destination
 		go h.callStore.ProcessUsersFirstCall(call)
+
+		permitted, err := h.callStore.IsCallerIdPermitted(call.WorkspaceId, call.From)
+		if err != nil {
+			utils.Log(logrus.ErrorLevel, "Failed to check caller ID permission: " + err.Error())
+			return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
+		}
+
+		if !permitted {
+			utils.Log(logrus.InfoLevel, "Caller ID " + call.From + " is not permitted for workspace " + strconv.Itoa(call.WorkspaceId))
+			err := h.publishCallEventToQueue("UNAUTHORIZED_CALLER_ID", &call)
+			if err != nil {
+				utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: " + err.Error())
+				return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
+			}
+
+			return utils.HandleInternalErr("CreateCall unauthorized caller ID.", err, c)
+		}
 	}
 
 	customizations, err := helpers.GetCustomizationKVs()
@@ -51,6 +125,11 @@ func (h *Handler) CreateCall(c echo.Context) error {
 		if !allowed {
 			return utils.HandlePaymentRequired("CreateCall user is not allowed to make call as they have exceeded their plan limits.", nil, c)
 		}
+	}
+
+	if err != nil {
+		utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: " + err.Error())
+		return utils.HandleInternalErr("CreateCall Could not execute query", err, c)
 	}
 
 	callId, err := h.callStore.CreateCall(&call)
