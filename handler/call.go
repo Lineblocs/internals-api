@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"time"
+	"errors"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
@@ -105,6 +106,7 @@ func (h *Handler) CreateCall(c echo.Context) error {
 				return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
 			}
 
+			err = errors.New("Using this caller ID is not permitted.")
 			return utils.HandleInternalErr("CreateCall unauthorized caller ID.", err, c)
 		}
 	}

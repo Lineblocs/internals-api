@@ -524,9 +524,15 @@ Output: First Value: did_action, Second Value: error
 If success return (did_action, nil) else return (nil, err)
 */
 func (us *UserStore) GetDIDAcceptOption(did string) ([]byte, error) {
-	row := us.db.QueryRow(`SELECT did_action FROM did_numbers WHERE did_numbers.api_number = ?`, did)
+	var row *sql.Row
+	numberVariants, err := utils.GetPhoneNumberVariants(did, "US")
+	if err != nil {
+		return nil, err
+	}
+
+	row = us.db.QueryRow(`SELECT did_action FROM did_numbers WHERE did_numbers.api_number = ? OR did_numbers.api_number = ? OR did_numbers.api_number = ?`, numberVariants["original"], numberVariants["e164"], numberVariants["no_plus"])
 	var action string
-	err := row.Scan(&action)
+	err = row.Scan(&action)
 	if err == nil {
 		return []byte(action), nil
 	}
