@@ -46,7 +46,7 @@ func (rs *RecordingStore) CreateRecording(workspace *model.Workspace, recording 
 		recording.UserId,
 		recording.CallId,
 		recording.WorkspaceId,
-		"started",
+		"RECORDING",
 		"",
 		"",
 		"",
