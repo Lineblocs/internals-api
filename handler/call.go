@@ -180,7 +180,9 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 	// 	Number:      call.To, // Using 'to' as the number
 	// }
 	// Only update if status is "ENDED"
+	utils.Log(logrus.InfoLevel, "UpdateCall Processing call ID "+strconv.Itoa(call.Id)+" with status "+update.Status)
 	if update.Status == "ENDED" && enableBillingInCallFlow {
+		utils.Log(logrus.InfoLevel, "UpdateCall Processing billing for call ID "+strconv.Itoa(call.Id))
 		// Get Call Rate depends number and type
 		endedAt, err := utils.ParseDateTime(call.EndedAt)
 		if err != nil {
