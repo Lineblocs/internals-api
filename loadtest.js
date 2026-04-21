@@ -72,7 +72,7 @@ export default function () {
   };
   const data = JSON.stringify({
     call_id: "call-b0d5d6f4-8ef4-4a8d-ac41-ffd7587c8eba",
-    status: "ended"
+    status: "ENDED"
   });
   check(http.post(url,data, params), {
     'status was success': (r) => r.status >= 200 && r.status <= 226,

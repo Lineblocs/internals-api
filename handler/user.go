@@ -812,7 +812,7 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 	}
 
 	// update the calls status to ended
-	update := model.CallUpdate{CallId: call.Id, Status: "ended"}
+	update := model.CallUpdate{CallId: call.Id, Status: "ENDED"}
 	err = h.callStore.UpdateCall(&update)
 	if err != nil {
 		return utils.HandleInternalErr("UpdateCall Could not execute query..", err, c)

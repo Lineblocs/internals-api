@@ -179,8 +179,8 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 	// 	Status:      "PAID",
 	// 	Number:      call.To, // Using 'to' as the number
 	// }
-	// Only update if status is "ended"
-	if update.Status == "ended" && enableBillingInCallFlow {
+	// Only update if status is "ENDED"
+	if update.Status == "ENDED" && enableBillingInCallFlow {
 		// Get Call Rate depends number and type
 		endedAt, err := utils.ParseDateTime(call.EndedAt)
 		if err != nil {

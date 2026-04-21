@@ -102,7 +102,7 @@ func (cs *CallStore) UpdateCall(update *model.CallUpdate) error {
 	var stmt *sql.Stmt
 	updatedAt := time.Now()
 
-	if update.Status == "ended" {
+	if update.Status == "ENDED" {
 		stmt, err = cs.db.Prepare("UPDATE calls SET `status` = ?, `ended_at` = ?, `updated_at` = ? WHERE `id` = ?")
 		if err != nil {
 			utils.Log(logrus.InfoLevel, "UpdateCall 2 Could not execute query..")
