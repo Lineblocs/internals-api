@@ -799,7 +799,7 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 
 	debit := model.Debit{
 		Source: "CALL",
-		Status: "completed",
+		Status: "PAID",
 		Seconds: seconds,
 		ModuleId: call.Id,
 		UserId: call.UserId,

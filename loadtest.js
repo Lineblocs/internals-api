@@ -248,7 +248,7 @@ export default function () {
   /*
   const url = baseUrl + "/recording/updateRecording";
   const data = {
-    "status": "completed",
+    "status": "FINALIZED",
     "recording_id": 5
   };
   check(http.post(url,data), {

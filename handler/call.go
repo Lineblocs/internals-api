@@ -176,7 +176,7 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 	// debit := model.Debit{
 	// 	UserId:      call.UserId,
 	// 	WorkspaceId: call.WorkspaceId,
-	// 	Status:      "completed",
+	// 	Status:      "PAID",
 	// 	Number:      call.To, // Using 'to' as the number
 	// }
 	// Only update if status is "ended"
@@ -200,7 +200,7 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 		debit := model.Debit{
 			UserId:      call.UserId,
 			WorkspaceId: call.WorkspaceId,
-			Status:      "completed",
+			Status:      "PAID",
 			Number:      call.To,
 			Seconds:     durationInSeconds,
 			Source:      "CALL",
