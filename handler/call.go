@@ -92,7 +92,7 @@ func (h *Handler) CreateCall(c echo.Context) error {
 		// Check if this is the first time we are making a call to this destination
 		go h.callStore.ProcessUsersFirstCall(call)
 
-		permitted, err := h.callStore.IsCallerIdPermitted(call.WorkspaceId, call.From)
+		permitted, err := h.callStore.IsCallerIdPermitted(call.WorkspaceId, call.From, call.To)
 		if err != nil {
 			utils.Log(logrus.ErrorLevel, "Failed to check caller ID permission: " + err.Error())
 			return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)

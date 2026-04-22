@@ -19,5 +19,5 @@ type CallStoreInterface interface {
 	GetUserFromDB(id int) (*model.User, error)
 	GetCallBySIPCallId(sipCallId string) (*model.Call, error)
 	IsUserAllowedToMakeCall(workspaceId int) (bool, error)
-	IsCallerIdPermitted(workspaceId int, callerId string) (bool, error)
+	IsCallerIdPermitted(workspaceId int, callerId string, toNumber string) (bool, error)
 }

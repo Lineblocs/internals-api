@@ -443,8 +443,13 @@ Input: workspaceId, callerId
 Todo : Check if caller id is permitted to be used with a workspace
 Output: If success return true else return false
 */
-func (cs *CallStore) IsCallerIdPermitted(workspaceId int, callerId string) (bool, error) {
+func (cs *CallStore) IsCallerIdPermitted(workspaceId int, callerId string, toNumber string) (bool, error) {
 	utils.Log(logrus.InfoLevel, fmt.Sprintf("checking if caller id %s is permitted for workspace %d", callerId, workspaceId))
+
+	if utils.IsExtensionToExtensionCall(callerId, toNumber) {
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("caller id %s is an extension to extension call, allowing by default", callerId))
+		return true, nil
+	}
 	
 	// Check caller_ids table
 	// Check caller_ids table with phone number variants
