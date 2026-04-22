@@ -39,9 +39,9 @@ func LookupBestCallRate(number string, callDirection string) *model.CallRate {
 
 func LookupBestCallRate2(from string, to string, callDirection string) *model.CallRate {
 	// TODO: implement logic to lookup best call rate based on from, to and call direction. for now return hardcoded values
-	if callDirection == "outbound" {
+	if callDirection == "OUTBOUND" {
 		return &model.CallRate{CallRate: 0.0140}
-	} else if callDirection == "inbound" {
+	} else if callDirection == "INBOUND" {
 		return &model.CallRate{CallRate: 0.0050}
 	}
 

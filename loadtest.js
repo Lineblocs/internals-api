@@ -50,7 +50,7 @@ export default function () {
     from: "15874874526",
     to: "17808503688",
     status: "start",
-    direction: "outbound",
+    direction: "OUTBOUND",
     duration: "8",
     user_id: 2,
     workspace_id: 2,

@@ -88,7 +88,7 @@ func (h *Handler) CreateCall(c echo.Context) error {
 
 	call.APIId = utils.CreateAPIID("call")
 
-	if call.Direction == "outbound" {
+	if call.Direction == "OUTBOUND" {
 		// Check if this is the first time we are making a call to this destination
 		go h.callStore.ProcessUsersFirstCall(call)
 
