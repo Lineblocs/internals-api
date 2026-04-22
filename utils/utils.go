@@ -366,7 +366,7 @@ func IsOverageEnabled(customizations *helpers.CustomizationSettingsKV) bool {
 }
 
 func IsExtensionToExtensionCall(from string, number string) bool {
-	// Assuming extension numbers are purely numeric and 4-6 digits long
-	matched, _ := regexp.MatchString(`^\d{4,6}$`, number)
+	// Assuming extension numbers are purely numeric and 1-6 digits long
+	matched, _ := regexp.MatchString(`^\d{1,6}$`, number)
 	return matched
 }
