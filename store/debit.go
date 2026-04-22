@@ -56,7 +56,7 @@ func (ds *DebitStore) CreateDebit(rate *model.CallRate, debit *model.Debit) erro
 	}
 
 
-	status := "UNBILLED"
+	status := "CREATED"
 	now := time.Now()
 	deduplicationKey := debit.DeduplicationKey
 	if deduplicationKey == "" {
