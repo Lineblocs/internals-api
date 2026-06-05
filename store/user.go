@@ -1222,7 +1222,7 @@ func (us *UserStore) LogCallByeEvent(inviteIp string) error {
 
 func (us *UserStore) IsAccountSuspended(workspaceId string) (bool, error) {
 	var count int
-	err := us.db.QueryRow(`SELECT COUNT(*) FROM workspaces_suspensions WHERE workspace_id = ? AND status = 'SUSPENDED'`, workspaceId).Scan(&count)
+	err := us.db.QueryRow(`SELECT COUNT(*) FROM workspaces_suspensions WHERE workspace_id = ? AND status != 'LIFTED' AND suspended_at IS NOT NULL`, workspaceId).Scan(&count)
 
 	if err != nil {
 		return false, err
