@@ -34,6 +34,7 @@ type UserStoreInterface interface {
 	CheckPSTNIPWhitelist(string, string) (bool, error)
 	FinishValidation(string, string) (bool, error)
 	IncomingBYODIDValidation(string) (*model.DidNumberInfo, error)
+	IsAccountSuspended(string) (bool, error)
 	CheckBYOPSTNIPWhitelist(string, string) (bool, error)
 	IncomingTrunkValidation(string) ([]byte, error)
 	LookupSIPTrunkByDID(string) ([]byte, error)

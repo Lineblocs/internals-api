@@ -1219,3 +1219,38 @@ func (us *UserStore) LogCallByeEvent(inviteIp string) error {
 	}
 	return nil
 }
+
+func (us *UserStore) IsAccountSuspended(workspaceId string) (bool, error) {
+	var count int
+	err := us.db.QueryRow(`SELECT COUNT(*) FROM workspaces_suspensions WHERE workspace_id = ? AND status = 'SUSPENDED'`, workspaceId).Scan(&count)
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (us *UserStore) GetTrunkSIPUri(did string) ([]byte, error) {
+	// get trunk from
+	results, err := us.db.Query(`SELECT 
+		sip_trunks_origination_endpoints.sip_uri
+		FROM did_numbers
+		INNER JOIN sip_trunks ON sip_trunks.id = did_numbers.trunk_id
+		INNER JOIN sip_trunks_origination_endpoints ON sip_trunks_origination_endpoints.trunk_id = sip_trunks.id
+		WHERE did_numbers.api_number = ?`, did)
+
+	if err != nil {
+		return nil, err
+	}
+	defer results.Close()
+
+	for results.Next() {
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("Trying to route to user trunk server..\r\n"))
+		var trunkSIPURI string
+		results.Scan(&trunkSIPURI)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("Found SIP trunk server %s\r\n", trunkSIPURI))
+		return []byte(trunkSIPURI), nil
+	}
+	return nil, nil
+}
