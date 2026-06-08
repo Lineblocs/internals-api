@@ -241,11 +241,11 @@ func HandleInternalErr(msg string, err error, c echo.Context) error {
 func HandlePaymentRequired(msg string, err error, c echo.Context) error {
 	if err != nil {
 		Log(logrus.FatalLevel, msg +  ". error message: " + err.Error())
+		return c.JSON(http.StatusPaymentRequired, err.Error())
 	} else {
 		Log(logrus.FatalLevel, msg)
+		return c.JSON(http.StatusPaymentRequired, msg)
 	}
-
-	return c.JSON(http.StatusPaymentRequired, err.Error())
 }
 
 func SetSetting(gs model.GlobalSettings) {
