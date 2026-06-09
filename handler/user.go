@@ -803,10 +803,11 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 		Seconds: seconds,
 		ModuleId: call.Id,
 		UserId: call.UserId,
+		Type: call.Direction,
 	}
 
 	// Get Call Rate depends number and type
-	rate := utils.LookupBestCallRate2(call.From, call.To, debit.Type)
+	rate := h.callStore.LookupBestCallRate(call.From, call.To, debit.Type)
 	if rate == nil {
 		return c.NoContent(http.StatusNotFound)
 	}

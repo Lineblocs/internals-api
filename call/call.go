@@ -20,4 +20,5 @@ type CallStoreInterface interface {
 	GetCallBySIPCallId(sipCallId string) (*model.Call, error)
 	IsUserAllowedToMakeCall(workspaceId int) (bool, error)
 	IsCallerIdPermitted(workspaceId int, callerId string, toNumber string) (bool, error)
+	LookupBestCallRate(from string, to string, callDirection string) (*model.CallRate)
 }

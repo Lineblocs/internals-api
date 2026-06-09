@@ -222,7 +222,7 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 			DeduplicationKey: deduplicationKey,
 		}
 
-		rate := utils.LookupBestCallRate2(call.From, call.To, call.Direction)
+		rate := h.callStore.LookupBestCallRate(call.From, call.To, call.Direction)
 		if rate == nil {
 			utils.Log(logrus.ErrorLevel, "UpdateCall Could not find rate for call ID "+strconv.Itoa(call.Id)+" from: "+call.From+" to: "+call.To+" direction: "+call.Direction)
 			return c.NoContent(http.StatusNotFound)

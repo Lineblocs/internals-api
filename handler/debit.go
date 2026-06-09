@@ -32,7 +32,7 @@ func (h *Handler) CreateDebit(c echo.Context) error {
 	}
 
 	// Get Call Rate depends number and type
-	rate := utils.LookupBestCallRate(debit.Number, debit.Type)
+	rate := h.callStore.LookupBestCallRate("", debit.Number, debit.Type)
 	if rate == nil {
 		return c.NoContent(http.StatusNotFound)
 	}

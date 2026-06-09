@@ -488,3 +488,61 @@ func (cs *CallStore) IsCallerIdPermitted(workspaceId int, callerId string, toNum
 	utils.Log(logrus.InfoLevel, fmt.Sprintf("caller id %s not permitted for workspace %d", callerId, workspaceId))
 	return false, nil
 }
+
+func (cs *CallStore) LookupBestCallRate(from string, to string, callDirection string) *model.CallRate {
+
+	// Get phone number variants for from and to
+	toVariants, err := utils.GetPhoneNumberVariants(to, "US")
+	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("error getting phone number variants for to: %v", err))
+		return nil
+	}
+	to = toVariants["no_plus"]
+
+	fromVariants, err := utils.GetPhoneNumberVariants(from, "US")
+	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("error getting phone number variants for from: %v", err))
+		return nil
+	}
+	from = fromVariants["no_plus"]
+
+	utils.Log(logrus.DebugLevel, fmt.Sprintf("LookupBestCallRate - to: %s, from: %s", to, from))
+
+	// Query call_rates table
+	if callDirection != "OUTBOUND" && callDirection != "INBOUND" {
+		return nil
+	}
+
+	rows, err := cs.db.Query(`
+		SELECT crpd.dial_prefix, crpd.rate FROM call_rates_dial_prefixes crpd
+		JOIN call_rates cr ON crpd.call_rate_id = cr.id
+		WHERE crpd.dial_prefix != ''
+		ORDER BY LENGTH(crpd.dial_prefix) DESC
+	`)
+	
+	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("error querying call_rates_dial_prefixes: %v", err))
+		return nil
+	}
+	defer rows.Close()
+
+	// Match in Go code, preferring longer prefixes
+	for rows.Next() {
+		var dialPrefix string
+		var rate float64
+		err = rows.Scan(&dialPrefix, &rate)
+		if err != nil {
+			utils.Log(logrus.ErrorLevel, fmt.Sprintf("error scanning call_rates_dial_prefixes: %v", err))
+			return nil
+		}
+		
+		if strings.HasPrefix(to, dialPrefix) {
+			utils.Log(logrus.DebugLevel, fmt.Sprintf("found call rate %f for number %s", rate, to))
+			return &model.CallRate{CallRate: rate}
+		}
+	}
+
+	return nil
+
+}
+
