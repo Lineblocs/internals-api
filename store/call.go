@@ -516,9 +516,9 @@ func (cs *CallStore) LookupBestCallRate(from string, to string, callDirection st
 	rows, err := cs.db.Query(`
 		SELECT crpd.dial_prefix, crpd.rate FROM call_rates_dial_prefixes crpd
 		JOIN call_rates cr ON crpd.call_rate_id = cr.id
-		WHERE crpd.dial_prefix != ''
+		WHERE crpd.dial_prefix != '' AND cr.type = ?
 		ORDER BY LENGTH(crpd.dial_prefix) DESC
-	`)
+	`, strings.ToLower(callDirection))
 	
 	if err != nil {
 		utils.Log(logrus.ErrorLevel, fmt.Sprintf("error querying call_rates_dial_prefixes: %v", err))
