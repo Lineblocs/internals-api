@@ -90,12 +90,12 @@ func (h *Handler) CreateCall(c echo.Context) error {
 		return utils.HandleInternalErr("CreateCall WorkspaceId is missing", errors.New("workspace_id is required"), c)
 	}
 
-	isSuspended, err := h.userStore.IsAccountSuspended(strconv.Itoa(call.WorkspaceId))
+	canAccess, err := h.userStore.CanAccessSubscriptionFeatures(strconv.Itoa(call.WorkspaceId))
 	if err != nil {
 		return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
 	}
-	if isSuspended {
-		return utils.HandleInternalErr("CreateCall account is suspended", errors.New("account is suspended"), c)
+	if !canAccess {
+		return utils.HandleInternalErr("CreateCall account is suspended or subscription is cancelled", errors.New("account is suspended or subscription is cancelled"), c)
 	}
 
 	call.APIId = utils.CreateAPIID("call")
