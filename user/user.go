@@ -46,4 +46,7 @@ type UserStoreInterface interface {
 	CaptureSIPMessage(string, string) ([]byte, error)
 	LogCallInviteEvent(string) error
 	LogCallByeEvent(string) error
+	IsSubscriptionActive(string) (bool, error)
+	CanAccessSubscriptionFeatures(string) (bool, error)
+	GetTrunkSIPUri(string) ([]byte, error)
 }

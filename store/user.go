@@ -1231,6 +1231,32 @@ func (us *UserStore) IsAccountSuspended(workspaceId string) (bool, error) {
 	return count > 0, nil
 }
 
+func (us *UserStore) IsSubscriptionActive(workspaceId string) (bool, error) {
+	var count int
+	err := us.db.QueryRow(`SELECT COUNT(*) FROM subscriptions WHERE workspace_id = ? AND status NOT IN ('CANCELLED', 'INACTIVE')`, workspaceId).Scan(&count)
+
+	if err != nil {
+		return false, err
+	}
+
+	return count > 0, nil
+}
+
+func (us *UserStore) CanAccessSubscriptionFeatures(workspaceId string) (bool, error) {
+	// Check if account is suspended
+	suspended, err := us.IsAccountSuspended(workspaceId)
+	if err != nil {
+		return false, err
+	}
+
+	if suspended {
+		return false, nil
+	}
+
+	// Check if subscription is active
+	return us.IsSubscriptionActive(workspaceId)
+}
+
 func (us *UserStore) GetTrunkSIPUri(did string) ([]byte, error) {
 	// get trunk from
 	results, err := us.db.Query(`SELECT 
