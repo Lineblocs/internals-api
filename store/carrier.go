@@ -7,9 +7,9 @@ import (
 
 	"database/sql"
 	"github.com/sirupsen/logrus"
+	"lineblocs.com/api/database"
 	"lineblocs.com/api/helpers"
 	"lineblocs.com/api/utils"
-	"lineblocs.com/api/database"
 )
 
 /*
@@ -113,7 +113,6 @@ Output: First value: RoutablePSTNProvider model, Second Value: error
 If success return (RoutablePSTNProvider model, nil) else (nil, err)
 */
 func (crs *CarrierStore) StartProcessingFlow(flow *helpers.Flow, data map[string]string) ([]*helpers.RoutablePSTNProvider, error) {
-	db := crs.db.GetConnection()
-	providers, err := helpers.StartProcessingFlow(flow, flow.Cells[0], data, db)
+	providers, err := helpers.StartProcessingFlow(flow, flow.Cells[0], data, crs.db)
 	return providers, err
 }

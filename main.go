@@ -1,25 +1,30 @@
 package main
 
 import (
-	"net/http"
-	"sync"
-	"time"
-	//"errors"
-	"github.com/gocql/gocql"
+	"context"
+	"errors"
 	"fmt"
+	"net/http"
+	"os"
+	"os/signal"
+	"sync"
+	"syscall"
+	"time"
 
-	helpers "github.com/Lineblocs/go-helpers"
+	"github.com/go-redis/redis"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/gocql/gocql"
 	"github.com/labstack/echo/v4"
 	"github.com/mrwaggel/golimiter"
-	"github.com/go-redis/redis"
 	"github.com/sirupsen/logrus"
+
+	helpers "github.com/Lineblocs/go-helpers"
+	"lineblocs.com/api/database"
 	"lineblocs.com/api/handler"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/router"
 	"lineblocs.com/api/store"
 	"lineblocs.com/api/utils"
-	"lineblocs.com/api/database"
 )
 
 var dbConn *database.MySQLConn
@@ -29,11 +34,10 @@ var cqlSess *gocql.Session
 var data *model.ServerData
 var customizations *helpers.CustomizationSettings
 
-func updateCustomizationSettings() (error) {
+func updateCustomizationSettings() error {
 	record, err := helpers.GetCustomizationSettings()
 	if err != nil {
-		utils.Log(logrus.PanicLevel, err.Error())
-		panic(err)
+		logrus.WithError(err).Error("failed to fetch customization settings")
 		return err
 	}
 
@@ -42,8 +46,9 @@ func updateCustomizationSettings() (error) {
 }
 
 func main() {
-    ticker := time.NewTicker(60 * time.Second)
-    defer ticker.Stop()
+	ticker := time.NewTicker(60 * time.Second)
+	defer ticker.Stop()
+	shutdownCh := make(chan struct{})
 
 	// Init Logrus and configure channels
 	logDestination := utils.Config("LOG_DESTINATIONS")
@@ -59,75 +64,78 @@ func main() {
 		Servers: servers}
 
 	if err != nil {
-		utils.Log(logrus.PanicLevel, err.Error())
-		panic(err)
+		logrus.WithError(err).Error("failed to create media servers")
+		return
 	}
 
 	// Create DB Connection with MySQL
 	utils.Log(logrus.InfoLevel, "Connecting to database...")
 	db, err := helpers.CreateDBConn()
 	if err != nil {
-		utils.Log(logrus.PanicLevel, err.Error())
-		panic(err)
+		logrus.WithError(err).Error("failed to connect to database")
+		return
 	}
 
 	dbConn = database.NewMySQLConn(db)
 
 	rdb, err = helpers.CreateRedisConn()
+	if err != nil {
+		logrus.WithError(err).Error("failed to connect to redis")
+		return
+	}
 
 	// get customization record before starting server
 	err = updateCustomizationSettings()
 	if err != nil {
-		utils.Log(logrus.PanicLevel, err.Error())
-		panic(err)
+		logrus.WithError(err).Error("failed during customization bootstrap")
+		return
 	}
 
 	// connect to cassandra
 	/*
-	utils.Log(logrus.InfoLevel, "Connecting to cassandra...")
-	cassandraAddr := utils.Config("CASSANDRA_HOST") + ":9042"
-	cqlCluster = gocql.NewCluster(cassandraAddr)
-	cqlCluster.Keyspace = utils.Config("CASSANDRA_KEYSPACE")
-	cqlCluster.ProtoVersion = 4
-	cqlSess, err = cqlCluster.CreateSession()
-	if err != nil {
-		utils.Log(logrus.PanicLevel, err.Error())
-		panic(err)
-	}
+		utils.Log(logrus.InfoLevel, "Connecting to cassandra...")
+		cassandraAddr := utils.Config("CASSANDRA_HOST") + ":9042"
+		cqlCluster = gocql.NewCluster(cassandraAddr)
+		cqlCluster.Keyspace = utils.Config("CASSANDRA_KEYSPACE")
+		cqlCluster.ProtoVersion = 4
+		cqlSess, err = cqlCluster.CreateSession()
+		if err != nil {
+			utils.Log(logrus.PanicLevel, err.Error())
+			panic(err)
+		}
 	*/
 
 	utils.Log(logrus.InfoLevel, fmt.Sprintf("got customization settings. billing frequency = %s", customizations.BillingFrequency))
 
-	var wg sync.WaitGroup
-	wg.Add(1)
-
 	go func() {
-        for {
+		for {
+			select {
+			case <-shutdownCh:
+				utils.Log(logrus.InfoLevel, "stopping customization refresh loop")
+				return
+			case <-ticker.C:
+			}
+
 			utils.Log(logrus.InfoLevel, fmt.Sprintf("updating customization settings"))
-            <-ticker.C
-            err := updateCustomizationSettings()
+			err := updateCustomizationSettings()
 			if err != nil {
 				utils.Log(logrus.DebugLevel, fmt.Sprintf("failed to get updated customizations record"))
 				continue
 			}
 
 			utils.Log(logrus.InfoLevel, fmt.Sprintf("updated settings successfully."))
-        }
-    }()
-
-	go func() {
-		// Start Internals-API Backend server
-		utils.Log(logrus.InfoLevel, "Starting API...")
-		startServer()
-		wg.Done()
+		}
 	}()
-	wg.Wait()
+
+	if err := startServer(shutdownCh); err != nil {
+		logrus.WithError(err).Error("server exited with error")
+	}
 
 }
 
 // Start Internals-API Backend server
 // Configure Handler, limit middleware, TLS
-func startServer() {
+func startServer(shutdownCh chan struct{}) error {
 	utils.SetSetting(model.GlobalSettings{ValidateCallerId: false})
 
 	// Start Server with Echo
@@ -152,23 +160,61 @@ func startServer() {
 	// Register Handler for Echo context
 	h.Register(r)
 
-	// Start with 443 port if TLS is ON
-	utils.Log(logrus.InfoLevel, "Starting HTTP server without TLS\r\n")
+	httpPort := utils.ReadEnv("HTTP_PORT", "80")
 	if utils.Config("USE_TLS") == "on" {
-		certPath := utils.Config("TLS_CERT_PATH")
-		keyPath := utils.Config("TLS_KEY_PATH")
-		httpsPort := utils.ReadEnv("HTTPS_PORT", "443")
-		utils.Log(logrus.InfoLevel, fmt.Sprintf("Starting HTTP server with TLS. cert=%s,  key=%s\r\n", certPath, keyPath))
-		r.Logger.Fatal(r.StartTLS(":"+httpsPort, certPath, keyPath))
-		utils.Log(logrus.InfoLevel, "Started server...")
-		return
+		httpPort = utils.ReadEnv("HTTPS_PORT", "443")
 	}
 
-	// Start with 80 port if TLS is OFF
-	httpPort := utils.ReadEnv("HTTP_PORT", "80")
-	utils.Log(logrus.InfoLevel, fmt.Sprintf("HTTP port %s\r\n", httpPort))
-	r.Logger.Fatal(r.Start(":" + httpPort))
-	utils.Log(logrus.InfoLevel, "Started server...")
+	server := &http.Server{
+		Addr:              ":" + httpPort,
+		Handler:           r,
+		ReadTimeout:       15 * time.Second,
+		ReadHeaderTimeout: 10 * time.Second,
+		WriteTimeout:      30 * time.Second,
+		IdleTimeout:       60 * time.Second,
+	}
+
+	serverErrors := make(chan error, 1)
+	go func() {
+		if utils.Config("USE_TLS") == "on" {
+			certPath := utils.Config("TLS_CERT_PATH")
+			keyPath := utils.Config("TLS_KEY_PATH")
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("starting HTTPS server with TLS. cert=%s key=%s", certPath, keyPath))
+			serverErrors <- server.ListenAndServeTLS(certPath, keyPath)
+			return
+		}
+
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("starting HTTP server on port %s", httpPort))
+		serverErrors <- r.StartServer(server)
+	}()
+
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(sigCh)
+
+	select {
+	case sig := <-sigCh:
+		close(shutdownCh)
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("received shutdown signal: %s", sig.String()))
+		shutdownTimeout := utils.ReadEnv("GRACEFUL_SHUTDOWN_TIMEOUT", "10s")
+		duration, parseErr := time.ParseDuration(shutdownTimeout)
+		if parseErr != nil {
+			duration = 10 * time.Second
+		}
+
+		ctx, cancel := context.WithTimeout(context.Background(), duration)
+		defer cancel()
+		if err := r.Shutdown(ctx); err != nil {
+			return fmt.Errorf("graceful shutdown failed: %w", err)
+		}
+		return nil
+	case err := <-serverErrors:
+		close(shutdownCh)
+		if err == nil || errors.Is(err, http.ErrServerClosed) {
+			return nil
+		}
+		return err
+	}
 }
 
 // Configure Limit Handler for Echo context

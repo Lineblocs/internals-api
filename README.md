@@ -66,6 +66,40 @@ Set LOG_DESTINATIONS variable in .env file
 
 ex: export LOG_DESTINATIONS=console,file
 
+## Reliability and Fault Tolerance
+
+The service includes built-in safeguards to reduce cascading failures:
+
+1. Panic recovery middleware
+Handles panics in HTTP handlers, logs stack traces with structured fields, and returns HTTP 500.
+
+2. Graceful shutdown
+On SIGINT/SIGTERM the server stops accepting new requests and drains in-flight work before exit.
+
+3. Context-based query deadlines
+Database queries use context timeouts through the shared MySQL wrapper.
+
+4. Retry with backoff for downstream webhooks
+SIP webhook delivery uses bounded retries with per-request timeout.
+
+### Resilience Environment Variables
+
+Set these to tune fault-tolerance behavior:
+
+```bash
+# Shutdown drain window (Go duration format)
+export GRACEFUL_SHUTDOWN_TIMEOUT=10s
+
+# DB timeout per operation (milliseconds)
+export DB_QUERY_TIMEOUT_MS=5000
+
+# HTTP client timeout for downstream calls (milliseconds)
+export HTTP_CLIENT_TIMEOUT_MS=5000
+
+# Retry count for downstream HTTP calls
+export HTTP_CLIENT_RETRIES=3
+```
+
 ## Linting and pre-comit hook
 
 ### Go lint

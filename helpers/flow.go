@@ -1,7 +1,6 @@
 package helpers
 
 import (
-	"database/sql"
 	"errors"
 	"fmt"
 	"sort"
@@ -10,6 +9,7 @@ import (
 	"reflect"
 
 	"github.com/sirupsen/logrus"
+	"lineblocs.com/api/database"
 	"lineblocs.com/api/utils"
 )
 
@@ -235,7 +235,7 @@ func addCellToFlow(id string, flow *Flow) *Cell {
 }
 
 type FlowContext struct {
-	DbConn    *sql.DB
+	DbConn    *database.MySQLConn
 	Cell      *Cell
 	Data      map[string]string
 	Providers []*RoutablePSTNProvider
@@ -483,7 +483,7 @@ func (man *NoRoutingManager) Process() (*FlowResponse, error) {
 	return nil, nil
 }
 
-func ProcessFlow(flow *Flow, cell *Cell, providers []*RoutablePSTNProvider, data map[string]string, db *sql.DB) ([]*RoutablePSTNProvider, error) {
+func ProcessFlow(flow *Flow, cell *Cell, providers []*RoutablePSTNProvider, data map[string]string, db *database.MySQLConn) ([]*RoutablePSTNProvider, error) {
 	//utils.Log(logrus.InfoLevel, "source link count: "+strconv.Itoa(len(cell.SourceLinks)))
 	//utils.Log(logrus.InfoLevel, "target link count: "+strconv.Itoa(len(cell.TargetLinks)))
 	// execute it
@@ -536,7 +536,7 @@ func ProcessFlow(flow *Flow, cell *Cell, providers []*RoutablePSTNProvider, data
 	next := resp.Link
 	return ProcessFlow(flow, next.Target, providers, data, db)
 }
-func StartProcessingFlow(flow *Flow, cell *Cell, data map[string]string, db *sql.DB) ([]*RoutablePSTNProvider, error) {
+func StartProcessingFlow(flow *Flow, cell *Cell, data map[string]string, db *database.MySQLConn) ([]*RoutablePSTNProvider, error) {
 
 	emptyProviders := make([]*RoutablePSTNProvider, 0)
 	providers, err := ProcessFlow(flow, flow.Cells[0], emptyProviders, data, db)

@@ -28,4 +28,17 @@ func TestNew(t *testing.T) {
 			assert.Contains(t, rec.Body.String(), "Test Response")
 		}
 	})
+
+	t.Run("Should recover panic and return 500", func(t *testing.T) {
+		e := New()
+		e.GET("/panic", func(c echo.Context) error {
+			panic("boom")
+		})
+
+		req := httptest.NewRequest(http.MethodGet, "/panic", nil)
+		rec := httptest.NewRecorder()
+		e.ServeHTTP(rec, req)
+
+		assert.Equal(t, http.StatusInternalServerError, rec.Code)
+	})
 }

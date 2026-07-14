@@ -1,9 +1,9 @@
 package store
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"net/http"
 	"net/url"
 	"regexp"
 	"strings"
@@ -15,9 +15,9 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/ttacon/libphonenumber"
 	"golang.org/x/crypto/bcrypt"
+	"lineblocs.com/api/database"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
-	"lineblocs.com/api/database"
 )
 
 /*
@@ -25,7 +25,7 @@ Implementation of User Store
 */
 
 type UserStore struct {
-	db *database.MySQLConn
+	db  *database.MySQLConn
 	rdb *redis.Client
 }
 
@@ -524,13 +524,12 @@ Output: First Value: did_action, Second Value: error
 If success return (did_action, nil) else return (nil, err)
 */
 func (us *UserStore) GetDIDAcceptOption(did string) ([]byte, error) {
-	var row *sql.Row
 	numberVariants, err := utils.GetPhoneNumberVariants(did, "US")
 	if err != nil {
 		return nil, err
 	}
 
-	row = us.db.QueryRow(`SELECT did_action FROM did_numbers WHERE did_numbers.api_number = ? OR did_numbers.api_number = ? OR did_numbers.api_number = ?`, numberVariants["original"], numberVariants["e164"], numberVariants["no_plus"])
+	row := us.db.QueryRow(`SELECT did_action FROM did_numbers WHERE did_numbers.api_number = ? OR did_numbers.api_number = ? OR did_numbers.api_number = ?`, numberVariants["original"], numberVariants["e164"], numberVariants["no_plus"])
 	var action string
 	err = row.Scan(&action)
 	if err == nil {
@@ -772,7 +771,7 @@ func (us *UserStore) IncomingDIDValidation(did string) (*model.DidNumberInfo, er
 		return nil, err
 	}
 
-	utils.Log(logrus.InfoLevel, "IncomingDIDValidation looking up DID number " + numberVariants["original"] + " or " + numberVariants["e164"] + " or " + numberVariants["no_plus"])
+	utils.Log(logrus.InfoLevel, "IncomingDIDValidation looking up DID number "+numberVariants["original"]+" or "+numberVariants["e164"]+" or "+numberVariants["no_plus"])
 
 	row := us.db.QueryRow(`SELECT did_numbers.number, did_numbers.api_number, did_numbers.workspace_id, COALESCE(did_numbers.trunk_id, 0) FROM did_numbers WHERE did_numbers.api_number = ? OR did_numbers.api_number = ? OR did_numbers.api_number = ?`, numberVariants["original"], numberVariants["e164"], numberVariants["no_plus"])
 	err = row.Scan(&info.DidNumber,
@@ -1081,7 +1080,7 @@ func (us *UserStore) GetSettings() (*model.Settings, error) {
 	}
 	return nil, nil
 }
-	*/
+*/
 
 func (us *UserStore) GetSettings() (*model.APICredentials, error) {
 	results, err := us.db.Query("SELECT `key`, `string_value` FROM api_credentials_kv_store")
@@ -1092,7 +1091,7 @@ func (us *UserStore) GetSettings() (*model.APICredentials, error) {
 
 	var key string
 	var value string
-	apiCreds := model.APICredentials{ Credentials: make(map[string]string) }
+	apiCreds := model.APICredentials{Credentials: make(map[string]string)}
 	for results.Next() {
 		err := results.Scan(&key, &value)
 		if err != nil {
@@ -1173,10 +1172,15 @@ func (us *UserStore) CaptureSIPMessage(domain string, sipMsg string) ([]byte, er
 			"sip_msg": {sipMsg},
 		}
 
-		_, err := http.PostForm(httpURL, data)
+		ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
+		_, err := utils.PostFormWithRetry(ctx, httpURL, data)
+		cancel()
 
 		if err != nil {
-			utils.Log(logrus.InfoLevel, fmt.Sprintf("error occured while sending SIP message to webhook. %s..\r\n", err.Error()))
+			logrus.WithFields(logrus.Fields{
+				"domain":  domain,
+				"webhook": httpURL,
+			}).WithError(err).Error("error occurred while sending SIP message to webhook")
 		}
 
 	}
