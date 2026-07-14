@@ -295,8 +295,15 @@ func (h *Handler) IPWhitelistLookup(c echo.Context) error {
 
 	source := c.QueryParam("ip")
 	domain := c.QueryParam("domain")
+	if source == "" || domain == "" {
+		return c.NoContent(http.StatusBadRequest)
+	}
+
 	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return c.NoContent(http.StatusNotFound)
+		}
 		return utils.HandleInternalErr("IPWhitelistLookup error occured", err, c)
 	}
 	match, err := h.userStore.IPWhitelistLookup(source, workspace)
@@ -555,7 +562,7 @@ func (h *Handler) IncomingDIDValidation(c echo.Context) error {
 			return c.String(http.StatusOK, "user_sip_trunk")
 		}
 
-		utils.Log(logrus.InfoLevel, "checking if IP: " + source + " is whitelisted.")
+		utils.Log(logrus.InfoLevel, "checking if IP: "+source+" is whitelisted.")
 		match, err := h.userStore.CheckPSTNIPWhitelist(did, source)
 		if err != nil {
 			return utils.HandleInternalErr("IncomingDIDValidation error 1", err, c)
@@ -775,14 +782,12 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 
 	sipCallId := c.FormValue("callid")
 
-
 	call, err := h.callStore.GetCallBySIPCallId(sipCallId)
 	if err != nil {
-		utils.Log(logrus.InfoLevel, fmt.Sprintf("ProcessCDRsAndBill couldnt find call %s in records -- skipping the process routine and sending back 2XX anyway", sipCallId));
-		return c.NoContent(http.StatusOK);
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("ProcessCDRsAndBill couldnt find call %s in records -- skipping the process routine and sending back 2XX anyway", sipCallId))
+		return c.NoContent(http.StatusOK)
 		//return utils.HandleInternalErr("ProcessCDRsAndBill error while looking up call.", err, c)
 	}
-
 
 	utils.Log(logrus.InfoLevel, fmt.Sprintf("ProcessCDRsAndBill looking up workspace %d", call.WorkspaceId))
 	workspace, err := h.callStore.GetWorkspaceFromDB(call.WorkspaceId)
@@ -795,15 +800,15 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 		return utils.HandleInternalErr("ProcessCDRsAndBill error parsing date string.", err, c)
 	}
 
-	seconds := utils.CalculateCallDuration( callStartDate )
+	seconds := utils.CalculateCallDuration(callStartDate)
 
 	debit := model.Debit{
-		Source: "CALL",
-		Status: "PAID",
-		Seconds: seconds,
+		Source:   "CALL",
+		Status:   "PAID",
+		Seconds:  seconds,
 		ModuleId: call.Id,
-		UserId: call.UserId,
-		Type: call.Direction,
+		UserId:   call.UserId,
+		Type:     call.Direction,
 	}
 
 	// Get Call Rate depends number and type
@@ -832,7 +837,7 @@ func (h *Handler) ProcessCDRsAndBill(c echo.Context) error {
 		return utils.HandleInternalErr("ProcessCDRsAndBill could not create CDRs", err, c)
 	}
 
-	return c.NoContent(http.StatusCreated);
+	return c.NoContent(http.StatusCreated)
 }
 
 /*

@@ -3,18 +3,18 @@ package handler
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"os"
 	"strconv"
 	"time"
-	"errors"
 
+	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/labstack/echo/v4"
+	amqp "github.com/rabbitmq/amqp091-go"
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
-	helpers "github.com/Lineblocs/go-helpers"
-	amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type CallActivityTask struct {
@@ -25,7 +25,6 @@ type CallActivityTask struct {
 	WorkspaceID string `json:"workspace_id"`
 	Description string `json:"description"`
 }
-
 
 func (h *Handler) publishCallEventToQueue(eventType string, call *model.Call) error {
 	conn, err := amqp.Dial(os.Getenv("QUEUE_URL"))
@@ -46,7 +45,6 @@ func (h *Handler) publishCallEventToQueue(eventType string, call *model.Call) er
 	if err != nil {
 		return err
 	}
-
 
 	task := CallActivityTask{
 		RunID:       strconv.Itoa(call.Id),
@@ -106,15 +104,15 @@ func (h *Handler) CreateCall(c echo.Context) error {
 
 		permitted, err := h.callStore.IsCallerIdPermitted(call.WorkspaceId, call.From, call.To)
 		if err != nil {
-			utils.Log(logrus.ErrorLevel, "Failed to check caller ID permission: " + err.Error())
+			utils.Log(logrus.ErrorLevel, "Failed to check caller ID permission: "+err.Error())
 			return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
 		}
 
 		if !permitted {
-			utils.Log(logrus.InfoLevel, "Caller ID " + call.From + " is not permitted for workspace " + strconv.Itoa(call.WorkspaceId))
+			utils.Log(logrus.InfoLevel, "Caller ID "+call.From+" is not permitted for workspace "+strconv.Itoa(call.WorkspaceId))
 			err := h.publishCallEventToQueue("UNAUTHORIZED_CALLER_ID", &call)
 			if err != nil {
-				utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: " + err.Error())
+				utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: "+err.Error())
 				return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
 			}
 
@@ -142,7 +140,7 @@ func (h *Handler) CreateCall(c echo.Context) error {
 	}
 
 	if err != nil {
-		utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: " + err.Error())
+		utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: "+err.Error())
 		return utils.HandleInternalErr("CreateCall Could not execute query", err, c)
 	}
 
@@ -183,7 +181,7 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 		return utils.HandleInternalErr("UpdateCall Could not fetch call from DB", err, c)
 	}
 
-	// Note: To use variables from the call data structure in your debit processing below, 
+	// Note: To use variables from the call data structure in your debit processing below,
 	// you should update the debit initialization inside the if statement to look like this:
 	// debit := model.Debit{
 	// 	UserId:      call.UserId,
@@ -212,20 +210,20 @@ func (h *Handler) UpdateCall(c echo.Context) error {
 		deduplicationKey := helpers.GenerateDeduplicationKey("CALL", now.Year(), int(now.Month()), now.Day(), call.WorkspaceId, int(call.Id))
 
 		debit := model.Debit{
-			UserId:      call.UserId,
-			WorkspaceId: call.WorkspaceId,
-			Status:      "PAID",
-			Number:      call.To,
-			Seconds:     durationInSeconds,
-			Source:      "CALL",
-			ModuleId:    call.Id,
+			UserId:           call.UserId,
+			WorkspaceId:      call.WorkspaceId,
+			Status:           "PAID",
+			Number:           call.To,
+			Seconds:          durationInSeconds,
+			Source:           "CALL",
+			ModuleId:         call.Id,
 			DeduplicationKey: deduplicationKey,
 		}
 
 		rate := h.callStore.LookupBestCallRate(call.From, call.To, call.Direction)
 		if rate == nil {
 			utils.Log(logrus.ErrorLevel, "UpdateCall Could not find rate for call ID "+strconv.Itoa(call.Id)+" from: "+call.From+" to: "+call.To+" direction: "+call.Direction)
-			return c.NoContent(http.StatusNotFound)
+			return c.NoContent(http.StatusNoContent)
 		}
 
 		err = h.debitStore.CreateDebit(rate, &debit)
@@ -270,7 +268,7 @@ func (h *Handler) SetSIPCallID(c echo.Context) error {
 	callid := c.FormValue("callid")
 	apiid := c.FormValue("apiid")
 
-	utils.Log(logrus.InfoLevel, "SetSIPCallId API ID: " + apiid + " Call ID: " + callid)
+	utils.Log(logrus.InfoLevel, "SetSIPCallId API ID: "+apiid+" Call ID: "+callid)
 	err := h.callStore.SetSIPCallID(callid, apiid)
 	if err != nil {
 		return utils.HandleInternalErr("SetSIPCallID could not execute query..", err, c)

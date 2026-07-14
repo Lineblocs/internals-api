@@ -1,8 +1,11 @@
 package handler
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
@@ -18,8 +21,49 @@ Output: If success return NoContent else return err
 func (h *Handler) CreateSIPReport(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "CreateSIPReport is called...")
 
-	callid := c.FormValue("callid")
-	status := c.FormValue("status")
+	payload := map[string]interface{}{}
+	if err := c.Bind(&payload); err != nil && !errors.Is(err, echo.ErrUnsupportedMediaType) {
+		return c.JSON(http.StatusBadRequest, "invalid request body")
+	}
+
+	getString := func(keys ...string) string {
+		for _, key := range keys {
+			if value, ok := payload[key]; ok {
+				switch v := value.(type) {
+				case string:
+					if strings.TrimSpace(v) != "" {
+						return strings.TrimSpace(v)
+					}
+				case float64:
+					return strconv.FormatInt(int64(v), 10)
+				case int:
+					return strconv.Itoa(v)
+				}
+			}
+
+			formValue := strings.TrimSpace(c.FormValue(key))
+			if formValue != "" {
+				return formValue
+			}
+
+			queryValue := strings.TrimSpace(c.QueryParam(key))
+			if queryValue != "" {
+				return queryValue
+			}
+		}
+
+		return ""
+	}
+
+	callid := getString("callid", "call_id", "sip_call_id")
+	status := getString("status", "sip_status")
+
+	if callid == "" || status == "" {
+		return c.JSON(http.StatusBadRequest, "callid and status are required")
+	}
+	if _, err := strconv.Atoi(status); err != nil {
+		return c.JSON(http.StatusBadRequest, "status must be numeric")
+	}
 
 	err := h.carrierStore.CreateSIPReport(callid, status)
 	if err != nil {
@@ -44,14 +88,14 @@ func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 	destCode, err := helpers.ParseCountryCode(callto)
 
 	if err != nil {
-		panic(err)
+		return utils.HandleInternalErr("ProcessRouterFlow invalid destination number", err, c)
 	}
 	utils.Log(logrus.InfoLevel, fmt.Sprintln("Dest Code is: "+destCode))
 
 	originCode, err := helpers.ParseCountryCode(callfrom)
 
 	if err != nil {
-		panic(err)
+		return utils.HandleInternalErr("ProcessRouterFlow invalid source number", err, c)
 	}
 
 	utils.Log(logrus.InfoLevel, fmt.Sprintln("Source Code is: "+destCode))
@@ -72,7 +116,7 @@ func (h *Handler) ProcessRouterFlow(c echo.Context) error {
 	providers, err := h.carrierStore.StartProcessingFlow(flow, data)
 
 	if err != nil {
-		panic(err)
+		return utils.HandleInternalErr("ProcessRouterFlow error 2", err, c)
 	}
 	if len(providers) == 0 {
 		return utils.HandleInternalErr("No providers available..", err, c)

@@ -165,19 +165,22 @@ Todo : Check first call and send email
 */
 func (cs *CallStore) ProcessUsersFirstCall(call model.Call) {
 	var id string
-	row := cs.db.QueryRow("SELECT id FROM `calls` WHERE `workspace_id` = ? AND `from` LIKE '?%s' AND `direction = 'outbound'", call.WorkspaceId, call.From, call.Direction)
+	row := cs.db.QueryRow("SELECT id FROM `calls` WHERE `workspace_id` = ? AND `from` = ? AND `direction` = 'OUTBOUND'", call.WorkspaceId, call.From)
 	err := row.Scan(&id)
 	if err != sql.ErrNoRows {
 		// All ok
 		return
 	}
 	//Send notification
+	// TODO: send a rabbitmq message to send email here
+	/*
 	user, err := cs.GetUserFromDB(call.UserId)
 	if err != nil {
 		panic(err)
 	}
 	body := `A call was made to ` + call.To + ` for the first time on your account.`
-	sendEmail(user, "First call to destination country", body)
+	*/
+	//sendEmail(user, "First call to destination country", body)
 }
 
 /*

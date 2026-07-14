@@ -7,9 +7,9 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 
 	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/aws/aws-sdk-go/aws"
@@ -53,7 +53,6 @@ func CalculateCallDuration(start *time.Time) int {
 	diff := now.Sub(*start)
 	return int(diff.Seconds())
 }
-
 
 func ToCents(dollars float64) int {
 	result := dollars * 100
@@ -230,9 +229,10 @@ func CheckIfCarrier(token string) bool {
 
 func HandleInternalErr(msg string, err error, c echo.Context) error {
 	if err != nil {
-		Log(logrus.FatalLevel, msg +  ". error message: " + err.Error())
+		Log(logrus.ErrorLevel, msg+". error message: "+err.Error())
 	} else {
-		Log(logrus.FatalLevel, msg)
+		Log(logrus.ErrorLevel, msg)
+		return c.JSON(http.StatusInternalServerError, msg)
 	}
 
 	return c.JSON(http.StatusInternalServerError, err.Error())
@@ -240,10 +240,10 @@ func HandleInternalErr(msg string, err error, c echo.Context) error {
 
 func HandlePaymentRequired(msg string, err error, c echo.Context) error {
 	if err != nil {
-		Log(logrus.FatalLevel, msg +  ". error message: " + err.Error())
+		Log(logrus.WarnLevel, msg+". error message: "+err.Error())
 		return c.JSON(http.StatusPaymentRequired, err.Error())
 	} else {
-		Log(logrus.FatalLevel, msg)
+		Log(logrus.WarnLevel, msg)
 		return c.JSON(http.StatusPaymentRequired, msg)
 	}
 }
@@ -302,7 +302,7 @@ func CanPlaceAdditionalCalls() (bool, error) {
 // TODO:
 // send this CDR to any configured locations. handle
 // RADIUS servers, external databases and more
-func CreateCDRs(call *model.Call) (error) {
+func CreateCDRs(call *model.Call) error {
 	return nil
 }
 
