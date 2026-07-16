@@ -348,14 +348,17 @@ If success return (PSTNInfo model, nil) else return (nil, err)
 */
 func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, error) {
 	// do LCR based on dial prefixes
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("GetBestPSTNProvider called with from: %s, to: %s", from, to))
 
-	results, err := us.db.Query(`SELECT sip_providers.id, sip_providers.dial_prefix, sip_providers.name, sip_providers_rates.rate_ref_id, sip_providers_rates.rate
+	results, err := us.db.Query(`SELECT sip_providers.id, sip_providers.dial_prefix, sip_providers.name, sip_providers_rates.rate_ref_id, sip_providers_rates.rate, call_rates_dial_prefixes.dial_prefix
 		FROM sip_providers
 		INNER JOIN sip_providers_rates ON sip_providers_rates.provider_id = sip_providers.id
-		WHERE (sip_providers.type_of_provider = 'outbound'
-		OR sip_providers.type_of_provider = 'both')
+		INNER JOIN call_rates_dial_prefixes ON call_rates_dial_prefixes.call_rate_id = sip_providers_rates.rate_ref_id
+		WHERE (sip_providers.type_of_provider = 'OUTBOUND'
+		OR sip_providers.type_of_provider = 'BOTH')
 		AND sip_providers.active = 1`)
 	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("Error querying sip_providers: %v", err))
 		return nil, err
 	}
 
@@ -368,6 +371,7 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 	routableProviders = make([]*model.RoutableProvider, 0)
 
 	defer results.Close()
+
 	for results.Next() {
 		utils.Log(logrus.InfoLevel, "Checking non BYO..")
 		var id int
@@ -375,47 +379,40 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 		var name string
 		var rateRefId int
 		var rate float64
-		err = results.Scan(&id, &dialPrefix, &name, &rateRefId, &rate)
+		var rateDialPrefix string
+		err = results.Scan(&id, &dialPrefix, &name, &rateRefId, &rate, &rateDialPrefix)
 		if err != nil {
 			return nil, err
 		}
-		utils.Log(logrus.InfoLevel, "Checking rate from provider: "+name)
-		results1, err := us.db.Query(`SELECT dial_prefix
-	FROM call_rates_dial_prefixes
-	WHERE call_rates_dial_prefixes.call_rate_id = ?
-	`, rateRefId)
-		if err != nil {
-			return nil, err
-		}
-		defer results1.Close()
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("Checking rate from provider: %s (id: %d, dialPrefix: %s, rate: %f)", name, id, dialPrefix, rate))
+
 		// TODO check which host is best for routing
 
-		var rateDialPrefix string
-		for results1.Next() {
-			results1.Scan(&rateDialPrefix)
-			//utils.Log(logrus.DebugLevel, fmt.Sprintf("checking rate dial prefix %s\r\n", rateDialPrefix))
-			full := rateDialPrefix + ".*"
-			valid, err := regexp.MatchString(full, to)
-			if err != nil {
-				return nil, err
-			}
-			if valid {
-				utils.Log(logrus.InfoLevel, "found matching route...")
-				fullLen := len(full)
+		utils.Log(logrus.DebugLevel, fmt.Sprintf("checking rate dial prefix %s", rateDialPrefix))
+		full := rateDialPrefix + ".*"
+		valid, err := regexp.MatchString(full, to)
+		if err != nil {
+			utils.Log(logrus.ErrorLevel, fmt.Sprintf("Error matching regexp %s against %s: %v", full, to, err))
+			return nil, err
+		}
+		if valid {
+			utils.Log(logrus.InfoLevel, fmt.Sprintf("found matching route for prefix %s, fullLen: %d", full, len(full)))
+			fullLen := len(full)
 
-				if longestMatch == nil || fullLen >= *longestMatch {
-					provider := model.RoutableProvider{
-						Provider:   id,
-						Rate:       rate,
-						DialPrefix: dialPrefix}
-					routableProviders = append(routableProviders, &provider)
-				}
-				if (longestMatch == nil || fullLen >= *longestMatch) && (lowestRate == nil || rate < *lowestRate) {
-					lowestProviderId = &id
-					lowestRate = &rate
-					lowestDialPrefix = &dialPrefix
-					longestMatch = &fullLen
-				}
+			if longestMatch == nil || fullLen >= *longestMatch {
+				provider := model.RoutableProvider{
+					Provider:   id,
+					Rate:       rate,
+					DialPrefix: dialPrefix}
+				routableProviders = append(routableProviders, &provider)
+				utils.Log(logrus.DebugLevel, fmt.Sprintf("Added routable provider: id=%d, rate=%f, dialPrefix=%s", id, rate, dialPrefix))
+			}
+			if (longestMatch == nil || fullLen >= *longestMatch) && (lowestRate == nil || rate < *lowestRate) {
+				lowestProviderId = &id
+				lowestRate = &rate
+				lowestDialPrefix = &dialPrefix
+				longestMatch = &fullLen
+				utils.Log(logrus.InfoLevel, fmt.Sprintf("Updated lowest rate: provider=%d, rate=%f, dialPrefix=%s, matchLen=%d", *lowestProviderId, *lowestRate, *lowestDialPrefix, *longestMatch))
 			}
 		}
 	}
@@ -541,7 +538,9 @@ func (us *UserStore) GetDIDAcceptOption(did string) ([]byte, error) {
 
 	row = us.db.QueryRow(`SELECT did_action FROM byo_did_numbers WHERE byo_did_numbers.number = ?`, did)
 	err = row.Scan(&action)
-	utils.Log(logrus.InfoLevel, "err check is "+err.Error())
+	if err != nil {
+		utils.Log(logrus.InfoLevel, "err check is "+err.Error())
+	}
 	if err == nil {
 		return []byte(action), nil
 	}

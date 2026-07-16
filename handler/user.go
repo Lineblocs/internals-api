@@ -244,23 +244,30 @@ func (h *Handler) GetPSTNProviderIP(c echo.Context) error {
 	from := c.QueryParam("from")
 	to := c.QueryParam("to")
 	domain := c.QueryParam("domain")
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("GetPSTNProviderIP - from: %s, to: %s, domain: %s", from, to, domain))
 	//ru := c.QueryParam("ru")
 	workspace, err := h.callStore.GetWorkspaceByDomain(domain)
 	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("GetPSTNProviderIP - GetWorkspaceByDomain failed for domain: %s, error: %v", domain, err))
 		return utils.HandleInternalErr("GetPSTNProviderIP error", err, c)
 	}
+	utils.Log(logrus.InfoLevel, fmt.Sprintf("GetPSTNProviderIP - workspace found, BYOEnabled: %v", workspace.BYOEnabled))
 
 	// If BYOEnabled GetBYOPSTNProvider else BestPSTNProvider
 	if workspace.BYOEnabled {
+		utils.Log(logrus.InfoLevel, fmt.Sprintf("GetPSTNProviderIP - using BYO provider for workspace: %s", workspace.Id))
 		info, err := h.userStore.GetBYOPSTNProvider(from, to, workspace.Id)
 		if err != nil {
+			utils.Log(logrus.ErrorLevel, fmt.Sprintf("GetPSTNProviderIP - GetBYOPSTNProvider failed, error: %v", err))
 			return utils.HandleInternalErr("GetPSTNProviderIP error", err, c)
 		}
 		return c.JSON(http.StatusOK, &info)
 	}
 
+	utils.Log(logrus.InfoLevel, "GetPSTNProviderIP - using best PSTN provider")
 	info, err := h.userStore.GetBestPSTNProvider(from, to)
 	if err != nil {
+		utils.Log(logrus.ErrorLevel, fmt.Sprintf("GetPSTNProviderIP - GetBestPSTNProvider failed, error: %v", err))
 		return utils.HandleInternalErr("getPSTNProviderIp error 1 ", err, c)
 	}
 
