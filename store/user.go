@@ -352,8 +352,8 @@ func (us *UserStore) GetBestPSTNProvider(from, to string) (*model.PSTNInfo, erro
 	results, err := us.db.Query(`SELECT sip_providers.id, sip_providers.dial_prefix, sip_providers.name, sip_providers_rates.rate_ref_id, sip_providers_rates.rate
 		FROM sip_providers
 		INNER JOIN sip_providers_rates ON sip_providers_rates.provider_id = sip_providers.id
-		WHERE (sip_providers.type_of_provider = 'outbound'
-		OR sip_providers.type_of_provider = 'both')
+		WHERE (sip_providers.type_of_provider = 'OUTBOUND'
+		OR sip_providers.type_of_provider = 'BOTH')
 		AND sip_providers.active = 1`)
 	if err != nil {
 		return nil, err

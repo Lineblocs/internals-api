@@ -1,73 +1,119 @@
 package handler
 
 import (
-	"context"
-	"encoding/json"
-	"net/http"
-	"os"
-	"strconv"
-	"time"
-	"errors"
+    "context"
+    "encoding/json"
+    "net/http"
+    "os"
+    "strconv"
+    "time"
+    "errors"
 
-	"github.com/labstack/echo/v4"
-	"github.com/sirupsen/logrus"
-	"lineblocs.com/api/model"
-	"lineblocs.com/api/utils"
-	helpers "github.com/Lineblocs/go-helpers"
-	amqp "github.com/rabbitmq/amqp091-go"
+    "github.com/labstack/echo/v4"
+    "github.com/sirupsen/logrus"
+    "lineblocs.com/api/model"
+    "lineblocs.com/api/utils"
+    helpers "github.com/Lineblocs/go-helpers"
+    amqp "github.com/rabbitmq/amqp091-go"
 )
 
 type CallActivityTask struct {
-	RunID       string `json:"run_id"`
-	EventType   string `json:"event_type"`
-	From        string `json:"from"`
-	To          string `json:"to"`
-	WorkspaceID string `json:"workspace_id"`
-	Description string `json:"description"`
+    RunID       string `json:"run_id"`
+    EventType   string `json:"event_type"`
+    From        string `json:"from"`
+    To          string `json:"to"`
+    WorkspaceID string `json:"workspace_id"`
+    Description string `json:"description"`
+}
+
+type BalanceCheck struct {
+    WorkspaceID int       `json:"workspaceid"`
+    Source      string    `json:"source"`
+    CreatedAt   time.Time `json:"createdat"`
 }
 
 
 func (h *Handler) publishCallEventToQueue(eventType string, call *model.Call) error {
-	conn, err := amqp.Dial(os.Getenv("QUEUE_URL"))
-	if err != nil {
-		utils.Log(logrus.ErrorLevel, "RabbitMQ connection failed: "+err.Error())
-		return err
-	}
-	defer conn.Close()
+    conn, err := amqp.Dial(os.Getenv("QUEUE_URL"))
+    if err != nil {
+        utils.Log(logrus.ErrorLevel, "RabbitMQ connection failed: "+err.Error())
+        return err
+    }
+    defer conn.Close()
 
-	ch, err := conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer ch.Close()
+    ch, err := conn.Channel()
+    if err != nil {
+        return err
+    }
+    defer ch.Close()
 
-	ch.Confirm(false)
-	q, err := ch.QueueDeclare("call_activity", true, false, false, false, nil)
-	if err != nil {
-		return err
-	}
+    ch.Confirm(false)
+    q, err := ch.QueueDeclare("call_activity", true, false, false, false, nil)
+    if err != nil {
+        return err
+    }
 
 
-	task := CallActivityTask{
-		RunID:       strconv.Itoa(call.Id),
-		EventType:   eventType,
-		From:        call.From,
-		To:          call.To,
-		WorkspaceID: strconv.Itoa(call.WorkspaceId),
-	}
+    task := CallActivityTask{
+        RunID:       strconv.Itoa(call.Id),
+        EventType:   eventType,
+        From:        call.From,
+        To:          call.To,
+        WorkspaceID: strconv.Itoa(call.WorkspaceId),
+    }
 
-	body, _ := json.Marshal(task)
-	err = ch.PublishWithContext(context.Background(), "", q.Name, false, false, amqp.Publishing{
-		DeliveryMode: amqp.Persistent,
-		ContentType:  "application/json",
-		Body:         body,
-	})
+    body, _ := json.Marshal(task)
+    err = ch.PublishWithContext(context.Background(), "", q.Name, false, false, amqp.Publishing{
+        DeliveryMode: amqp.Persistent,
+        ContentType:  "application/json",
+        Body:         body,
+    })
 
-	if err != nil {
-		return err
-	}
+    if err != nil {
+        return err
+    }
 
-	return nil
+    return nil
+}
+
+func (h *Handler) publishBalanceCheck(workspaceID int) error {
+    conn, err := amqp.Dial(os.Getenv("QUEUE_URL"))
+    if err != nil {
+        utils.Log(logrus.ErrorLevel, "RabbitMQ connection failed: "+err.Error())
+        return err
+    }
+    defer conn.Close()
+
+    ch, err := conn.Channel()
+    if err != nil {
+        return err
+    }
+    defer ch.Close()
+
+    ch.Confirm(false)
+    q, err := ch.QueueDeclare("alerting_queue", true, false, false, false, nil)
+    if err != nil {
+        return err
+    }
+
+    alert := BalanceCheck{
+        WorkspaceID: workspaceID,
+        Source:      "CALL",
+        CreatedAt:   time.Now(),
+    }
+
+    body, _ := json.Marshal(alert)
+    err = ch.PublishWithContext(context.Background(), "", q.Name, false, false, amqp.Publishing{
+        DeliveryMode: amqp.Persistent,
+        ContentType:  "application/json",
+        Body:         body,
+    })
+
+    if err != nil {
+        return err
+    }
+
+    return nil
 }
 
 /*
@@ -76,83 +122,83 @@ Todo : Create new call and store to db
 Output: If success return created Call model with callid in header else return err
 */
 func (h *Handler) CreateCall(c echo.Context) error {
-	utils.Log(logrus.InfoLevel, "CreateCall is called...")
+    utils.Log(logrus.InfoLevel, "CreateCall is called...")
 
-	var call model.Call
-	if err := c.Bind(&call); err != nil {
-		return utils.HandleInternalErr("CreateCall 1 Could not decode JSON", err, c)
-	}
-	if err := c.Validate(&call); err != nil {
-		return utils.HandleInternalErr("CreateCall 1 Could not decode JSON", err, c)
-	}
+    var call model.Call
+    if err := c.Bind(&call); err != nil {
+        return utils.HandleInternalErr("CreateCall 1 Could not decode JSON", err, c)
+    }
+    if err := c.Validate(&call); err != nil {
+        return utils.HandleInternalErr("CreateCall 1 Could not decode JSON", err, c)
+    }
 
-	if call.WorkspaceId == 0 {
-		return utils.HandleInternalErr("CreateCall WorkspaceId is missing", errors.New("workspace_id is required"), c)
-	}
+    if call.WorkspaceId == 0 {
+        return utils.HandleInternalErr("CreateCall WorkspaceId is missing", errors.New("workspace_id is required"), c)
+    }
 
-	canAccess, err := h.userStore.CanAccessSubscriptionFeatures(strconv.Itoa(call.WorkspaceId))
-	if err != nil {
-		return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
-	}
-	if !canAccess {
-		return utils.HandleInternalErr("CreateCall account is suspended or subscription is cancelled", errors.New("account is suspended or subscription is cancelled"), c)
-	}
+    canAccess, err := h.userStore.CanAccessSubscriptionFeatures(strconv.Itoa(call.WorkspaceId))
+    if err != nil {
+        return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
+    }
+    if !canAccess {
+        return utils.HandleInternalErr("CreateCall account is suspended or subscription is cancelled", errors.New("account is suspended or subscription is cancelled"), c)
+    }
 
-	call.APIId = utils.CreateAPIID("call")
+    call.APIId = utils.CreateAPIID("call")
 
-	if call.Direction == "OUTBOUND" {
-		// Check if this is the first time we are making a call to this destination
-		go h.callStore.ProcessUsersFirstCall(call)
+    if call.Direction == "OUTBOUND" {
+        // Check if this is the first time we are making a call to this destination
+        go h.callStore.ProcessUsersFirstCall(call)
 
-		permitted, err := h.callStore.IsCallerIdPermitted(call.WorkspaceId, call.From, call.To)
-		if err != nil {
-			utils.Log(logrus.ErrorLevel, "Failed to check caller ID permission: " + err.Error())
-			return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
-		}
+        permitted, err := h.callStore.IsCallerIdPermitted(call.WorkspaceId, call.From, call.To)
+        if err != nil {
+            utils.Log(logrus.ErrorLevel, "Failed to check caller ID permission: " + err.Error())
+            return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
+        }
 
-		if !permitted {
-			utils.Log(logrus.InfoLevel, "Caller ID " + call.From + " is not permitted for workspace " + strconv.Itoa(call.WorkspaceId))
-			err := h.publishCallEventToQueue("UNAUTHORIZED_CALLER_ID", &call)
-			if err != nil {
-				utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: " + err.Error())
-				return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
-			}
+        if !permitted {
+            utils.Log(logrus.InfoLevel, "Caller ID " + call.From + " is not permitted for workspace " + strconv.Itoa(call.WorkspaceId))
+            err := h.publishCallEventToQueue("UNAUTHORIZED_CALLER_ID", &call)
+            if err != nil {
+                utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: " + err.Error())
+                return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
+            }
 
-			err = errors.New("Using this caller ID is not permitted.")
-			return utils.HandleInternalErr("CreateCall unauthorized caller ID.", err, c)
-		}
-	}
+            err = errors.New("Using this caller ID is not permitted.")
+            return utils.HandleInternalErr("CreateCall unauthorized caller ID.", err, c)
+        }
+    }
 
-	customizations, err := helpers.GetCustomizationKVs()
-	if err != nil {
-		return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
-	}
+    customizations, err := helpers.GetCustomizationKVs()
+    if err != nil {
+        return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
+    }
 
-	allowOverage := utils.IsOverageEnabled(customizations)
+    allowOverage := utils.IsOverageEnabled(customizations)
 
-	if !allowOverage {
-		// check minutes left in plan and if user is allowed to make call
-		allowed, err := h.callStore.IsUserAllowedToMakeCall(call.WorkspaceId)
-		if err != nil {
-			return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
-		}
-		if !allowed {
-			return utils.HandlePaymentRequired("CreateCall user is not allowed to make call as they have exceeded their plan limits.", nil, c)
-		}
-	}
+    if !allowOverage {
+        // check minutes left in plan and if user is allowed to make call
+        allowed, err := h.callStore.IsUserAllowedToMakeCall(call.WorkspaceId)
+        if err != nil {
+            return utils.HandleInternalErr("CreateCall internal error in processing.", err, c)
+        }
+        if !allowed {
+            return utils.HandlePaymentRequired("CreateCall user is not allowed to make call as they have exceeded their plan limits.", nil, c)
+        }
+    }
 
-	if err != nil {
-		utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: " + err.Error())
-		return utils.HandleInternalErr("CreateCall Could not execute query", err, c)
-	}
+    if err != nil {
+        utils.Log(logrus.ErrorLevel, "Failed to publish call event to queue: " + err.Error())
+        return utils.HandleInternalErr("CreateCall Could not execute query", err, c)
+    }
 
-	callId, err := h.callStore.CreateCall(&call)
-	if err != nil {
-		return utils.HandleInternalErr("CreateCall Could not execute query", err, c)
-	}
+    callId, err := h.callStore.CreateCall(&call)
+    if err != nil {
+        return utils.HandleInternalErr("CreateCall Could not execute query", err, c)
+    }
 
-	c.Response().Writer.Header().Set("X-Call-ID", callId)
-	return c.JSON(http.StatusOK, &call)
+    c.Response().Writer.Header().Set("X-Call-ID", callId)
+    return c.JSON(http.StatusOK, &call)
 }
 
 /*
@@ -161,80 +207,77 @@ Todo : Update existing call with matching id
 Output: If success return NoContent else return err
 */
 func (h *Handler) UpdateCall(c echo.Context) error {
-	utils.Log(logrus.InfoLevel, "UpdateCall is called...")
+    utils.Log(logrus.InfoLevel, "UpdateCall is called...")
 
-	var update model.CallUpdate
-	enableBillingInCallFlow := true
+    var update model.CallUpdate
+    enableBillingInCallFlow := true
 
-	if err := c.Bind(&update); err != nil {
-		return utils.HandleInternalErr("UpdateCall 1 Could not decode JSON", err, c)
-	}
-	if err := c.Validate(&update); err != nil {
-		return utils.HandleInternalErr("UpdateCall 2 Could not decode JSON", err, c)
-	}
+    if err := c.Bind(&update); err != nil {
+        return utils.HandleInternalErr("UpdateCall 1 Could not decode JSON", err, c)
+    }
+    if err := c.Validate(&update); err != nil {
+        return utils.HandleInternalErr("UpdateCall 2 Could not decode JSON", err, c)
+    }
 
-	err := h.callStore.UpdateCall(&update)
-	if err != nil {
-		return utils.HandleInternalErr("UpdateCall Could not execute query..", err, c)
-	}
+    err := h.callStore.UpdateCall(&update)
+    if err != nil {
+        return utils.HandleInternalErr("UpdateCall Could not execute query..", err, c)
+    }
 
-	call, err := h.callStore.GetCallFromDB(update.CallId)
-	if err != nil {
-		return utils.HandleInternalErr("UpdateCall Could not fetch call from DB", err, c)
-	}
+    call, err := h.callStore.GetCallFromDB(update.CallId)
+    if err != nil {
+        return utils.HandleInternalErr("UpdateCall Could not fetch call from DB", err, c)
+    }
 
-	// Note: To use variables from the call data structure in your debit processing below, 
-	// you should update the debit initialization inside the if statement to look like this:
-	// debit := model.Debit{
-	// 	UserId:      call.UserId,
-	// 	WorkspaceId: call.WorkspaceId,
-	// 	Status:      "PAID",
-	// 	Number:      call.To, // Using 'to' as the number
-	// }
-	// Only update if status is "ENDED"
-	utils.Log(logrus.InfoLevel, "UpdateCall Processing call ID "+strconv.Itoa(call.Id)+" with status "+update.Status)
-	if update.Status == "ENDED" && enableBillingInCallFlow {
-		utils.Log(logrus.InfoLevel, "UpdateCall Processing billing for call ID "+strconv.Itoa(call.Id))
-		// Get Call Rate depends number and type
-		endedAt, err := utils.ParseDateTime(call.EndedAt)
-		if err != nil {
-			return utils.HandleInternalErr("UpdateCall Could not parse endedAt", err, c)
-		}
-		startedAt, err := utils.ParseDateTime(call.StartedAt)
-		if err != nil {
-			return utils.HandleInternalErr("UpdateCall Could not parse createdAt", err, c)
-		}
+    utils.Log(logrus.InfoLevel, "UpdateCall Processing call ID "+strconv.Itoa(call.Id)+" with status "+update.Status)
+    if update.Status == "ENDED" && enableBillingInCallFlow {
 
-		durationInSeconds := int(endedAt.Sub(startedAt).Seconds())
-		utils.Log(logrus.InfoLevel, "Call duration is "+strconv.Itoa(durationInSeconds)+" seconds for call ID "+strconv.Itoa(call.Id))
+        utils.Log(logrus.InfoLevel, "UpdateCall Processing billing for call ID "+strconv.Itoa(call.Id))
+        endedAt, err := utils.ParseDateTime(call.EndedAt)
+        if err != nil {
+            return utils.HandleInternalErr("UpdateCall Could not parse endedAt", err, c)
+        }
+        startedAt, err := utils.ParseDateTime(call.StartedAt)
+        if err != nil {
+            return utils.HandleInternalErr("UpdateCall Could not parse createdAt", err, c)
+        }
 
-		now := time.Now()
-		deduplicationKey := helpers.GenerateDeduplicationKey("CALL", now.Year(), int(now.Month()), now.Day(), call.WorkspaceId, int(call.Id))
+        durationInSeconds := int(endedAt.Sub(startedAt).Seconds())
+        utils.Log(logrus.InfoLevel, "Call duration is "+strconv.Itoa(durationInSeconds)+" seconds for call ID "+strconv.Itoa(call.Id))
 
-		debit := model.Debit{
-			UserId:      call.UserId,
-			WorkspaceId: call.WorkspaceId,
-			Status:      "PAID",
-			Number:      call.To,
-			Seconds:     durationInSeconds,
-			Source:      "CALL",
-			ModuleId:    call.Id,
-			DeduplicationKey: deduplicationKey,
-		}
+        now := time.Now()
+        deduplicationKey := helpers.GenerateDeduplicationKey("CALL", now.Year(), int(now.Month()), now.Day(), call.WorkspaceId, int(call.Id))
 
-		rate := h.callStore.LookupBestCallRate(call.From, call.To, call.Direction)
-		if rate == nil {
-			utils.Log(logrus.ErrorLevel, "UpdateCall Could not find rate for call ID "+strconv.Itoa(call.Id)+" from: "+call.From+" to: "+call.To+" direction: "+call.Direction)
-			return c.NoContent(http.StatusNotFound)
-		}
+        debit := model.Debit{
+            UserId:      call.UserId,
+            WorkspaceId: call.WorkspaceId,
+            Status:      "PAID",
+            Number:      call.To,
+            Seconds:     durationInSeconds,
+            Source:      "CALL",
+            ModuleId:    call.Id,
+            DeduplicationKey: deduplicationKey,
+        }
 
-		err = h.debitStore.CreateDebit(rate, &debit)
-		if err != nil {
-			utils.Log(logrus.ErrorLevel, "UpdateCall Could not create debit: "+err.Error())
-		}
-	}
+        rate := h.callStore.LookupBestCallRate(call.From, call.To, call.Direction)
+        if rate == nil {
+            utils.Log(logrus.ErrorLevel, "UpdateCall Could not find rate for call ID "+strconv.Itoa(call.Id)+" from: "+call.From+" to: "+call.To+" direction: "+call.Direction)
+            return c.NoContent(http.StatusNotFound)
+        }
 
-	return c.NoContent(http.StatusNoContent)
+        err = h.debitStore.CreateDebit(rate, &debit)
+        if err != nil {
+            utils.Log(logrus.ErrorLevel, "UpdateCall Could not create debit: "+err.Error())
+        }
+
+        // Send balance check event to queue
+        err = h.publishBalanceCheck(call.WorkspaceId)
+        if err != nil {
+            utils.Log(logrus.ErrorLevel, "UpdateCall Could not publish balance check event: "+err.Error())
+        }
+    }
+
+    return c.NoContent(http.StatusNoContent)
 }
 
 /*
@@ -243,20 +286,20 @@ Todo : Fetch a call with call_id
 Output: If success return Call model else return err
 */
 func (h *Handler) FetchCall(c echo.Context) error {
-	utils.Log(logrus.InfoLevel, "FetchCall is called...")
+    utils.Log(logrus.InfoLevel, "FetchCall is called...")
 
-	id := c.QueryParam("id")
-	id_int, err := strconv.Atoi(id)
-	if err != nil {
-		return utils.HandleInternalErr("FetchCall error occured", err, c)
-	}
+    id := c.QueryParam("id")
+    id_int, err := strconv.Atoi(id)
+    if err != nil {
+        return utils.HandleInternalErr("FetchCall error occured", err, c)
+    }
 
-	// Get call data from db with id
-	call, err := h.callStore.GetCallFromDB(id_int)
-	if err != nil {
-		return utils.HandleInternalErr("FetchCall error occured", err, c)
-	}
-	return c.JSON(http.StatusOK, &call)
+    // Get call data from db with id
+    call, err := h.callStore.GetCallFromDB(id_int)
+    if err != nil {
+        return utils.HandleInternalErr("FetchCall error occured", err, c)
+    }
+    return c.JSON(http.StatusOK, &call)
 }
 
 /*
@@ -265,17 +308,17 @@ Todo : Set sip_call_id field with matching id
 Output: If success return NoContent else return err
 */
 func (h *Handler) SetSIPCallID(c echo.Context) error {
-	utils.Log(logrus.InfoLevel, "SetSIPCallId is called...")
+    utils.Log(logrus.InfoLevel, "SetSIPCallId is called...")
 
-	callid := c.FormValue("callid")
-	apiid := c.FormValue("apiid")
+    callid := c.FormValue("callid")
+    apiid := c.FormValue("apiid")
 
-	utils.Log(logrus.InfoLevel, "SetSIPCallId API ID: " + apiid + " Call ID: " + callid)
-	err := h.callStore.SetSIPCallID(callid, apiid)
-	if err != nil {
-		return utils.HandleInternalErr("SetSIPCallID could not execute query..", err, c)
-	}
-	return c.NoContent(http.StatusOK)
+    utils.Log(logrus.InfoLevel, "SetSIPCallId API ID: " + apiid + " Call ID: " + callid)
+    err := h.callStore.SetSIPCallID(callid, apiid)
+    if err != nil {
+        return utils.HandleInternalErr("SetSIPCallID could not execute query..", err, c)
+    }
+    return c.NoContent(http.StatusOK)
 }
 
 /*
@@ -284,15 +327,15 @@ Todo : Update provider_id of call table with matching ip address
 Output: If success return NoContent else return err
 */
 func (h *Handler) SetProviderByIP(c echo.Context) error {
-	utils.Log(logrus.InfoLevel, "SetProviderByIP is called...")
+    utils.Log(logrus.InfoLevel, "SetProviderByIP is called...")
 
-	ip := c.FormValue("ip")
-	apiid := c.FormValue("apiid")
-	err := h.callStore.SetProviderByIP(ip, apiid)
-	if err != nil {
-		return utils.HandleInternalErr("SetProviderByID could not execute query..", err, c)
-	}
-	return c.NoContent(http.StatusOK)
+    ip := c.FormValue("ip")
+    apiid := c.FormValue("apiid")
+    err := h.callStore.SetProviderByIP(ip, apiid)
+    if err != nil {
+        return utils.HandleInternalErr("SetProviderByID could not execute query..", err, c)
+    }
+    return c.NoContent(http.StatusOK)
 }
 
 /*
@@ -301,23 +344,23 @@ Todo : Create new conference and store to db
 Output: If success return created Conference model with conferenceId in header else return err
 */
 func (h *Handler) CreateConference(c echo.Context) error {
-	utils.Log(logrus.InfoLevel, "CreateConference is called...")
+    utils.Log(logrus.InfoLevel, "CreateConference is called...")
 
-	var conference model.Conference
+    var conference model.Conference
 
-	if err := c.Bind(&conference); err != nil {
-		return utils.HandleInternalErr("CreateConference 1 Could not decode JSON", err, c)
-	}
-	if err := c.Validate(&conference); err != nil {
-		return utils.HandleInternalErr("CreateConference 2 Could not decode JSON", err, c)
-	}
+    if err := c.Bind(&conference); err != nil {
+        return utils.HandleInternalErr("CreateConference 1 Could not decode JSON", err, c)
+    }
+    if err := c.Validate(&conference); err != nil {
+        return utils.HandleInternalErr("CreateConference 2 Could not decode JSON", err, c)
+    }
 
-	conferenceId, err := h.callStore.CreateConference(&conference)
+    conferenceId, err := h.callStore.CreateConference(&conference)
 
-	if err != nil {
-		return utils.HandleInternalErr("CreateConference error occured", err, c)
-	}
+    if err != nil {
+        return utils.HandleInternalErr("CreateConference error occured", err, c)
+    }
 
-	c.Response().Writer.Header().Set("X-Conference-ID", conferenceId)
-	return c.JSON(http.StatusOK, &conference)
+    c.Response().Writer.Header().Set("X-Conference-ID", conferenceId)
+    return c.JSON(http.StatusOK, &conference)
 }
