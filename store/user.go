@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"regexp"
 	"strings"
+	"strconv"
 	"time"
 
 	"database/sql"
@@ -1242,7 +1243,27 @@ func (us *UserStore) IsSubscriptionActive(workspaceId string) (bool, error) {
 	return count > 0, nil
 }
 
+
+
 func (us *UserStore) CanAccessSubscriptionFeatures(workspaceId string) (bool, error) {
+	// Get subscription
+	workspaceIdInt, err := strconv.Atoi(workspaceId)
+	if err != nil {
+		return false, err
+	}
+
+	workspaceData, err := helpers.GetSubscriptionWithWorkspaceFromDB(workspaceIdInt)
+	if err != nil {
+		return false, err
+	}
+
+	subscription := workspaceData.Subscription
+	workspace := workspaceData.Workspace
+
+	if subscription == nil {
+		return false, nil
+	}
+
 	// Check if account is suspended
 	suspended, err := us.IsAccountSuspended(workspaceId)
 	if err != nil {
@@ -1253,8 +1274,22 @@ func (us *UserStore) CanAccessSubscriptionFeatures(workspaceId string) (bool, er
 		return false, nil
 	}
 
+	if subscription.IsPayAsYouGo {
+		billingInfo, err := helpers.GetWorkspaceBillingInfo(workspace)
+		if err != nil {
+			return false, err
+		}
+
+		remainingBalance := billingInfo.RemainingBalanceCents
+		if remainingBalance <= 0 {
+			return false, nil
+		}
+
+	}
+
 	// Check if subscription is active
-	return us.IsSubscriptionActive(workspaceId)
+	isActive := subscription.Status != "CANCELLED" && subscription.Status != "INACTIVE"
+	return isActive, nil
 }
 
 func (us *UserStore) GetTrunkSIPUri(did string) ([]byte, error) {
