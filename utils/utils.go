@@ -1,15 +1,17 @@
 package utils
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"mime/multipart"
 	"net"
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
-	"strconv"
 
 	helpers "github.com/Lineblocs/go-helpers"
 	"github.com/aws/aws-sdk-go/aws"
@@ -18,6 +20,7 @@ import (
 	guuid "github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/labstack/echo/v4"
+	"github.com/go-redis/redis/v8"
 	"github.com/sirupsen/logrus"
 	"github.com/ttacon/libphonenumber"
 	"lineblocs.com/api/model"
@@ -28,24 +31,61 @@ var log *logrus.Logger
 var microserviceName string
 var customizations *helpers.CustomizationSettings
 
+const callRateCacheTTL = 5 * time.Minute
+
+var callRateRedis = redis.NewClient(&redis.Options{
+	Addr:     ReadEnv("REDIS_ADDR", "localhost:6379"),
+	Password: os.Getenv("REDIS_PASSWORD"),
+	DB:       func() int { db, _ := strconv.Atoi(ReadEnv("REDIS_DB", "0")); return db }(),
+})
+
+func cachedCallRate(key string, loader func() *model.CallRate) *model.CallRate {
+	ctx := context.Background()
+	cacheKey := "call-rate:" + key
+	if value, err := callRateRedis.Get(ctx, cacheKey).Bytes(); err == nil {
+		var rate model.CallRate
+		if json.Unmarshal(value, &rate) == nil {
+			return &rate
+		}
+	}
+
+	rate := loader()
+	if rate == nil {
+		return nil
+	}
+
+	if value, err := json.Marshal(rate); err == nil {
+		if err := callRateRedis.Set(ctx, cacheKey, value, callRateCacheTTL).Err(); err != nil {
+			Log(logrus.WarnLevel, "failed to cache call rate in Redis: "+err.Error())
+		}
+	}
+
+	return rate
+}
+
 func CreateAPIID(prefix string) string {
 	id := guuid.New()
 	return prefix + "-" + id.String()
 }
 
 func LookupBestCallRate(number string, callDirection string) *model.CallRate {
-	return &model.CallRate{CallRate: 0.0140}
+	key := "number:" + number + ":direction:" + callDirection
+	return cachedCallRate(key, func() *model.CallRate {
+		return &model.CallRate{CallRate: 0.0140}
+	})
 }
 
 func LookupBestCallRate2(from string, to string, callDirection string) *model.CallRate {
-	// TODO: implement logic to lookup best call rate based on from, to and call direction. for now return hardcoded values
-	if callDirection == "OUTBOUND" {
-		return &model.CallRate{CallRate: 0.0140}
-	} else if callDirection == "INBOUND" {
-		return &model.CallRate{CallRate: 0.0050}
-	}
-
-	return nil
+	key := "from:" + from + ":to:" + to + ":direction:" + callDirection
+	return cachedCallRate(key, func() *model.CallRate {
+		// TODO: replace these fallback values with the call-rate data source.
+		if callDirection == "OUTBOUND" {
+			return &model.CallRate{CallRate: 0.0140}
+		} else if callDirection == "INBOUND" {
+			return &model.CallRate{CallRate: 0.0050}
+		}
+		return nil
+	})
 }
 
 func CalculateCallDuration(start *time.Time) int {

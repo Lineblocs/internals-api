@@ -32,6 +32,12 @@ type BalanceCheck struct {
     CreatedAt   time.Time `json:"createdat"`
 }
 
+type CallFraudTask struct {
+    WorkspaceID               int       `json:"workspace_id"`
+    StartDatetimeOfFraudCheck time.Time `json:"start_datetime_of_fraud_check"`
+    AccountRiskLevel          string    `json:"account_risk_level"`
+}
+
 
 func (h *Handler) publishCallEventToQueue(eventType string, call *model.Call) error {
     conn, err := amqp.Dial(os.Getenv("QUEUE_URL"))
@@ -103,6 +109,46 @@ func (h *Handler) publishBalanceCheck(workspaceID int) error {
     }
 
     body, _ := json.Marshal(alert)
+    err = ch.PublishWithContext(context.Background(), "", q.Name, false, false, amqp.Publishing{
+        DeliveryMode: amqp.Persistent,
+        ContentType:  "application/json",
+        Body:         body,
+    })
+
+    if err != nil {
+        return err
+    }
+
+    return nil
+}
+
+func (h *Handler) publishCallFraudCheck(workspaceID int, accountRiskLevel string) error {
+    conn, err := amqp.Dial(os.Getenv("QUEUE_URL"))
+    if err != nil {
+        utils.Log(logrus.ErrorLevel, "RabbitMQ connection failed: "+err.Error())
+        return err
+    }
+    defer conn.Close()
+
+    ch, err := conn.Channel()
+    if err != nil {
+        return err
+    }
+    defer ch.Close()
+
+    ch.Confirm(false)
+    q, err := ch.QueueDeclare("workspace_call_fraud", true, false, false, false, nil)
+    if err != nil {
+        return err
+    }
+
+    task := CallFraudTask{
+        WorkspaceID:               workspaceID,
+        StartDatetimeOfFraudCheck: time.Now(),
+        AccountRiskLevel:          accountRiskLevel,
+    }
+
+    body, _ := json.Marshal(task)
     err = ch.PublishWithContext(context.Background(), "", q.Name, false, false, amqp.Publishing{
         DeliveryMode: amqp.Persistent,
         ContentType:  "application/json",

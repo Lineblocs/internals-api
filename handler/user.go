@@ -1,17 +1,39 @@
 package handler
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"fmt"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/go-redis/redis/v8"
 	"github.com/labstack/echo/v4"
 	"github.com/sirupsen/logrus"
 	"lineblocs.com/api/model"
 	"lineblocs.com/api/utils"
 )
+
+const assignedIPCacheTTL = 15 * time.Minute
+
+var assignedIPRedis = redis.NewClient(&redis.Options{
+	Addr:     utils.ReadEnv("REDIS_ADDR", "localhost:6379"),
+	Password: utils.ReadEnv("REDIS_PASSWORD", ""),
+	DB:       func() int { db, _ := strconv.Atoi(utils.ReadEnv("REDIS_DB", "0")); return db }(),
+})
+
+func getAssignedIPCache(key string) (string, bool) {
+	value, err := assignedIPRedis.Get(context.Background(), "assigned-ip:"+key).Result()
+	return value, err == nil
+}
+
+func setAssignedIPCache(key, ip string) {
+	if err := assignedIPRedis.Set(context.Background(), "assigned-ip:"+key, ip, assignedIPCacheTTL).Err(); err != nil {
+		utils.Log(logrus.WarnLevel, "failed to cache assigned IP in Redis: "+err.Error())
+	}
+}
 
 /*
 Input: workspace_id, number
@@ -356,6 +378,9 @@ Output: If success return PrivateIpAddress else return err
 */
 func (h *Handler) GetDIDAssignedIP(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "GetDIDAssignedIP is called...")
+	if ip, ok := getAssignedIPCache("did"); ok {
+		return c.JSONBlob(http.StatusOK, []byte(ip))
+	}
 
 	server, err := utils.GetDIDRoutedServer2(false)
 	if err != nil {
@@ -371,6 +396,7 @@ func (h *Handler) GetDIDAssignedIP(c echo.Context) error {
 	if !canPlace {
 		return c.NoContent(http.StatusConflict)
 	}
+	setAssignedIPCache("did", server.PrivateIpAddress)
 	return c.JSONBlob(http.StatusOK, []byte(server.PrivateIpAddress))
 }
 
@@ -397,6 +423,10 @@ func (h *Handler) GetUserAssignedIP(c echo.Context) error {
 
 	domain := c.QueryParam("domain")
 	routerip := c.QueryParam("routerip")
+	cacheKey := fmt.Sprintf("user:%t:%s:%s", rtcOptimized, domain, routerip)
+	if ip, ok := getAssignedIPCache(cacheKey); ok {
+		return c.JSONBlob(http.StatusOK, []byte(ip))
+	}
 	utils.Log(logrus.InfoLevel, "Finding server for domain "+domain+"..\r\n")
 	utils.Log(logrus.InfoLevel, "Router IP is "+routerip+"..\r\n")
 	//ru := c.QueryParam("ru")
@@ -414,6 +444,7 @@ func (h *Handler) GetUserAssignedIP(c echo.Context) error {
 		return utils.HandleInternalErr("GetUserAssignedIP could not get server", err, c)
 	}
 	utils.Log(logrus.InfoLevel, "Found server "+server.PrivateIpAddress+"..\r\n")
+	setAssignedIPCache(cacheKey, server.PrivateIpAddress)
 	return c.JSONBlob(http.StatusOK, []byte(server.PrivateIpAddress))
 }
 
@@ -424,6 +455,9 @@ Output: If success return PrivateIpAddress else return err
 */
 func (h *Handler) GetTrunkAssignedIP(c echo.Context) error {
 	utils.Log(logrus.InfoLevel, "GetTrunkAssignedIP is called...")
+	if ip, ok := getAssignedIPCache("trunk"); ok {
+		return c.JSONBlob(http.StatusOK, []byte(ip))
+	}
 
 	server, err := utils.GetDIDRoutedServer2(false)
 	if err != nil {
@@ -432,6 +466,7 @@ func (h *Handler) GetTrunkAssignedIP(c echo.Context) error {
 	if server == nil {
 		return utils.HandleInternalErr("GetUserAssignedIP could not get server", err, c)
 	}
+	setAssignedIPCache("trunk", server.PrivateIpAddress)
 	return c.JSONBlob(http.StatusOK, []byte(server.PrivateIpAddress))
 }
 
